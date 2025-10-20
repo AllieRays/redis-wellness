@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis Health Chat</title>
+  </head>
+  <body>
+    <div id="app">
+      <div class="container">
+        <div class="header">
+          <h1>🏥 Health Wellness Chat Demo</h1>
+          <p>Compare Stateless vs Redis-powered conversations</p>
+          <div class="status">
+            <span class="status-badge" id="redis-status">Redis: Checking...</span>
+            <span class="status-badge" id="ollama-status">Ollama: Checking...</span>
+          </div>
+        </div>
+
+        <div class="chat-container">
+          <!-- Stateless Chat -->
+          <div class="chat-panel">
+            <div class="chat-header">
+              <h2>💬 Stateless Chat</h2>
+              <p>No conversation memory - each message is independent</p>
+            </div>
+            <div class="chat-area" id="stateless-chat-area">
+              <div class="message assistant">
+                <div class="message-content">
+                  👋 Hi! I'm a stateless AI assistant. I don't remember previous messages.
+                </div>
+              </div>
+            </div>
+            <div class="input-area">
+              <form class="input-form" id="stateless-chat-form">
+                <input
+                  type="text"
+                  id="stateless-message-input"
+                  placeholder="Ask me anything (no memory)..."
+                  autocomplete="off"
+                />
+                <button type="submit" id="stateless-send-button">Send</button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Redis Chat -->
+          <div class="chat-panel">
+            <div class="chat-header">
+              <h2>🧠 Redis Chat</h2>
+              <p>Full conversation memory with RedisVL</p>
+            </div>
+            <div class="chat-area" id="redis-chat-area">
+              <div class="message assistant">
+                <div class="message-content">
+                  👋 Hi! I'm your Redis-powered assistant. I remember our entire conversation!
+                </div>
+              </div>
+            </div>
+            <div class="input-area">
+              <form class="input-form" id="redis-chat-form">
+                <input
+                  type="text"
+                  id="redis-message-input"
+                  placeholder="Ask me anything (I remember)..."
+                  autocomplete="off"
+                />
+                <button type="submit" id="redis-send-button">Send</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
