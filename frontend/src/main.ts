@@ -2,7 +2,7 @@ import './style.css';
 import { api } from './api';
 import type { Message } from './types';
 
-const redisSessionId: string = 'demo-session';
+const redisSessionId: string = `real-health-${Date.now()}`;
 
 // DOM Elements
 const statelessChatArea = document.getElementById(
@@ -59,11 +59,53 @@ async function checkHealth(): Promise<void> {
 function addMessage(
   chatArea: HTMLDivElement,
   role: Message['role'],
-  content: string
+  content: string,
+  metadata?: {
+    tools_used?: Array<{ name: string; args: Record<string, unknown> }>;
+    memory_stats?: {
+      short_term_available: boolean;
+      semantic_hits: number;
+      long_term_available: boolean;
+    };
+  }
 ): void {
   const messageDiv = document.createElement('div');
   messageDiv.className = `message ${role}`;
-  messageDiv.innerHTML = `<div class="message-content">${escapeHtml(content)}</div>`;
+
+  let metadataHtml = '';
+
+  // Add memory stats for Redis chat
+  if (role === 'assistant' && metadata?.memory_stats) {
+    const stats = metadata.memory_stats;
+    const memoryIndicators = [];
+
+    if (stats.short_term_available) {
+      memoryIndicators.push('<span class="memory-badge">📝 Short-term memory</span>');
+    }
+    if (stats.semantic_hits > 0) {
+      memoryIndicators.push(
+        `<span class="memory-badge semantic">🧠 ${stats.semantic_hits} semantic memories</span>`
+      );
+    }
+
+    if (memoryIndicators.length > 0) {
+      metadataHtml = `<div class="message-metadata">${memoryIndicators.join(' ')}</div>`;
+    }
+  }
+
+  // Add tools used for Redis chat
+  if (role === 'assistant' && metadata?.tools_used && metadata.tools_used.length > 0) {
+    const toolsList = metadata.tools_used
+      .map(tool => `<span class="tool-badge">🔧 ${tool.name}</span>`)
+      .join(' ');
+    metadataHtml += `<div class="message-metadata tools-used">${toolsList}</div>`;
+  }
+
+  messageDiv.innerHTML = `
+    <div class="message-content">${renderMarkdown(content)}</div>
+    ${metadataHtml}
+  `;
+
   chatArea.appendChild(messageDiv);
   chatArea.scrollTop = chatArea.scrollHeight;
 }
@@ -73,6 +115,33 @@ function escapeHtml(text: string): string {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// Simple markdown renderer for chat messages
+function renderMarkdown(text: string): string {
+  // First escape HTML to prevent XSS
+  let html = escapeHtml(text);
+
+  // Convert markdown formatting
+  // Bold text: *text* or **text**
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*([^*]+)\*/g, '<strong>$1</strong>');
+
+  // Convert numbered lists - put each number on its own line
+  html = html.replace(/(\d+)\. /g, '<br>$1. ');
+
+  // Convert bullet points
+  html = html.replace(/• /g, '<br>• ');
+  html = html.replace(/- /g, '<br>• ');
+
+  // Convert line breaks
+  html = html.replace(/\n\n/g, '<br><br>');
+  html = html.replace(/\n/g, '<br>');
+
+  // Clean up extra breaks at the beginning
+  html = html.replace(/^<br>/, '');
+
+  return html;
 }
 
 // Show loading indicator
@@ -134,7 +203,10 @@ async function sendRedisMessage(message: string): Promise<void> {
     });
 
     removeLoading(redisChatArea, loadingDiv);
-    addMessage(redisChatArea, 'assistant', data.response);
+    addMessage(redisChatArea, 'assistant', data.response, {
+      tools_used: data.tools_used,
+      memory_stats: data.memory_stats,
+    });
   } catch (error) {
     console.error('Error sending Redis message:', error);
     removeLoading(redisChatArea, loadingDiv);

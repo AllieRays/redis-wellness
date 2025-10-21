@@ -42,8 +42,8 @@ fi
 
 # Start the application
 echo "🚀 Starting FastAPI application..."
-echo "📍 Web UI: http://localhost:8000/static/index.html"
+echo "📍 Frontend UI: http://localhost:3000"
 echo "📖 API Docs: http://localhost:8000/docs"
 echo ""
 
-uv run python -m src.main
+uv run python -m backend.src.main

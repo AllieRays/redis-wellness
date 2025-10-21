@@ -2,44 +2,64 @@
 
 > Why memory matters for personalized private wellness conversations using Redis, health data, and local AI
 
-A privacy-first wellness application demonstrating how Redis provides conversational memory for AI-powered health insights. Built with FastAPI, Redis, and local LLMs (Ollama) - your health data never leaves your machine.
+A **side-by-side demo** comparing **stateless chat** vs. **agentic RAG chat** powered by Redis and RedisVL. Built with FastAPI, LangGraph, and local LLMs (Ollama) - your health data never leaves your machine.
 
-## 🎯 Why This Matters
+## 🎯 The Demo: Stateless vs. Memory-Powered Chat
 
-Most chat applications are stateless - they forget everything between sessions. This project shows how Redis transforms simple chat into an intelligent, context-aware conversation by:
+This project demonstrates the transformative power of memory in AI conversations through a live comparison:
 
-- **Remembering past conversations** - Reference previous discussions naturally
-- **Accessing health context** - Connect your current question with historical health data
-- **Building relationships** - Track patterns and provide personalized insights over time
+### Stateless Chat (No Memory)
+- ❌ Forgets context between messages
+- ❌ Can't answer follow-up questions
+- ❌ Repeats the same information
+- ❌ No conversation continuity
+
+### Agentic RAG Chat (Redis + RedisVL)
+- ✅ Remembers entire conversation history
+- ✅ Understands pronouns and references ("it", "that", "then")
+- ✅ Semantic memory with vector search
+- ✅ Context-aware, personalized responses
+- ✅ LangGraph agentic tool calling
 
 ## 🏗️ Architecture
 
 ```
                            Docker Network
-┌──────────────────────────────────────────────┐
-│                                                              │
-│  Frontend (TS+Vite) ────→ Backend (FastAPI) ───→ Redis  │
+┌──────────────────────────────────────────────────────────┐
+│                                                           │
+│  Frontend (TS+Vite) ────→ Backend (FastAPI) ───→ Redis   │
 │       :3000                    :8000             :6379    │
-│                                  ↓                       │
+│                                  ↓                        │
+│                         LangGraph Agent                   │
+│                              ↓                            │
 │                           Ollama (Host)                   │
-│                              :11434                        │
-└──────────────────────────────────────────────┘
+│                              :11434                       │
+└───────────────────────────────────────────────────────────┘
 
-Redis stores:
-- Conversation history
-- Health data cache
-- Session management
+Redis/RedisVL stores:
+- Short-term memory (conversation history)
+- Long-term memory (semantic vector search)
+- Health data cache (7-month TTL)
 ```
 
-## ✨ Features
+## ✨ Key Features
 
-- **Fully Dockerized**: One command to start everything
-- **Private by default**: All data stays local (Redis + Ollama)
-- **Conversational memory**: Redis stores and retrieves conversation context
-- **TypeScript frontend**: Type-safe, modern UI with Vite
-- **FastAPI backend**: Python async API with automatic docs
-- **Health data integration**: Import Apple Health XML exports
-- **No API costs**: Uses free, local Ollama LLMs
+### Agentic RAG with LangGraph
+- **LangGraph workflow**: Stateful agent with tool calling
+- **3 specialized tools**: Health data retrieval, aggregation, workouts
+- **Qwen 2.5 7B**: Optimized local LLM for tool calling
+- **Query classification**: Intelligent tool routing layer
+
+### Dual Memory System (RedisVL)
+- **Short-term memory**: Recent conversation (Redis LIST)
+- **Long-term memory**: Semantic search (RedisVL HNSW index)
+- **Vector embeddings**: `mxbai-embed-large` for semantic retrieval
+- **7-month TTL**: Persistent health context
+
+### Privacy-First
+- **100% local**: Ollama LLM + Redis on your machine
+- **Zero cloud APIs**: No data leaves your environment
+- **Apple Health integration**: Import your own XML exports
 
 ## 🚀 Quick Start
 
@@ -48,19 +68,20 @@ Redis stores:
 1. **Docker & Docker Compose** - For running all services
 2. **Ollama** - For local LLM inference (runs on host)
 
-### Install Ollama
+### Install Ollama & Models
 
 ```bash
-# macOS
+# Install Ollama (macOS)
 brew install ollama
 
 # Or download from https://ollama.ai
 
-# Start Ollama
+# Start Ollama service
 ollama serve
 
-# In another terminal, pull a model
-ollama pull llama3.1
+# In another terminal, pull the models
+ollama pull qwen2.5:7b              # Main LLM (4.7 GB)
+ollama pull mxbai-embed-large       # Embeddings (669 MB)
 ```
 
 ### Start Everything
@@ -68,6 +89,7 @@ ollama pull llama3.1
 **Option 1: Use the start script (recommended)**
 
 ```bash
+chmod +x start.sh
 ./start.sh
 ```
 
@@ -83,211 +105,215 @@ docker-compose up --build
 - **Backend API Docs**: http://localhost:8000/docs
 - **RedisInsight**: http://localhost:8001
 
-## 📊 Loading Health Data
+## 📊 Try the Demo
 
-### Export from Apple Health
+### 1. Load Health Data
 
-1. Open Health app on iPhone
-2. Tap your profile picture
-3. Scroll down → "Export All Health Data"
-4. Save and transfer `export.xml` to your computer
-
-### Upload via API
+Export from Apple Health (or use sample data):
 
 ```bash
+# Upload your Apple Health export.xml
 curl -X POST http://localhost:8000/api/health/upload \
   -F "file=@export.xml"
 ```
 
-Or use the API docs at `http://localhost:8000/docs`
+### 2. Compare Stateless vs. RAG Chat
 
-## 🧪 Try It Out
+#### Test Scenario: Follow-up Questions
 
-Once everything is running, try these example conversations:
+**Stateless Chat** (`POST /api/chat/stateless`):
+```
+You: "What was my average heart rate last week?"
+Bot: "87 bpm"
 
-1. **"What's my average heart rate this week?"**
-   - Shows how Redis retrieves and aggregates health data
+You: "Is that good?"
+Bot: ❌ "What are you referring to?" (forgot context!)
+```
 
-2. **"How did I sleep last night?"**
-   - Demonstrates accessing time-series health metrics
+**RAG Chat** (`POST /api/chat/redis`):
+```
+You: "What was my average heart rate last week?"
+Bot: "87 bpm"
 
-3. **Follow up: "Has it improved from last week?"**
-   - Memory in action - the AI remembers what "it" refers to
+You: "Is that good?"
+Bot: ✅ "87 bpm is within normal range..." (remembers "that" = heart rate!)
+```
 
-4. **Start a new session, then ask: "What did we discuss last time?"**
-   - Shows cross-session memory persistence
+#### Test Scenario: Pronoun Resolution
 
-## 🔧 Development
+**Stateless**:
+```
+You: "When did I last work out?"
+Bot: "2 days ago - Running, 30 minutes"
 
-### Project Structure
+You: "What was my heart rate during that?"
+Bot: ❌ "During what?" (no memory!)
+```
+
+**RAG Chat**:
+```
+You: "When did I last work out?"
+Bot: "2 days ago - Running, 30 minutes"
+
+You: "What was my heart rate during that?"
+Bot: ✅ "During your run 2 days ago, average was 145 bpm" (remembers context!)
+```
+
+### 3. Try Agentic Tool Calling
+
+The RAG agent intelligently selects tools:
+
+```bash
+# Aggregation query → calls aggregate_metrics tool
+curl -X POST http://localhost:8000/api/chat/redis \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What was my AVERAGE heart rate last week?"}'
+
+# Retrieval query → calls search_health_records_by_metric tool
+curl -X POST http://localhost:8000/api/chat/redis \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Show me my weight in September"}'
+
+# Workout query → calls search_workouts_and_activity tool
+curl -X POST http://localhost:8000/api/chat/redis \
+  -H "Content-Type: application/json" \
+  -d '{"message": "When did I last work out?"}'
+```
+
+## 🧠 How Memory Works
+
+### Short-Term Memory (Conversation History)
+
+Recent messages stored in Redis LIST:
+
+```python
+conversation:{session_id} → [msg1, msg2, msg3...]
+TTL: 7 months
+```
+
+- Last 10 messages retrieved for context
+- Enables pronoun resolution ("it", "that")
+- Maintains conversation flow
+
+### Long-Term Memory (Semantic Search)
+
+Important insights stored in RedisVL vector index:
+
+```python
+# Vector embedding stored
+memory:{user_id}:{timestamp} → {
+    "text": "User's BMI goal is 22",
+    "embedding": [0.234, -0.123, ...],  # 1024 dimensions
+    "metadata": {...}
+}
+```
+
+- Semantic search via HNSW index
+- Retrieves relevant past conversations
+- Powers contextual recall
+
+### Tool Calling with Query Classification
+
+1. **Query Analysis**: Classify intent (aggregation/retrieval/workout)
+2. **Tool Filtering**: Pre-select relevant tools (reduces LLM confusion)
+3. **Tool Execution**: LangGraph orchestrates multi-step workflows
+4. **Memory Update**: Store results in semantic memory
+
+## 🔧 Project Structure
 
 ```
 .
-├── backend/              # FastAPI application
+├── backend/
 │   ├── src/
-│   │   ├── main.py      # FastAPI app
-│   │   ├── api/         # API routes
-│   │   ├── models/      # Pydantic schemas
-│   │   ├── services/    # Redis & Ollama services
-│   │   └── parsers/     # Apple Health XML parser
+│   │   ├── agents/
+│   │   │   ├── health_rag_agent.py      # LangGraph agentic workflow
+│   │   │   ├── query_classifier.py      # Tool routing layer
+│   │   │   ├── tool_wrappers.py         # Health data tools
+│   │   │   └── memory_manager.py        # RedisVL dual memory
+│   │   ├── api/
+│   │   │   ├── chat_routes.py           # Stateless vs. Redis comparison
+│   │   │   └── agent_routes.py          # Direct tool endpoints
+│   │   ├── services/
+│   │   │   ├── redis_chat.py            # RAG chat service
+│   │   │   └── stateless_chat.py        # No-memory baseline
+│   │   └── parsers/
+│   │       └── apple_health_parser.py   # XML parsing
 │   ├── Dockerfile
 │   └── pyproject.toml
 │
-├── frontend/             # TypeScript + Vite
+├── frontend/
 │   ├── src/
-│   │   ├── main.ts      # Application logic
-│   │   ├── api.ts       # Backend API client
-│   │   ├── types.ts     # TypeScript types
-│   │   └── style.css    # UI styles
+│   │   ├── main.ts                      # Chat UI
+│   │   ├── api.ts                       # Backend client
+│   │   └── style.css
 │   ├── Dockerfile
-│   ├── nginx.conf
 │   └── package.json
 │
-├── docker-compose.yml    # Orchestrates all services
-└── start.sh              # Quick start script
+├── docs/
+│   ├── QWEN_TOOL_CALLING_IMPLEMENTATION_PLAN.md
+│   └── INTELLIGENT_HEALTH_TOOLS_PLAN.md
+│
+├── docker-compose.yml
+└── start.sh
 ```
 
-### Start Script
+## 📚 API Endpoints
 
-The `start.sh` script provides a convenient way to start all services:
+### Chat Endpoints (The Demo!)
 
-```bash
-#!/bin/bash
+- `POST /api/chat/stateless` - Stateless chat (no memory)
+- `POST /api/chat/redis` - RAG chat (full memory)
+- `GET /api/chat/history/{session_id}` - View conversation history
+- `GET /api/chat/memory/{session_id}` - Memory statistics
+- `DELETE /api/chat/session/{session_id}` - Clear session
 
-echo "🏭 Starting Redis Wellness..."
-echo ""
+### Demo Comparison Endpoint
 
-# Check if Docker is running
-if ! docker info > /dev/null 2>&1; then
-    echo "❌ Docker is not running. Please start Docker Desktop."
-    exit 1
-fi
+- `GET /api/chat/demo/info` - Get full demo documentation
 
-# Check if Ollama is running
-if ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
-    echo "⚠️  Warning: Ollama is not running."
-    echo "   Start Ollama with: ollama serve"
-    echo "   Then pull a model: ollama pull llama3.1"
-    echo ""
-    read -p "Continue anyway? (y/N) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
-    fi
-fi
-
-# Start all services
-echo "🚀 Starting all services..."
-docker-compose up --build
+Returns:
+```json
+{
+  "demo_title": "Apple Health RAG: Stateless vs. RedisVL Memory",
+  "stateless_chat": {...},
+  "redis_chat": {...},
+  "comparison_scenarios": [...]
+}
 ```
 
-Make it executable:
+## 🛠️ Technology Stack
 
-```bash
-chmod +x start.sh
-```
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Agent Framework** | LangGraph | Stateful agentic workflows |
+| **LLM** | Qwen 2.5 7B (Ollama) | Local tool calling |
+| **Embeddings** | mxbai-embed-large | Semantic vectors |
+| **Memory** | Redis + RedisVL | Short + long-term memory |
+| **Vector Search** | RedisVL HNSW | Semantic retrieval |
+| **Backend** | FastAPI | Async Python API |
+| **Frontend** | TypeScript + Vite | Modern UI |
 
-### Stopping Services
+## 🔒 Privacy & Security
 
-```bash
-# Stop all
-docker-compose down
+- **100% local processing**: Ollama runs on your machine
+- **No external APIs**: Zero data sent to cloud services
+- **Your data, your control**: Redis runs locally
+- **7-month TTL**: Automatic data expiration
+- **Apple Health privacy**: Import your own data securely
 
-# Stop and remove volumes (clears Redis data)
-docker-compose down -v
-```
+## 📖 Learn More
 
-### Viewing Logs
+### Documentation
 
-```bash
-# All services
-docker-compose logs -f
+- [Qwen Tool Calling Implementation Plan](./docs/QWEN_TOOL_CALLING_IMPLEMENTATION_PLAN.md)
+- [Intelligent Health Tools Plan](./docs/INTELLIGENT_HEALTH_TOOLS_PLAN.md)
 
-# Specific service
-docker-compose logs -f backend
-docker-compose logs -f frontend
-```
+### Tech Resources
 
-### API Documentation
-
-Interactive API docs available at:
-
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
-## 🎓 How Memory Works
-
-### 1. Conversation Storage
-
-Each message is stored in Redis with:
-
-- Session ID for grouping
-- Timestamp for ordering
-- Role (user/assistant)
-- Content
-
-```python
-conversation:{session_id}:{message_id} → {role, content, timestamp}
-```
-
-### 2. Context Retrieval
-
-When you send a message:
-
-1. Your message is stored in Redis
-2. Last N messages are retrieved for context
-3. Relevant health data is fetched
-4. Everything is sent to Ollama as context
-5. AI response is stored back in Redis
-
-### 3. Health Data Integration
-
-Health metrics are cached in Redis:
-
-```python
-health:{metric_type}:{date} → {value, unit, source}
-```
-
-Fast queries for:
-
-- Recent averages
-- Time-based trends
-- Specific metric types
-
-## 🔒 Privacy
-
-- **Local LLM**: Ollama runs on your machine
-- **Local storage**: Redis runs on your machine
-- **No external APIs**: Zero data sent to third parties
-- **Data control**: You own and control everything
-
-## 📝 Blog Post Outline
-
-This project demonstrates:
-
-1. **The Problem**: Stateless chat = no personalization
-2. **The Solution**: Redis as a memory layer
-3. **Implementation**: FastAPI + Redis + Ollama
-4. **Demo**: Real conversations showing memory in action
-5. **Results**: Personalized, context-aware health insights
-
-## 🛠️ Configuration
-
-Edit `.env` to customize:
-
-```bash
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# Ollama
-OLLAMA_HOST=http://localhost:11434
-OLLAMA_MODEL=llama3.1
-
-# App
-APP_HOST=0.0.0.0
-APP_PORT=8000
-```
+- [RedisVL Documentation](https://redisvl.com)
+- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
+- [Ollama Documentation](https://ollama.ai)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
 
 ## 🐛 Troubleshooting
 
@@ -297,11 +323,8 @@ APP_PORT=8000
 # Check Docker is running
 docker ps
 
-# Check service status
-docker-compose ps
-
 # View logs
-docker-compose logs -f
+docker-compose logs -f backend
 ```
 
 **Ollama not responding?**
@@ -310,44 +333,24 @@ docker-compose logs -f
 # Check if Ollama is running
 curl http://localhost:11434
 
-# Start Ollama
-ollama serve
-
 # Check installed models
 ollama list
+
+# Pull missing models
+ollama pull qwen2.5:7b
+ollama pull mxbai-embed-large
 ```
 
-**Frontend can't reach backend?**
+**Tool calling not working?**
 
+Check backend logs for classification:
 ```bash
-# Check backend is running
-docker-compose logs backend
-
-# Check network
-docker network inspect redis-wellness_wellness-network
+docker-compose logs backend | grep "🎯 Query classified"
 ```
-
-**Build fails?**
-
-```bash
-# Clean rebuild
-docker-compose down
-docker-compose build --no-cache
-docker-compose up
-```
-
-## 📚 Resources
-
-- [Redis Documentation](https://redis.io/docs/)
-- [Ollama Documentation](https://ollama.ai)
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [TypeScript Documentation](https://www.typescriptlang.org/)
-- [Vite Documentation](https://vitejs.dev/)
-- [Docker Documentation](https://docs.docker.com/)
 
 ## 🤝 Contributing
 
-This is a demo project for a blog post, but feel free to:
+This is a demo project showcasing Redis + RedisVL capabilities. Feel free to:
 
 - Report issues
 - Suggest improvements
@@ -359,4 +362,6 @@ MIT
 
 ---
 
-Built with ❤️ to demonstrate why memory matters in AI conversations
+**Built with ❤️ to demonstrate why memory matters in AI conversations**
+
+*A Redis + RedisVL demonstration project*

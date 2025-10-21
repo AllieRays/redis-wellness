@@ -37,14 +37,14 @@ class ApiClient {
   async sendStatelessMessage(
     data: StatelessChatRequest
   ): Promise<StatelessChatResponse> {
-    return this.request<StatelessChatResponse>('/api/chat/stateless/', {
+    return this.request<StatelessChatResponse>('/api/chat/stateless', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async sendRedisMessage(data: RedisChatRequest): Promise<RedisChatResponse> {
-    return this.request<RedisChatResponse>('/api/chat/redis/', {
+    return this.request<RedisChatResponse>('/api/chat/redis', {
       method: 'POST',
       body: JSON.stringify(data),
     });

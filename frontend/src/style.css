@@ -5,8 +5,9 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
-    Cantarell, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
+    sans-serif;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   height: 100vh;
   display: flex;
@@ -133,6 +134,25 @@ body {
   word-wrap: break-word;
 }
 
+/* Markdown formatting styles */
+.message-content strong {
+  font-weight: 600;
+}
+
+.message-content br {
+  margin-bottom: 4px;
+}
+
+/* Better spacing for numbered lists */
+.message-content {
+  white-space: pre-wrap;
+}
+
+/* Style bullet points */
+.message-content {
+  line-height: 1.6;
+}
+
 .message.user .message-content {
   background: #667eea;
   color: white;
@@ -202,4 +222,72 @@ button:disabled {
   color: #6b7280;
   font-size: 14px;
   padding: 12px;
+}
+
+/* Memory and tool badges */
+.message-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+.message.user .message-metadata {
+  justify-content: flex-end;
+}
+
+.memory-badge,
+.tool-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.memory-badge {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+.memory-badge.semantic {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.tool-badge {
+  background: #f3e8ff;
+  color: #6b21a8;
+  border: 1px solid #d8b4fe;
+}
+
+/* Stateless indicator */
+.chat-panel:first-child .chat-header::after {
+  content: '🚫 No Memory';
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+/* Redis indicator */
+.chat-panel:last-child .chat-header::after {
+  content: '✨ Full Memory';
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: #d1fae5;
+  color: #065f46;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
 }

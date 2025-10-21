@@ -1,54 +1,54 @@
-"""API routes for the wellness application."""
+"""
+Main API routes for Redis Wellness AI Agent Application.
 
-import json
+Integrates AI agent tool calling with traditional HTTP endpoints for frontend support.
+"""
+
+import logging
+import os
 
 import httpx
 import redis
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 
-from src.api.redis_routes import router as redis_router
-from src.api.stateless_routes import router as stateless_router
-from src.config import get_settings
+from .agent_routes import router as agent_router
+from .chat_routes import router as chat_router
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Include the new chat routers
-router.include_router(stateless_router)
-router.include_router(redis_router)
+# Include AI agent routes
+router.include_router(agent_router)
+
+# Include chat comparison routes
+router.include_router(chat_router)
 
 
-# Pydantic models
-class ChatMessage(BaseModel):
-    message: str
-    session_id: str = "default"
-
-
-class ChatResponse(BaseModel):
-    response: str
-    session_id: str
-
-
+# Health check models
 class HealthCheck(BaseModel):
     status: str
     redis_connected: bool
     ollama_connected: bool
+    ai_agent_ready: bool
 
 
 def get_redis_client():
-    """Get Redis client."""
-    settings = get_settings()
+    """Get Redis client for health checks."""
     return redis.Redis(
-        host=settings.redis_host,
-        port=settings.redis_port,
-        db=settings.redis_db,
+        host=os.getenv("REDIS_HOST", "localhost"),
+        port=int(os.getenv("REDIS_PORT", 6379)),
+        db=0,
         decode_responses=True,
     )
 
 
-async def check_ollama_connection(settings) -> bool:
-    """Check if Ollama is accessible."""
+async def check_ollama_connection() -> bool:
+    """Check if Ollama is accessible for AI agent functionality."""
     try:
+        from ..config import get_settings
+
+        settings = get_settings()
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.get(f"{settings.ollama_base_url}/api/tags")
             return response.status_code == 200
@@ -57,7 +57,7 @@ async def check_ollama_connection(settings) -> bool:
 
 
 async def check_redis_connection(redis_client) -> bool:
-    """Check if Redis is accessible."""
+    """Check if Redis is accessible for TTL-based memory."""
     try:
         redis_client.ping()
         return True
@@ -65,93 +65,104 @@ async def check_redis_connection(redis_client) -> bool:
         return False
 
 
+def check_ai_agent_ready() -> bool:
+    """Check if AI agent tools are properly loaded."""
+    try:
+        from ..tools import AVAILABLE_TOOLS
+
+        return len(AVAILABLE_TOOLS) > 0
+    except Exception:
+        return False
+
+
 @router.get("/health/check", response_model=HealthCheck)
 async def health_check():
-    """Health check endpoint."""
-    settings = get_settings()
+    """
+    Health check endpoint for AI agent system.
+
+    Verifies that all components needed for the AI agent are working:
+    - Redis for TTL-based memory
+    - Ollama for local AI
+    - AI agent tools loaded
+    """
     redis_client = get_redis_client()
 
     redis_ok = await check_redis_connection(redis_client)
-    ollama_ok = await check_ollama_connection(settings)
+    ollama_ok = await check_ollama_connection()
+    agent_ready = check_ai_agent_ready()
 
-    status = "healthy" if redis_ok and ollama_ok else "unhealthy"
+    status = "healthy" if redis_ok and ollama_ok and agent_ready else "unhealthy"
 
     return HealthCheck(
-        status=status, redis_connected=redis_ok, ollama_connected=ollama_ok
+        status=status,
+        redis_connected=redis_ok,
+        ollama_connected=ollama_ok,
+        ai_agent_ready=agent_ready,
     )
 
 
+# Simple chat endpoint that can call AI agent tools
+class ChatMessage(BaseModel):
+    message: str
+    user_id: str = "demo_user"
+    session_id: str = "default"
+
+
+class ChatResponse(BaseModel):
+    response: str
+    session_id: str
+    ai_agent_used: bool = True
+
+
 @router.post("/chat", response_model=ChatResponse)
-async def chat(message: ChatMessage):
-    """Chat endpoint with Ollama integration."""
-    settings = get_settings()
-    redis_client = get_redis_client()
+async def ai_agent_chat(message: ChatMessage):
+    """
+    LangGraph-powered AI Agent chat endpoint.
 
+    Uses sophisticated multi-step reasoning to:
+    1. Analyze user queries intelligently
+    2. Plan and execute multi-tool workflows
+    3. Maintain conversation state across sessions
+    4. Provide context-aware health insights
+    """
     try:
-        # Store user message in Redis
-        conversation_key = f"conversation:{message.session_id}"
-        redis_client.lpush(
-            conversation_key,
-            json.dumps(
-                {
-                    "role": "user",
-                    "content": message.message,
-                    "timestamp": str(redis_client.time()[0]),
-                }
-            ),
+        # Import here to avoid circular imports
+        from ..agents.health_agent import process_health_conversation
+
+        # Process through LangGraph workflow
+        response = await process_health_conversation(
+            message=message.message,
+            user_id=message.user_id,
+            session_id=message.session_id,
         )
 
-        # Get conversation history
-        history = redis_client.lrange(conversation_key, 0, 10)  # Last 10 messages
-        history.reverse()  # Oldest first
-
-        # Prepare messages for Ollama
-        messages = []
-        for msg in history:
-            msg_data = json.loads(msg)
-            messages.append({"role": msg_data["role"], "content": msg_data["content"]})
-
-        # Call Ollama
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            ollama_response = await client.post(
-                f"{settings.ollama_base_url}/api/chat",
-                json={
-                    "model": settings.ollama_model,
-                    "messages": messages,
-                    "stream": False,
-                },
-            )
-
-            if ollama_response.status_code != 200:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Ollama error: {ollama_response.status_code}",
-                )
-
-            ollama_data = ollama_response.json()
-            ai_response = ollama_data.get("message", {}).get("content", "No response")
-
-        # Store AI response in Redis
-        redis_client.lpush(
-            conversation_key,
-            json.dumps(
-                {
-                    "role": "assistant",
-                    "content": ai_response,
-                    "timestamp": str(redis_client.time()[0]),
-                }
-            ),
+        return ChatResponse(
+            response=response, session_id=message.session_id, ai_agent_used=True
         )
 
-        return ChatResponse(response=ai_response, session_id=message.session_id)
-
-    except httpx.TimeoutException as e:
-        raise HTTPException(status_code=504, detail="Ollama request timeout") from e
-    except httpx.RequestError as e:
-        raise HTTPException(
-            status_code=503, detail=f"Ollama connection error: {str(e)}"
-        ) from e
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Internal server error: {str(e)}"
-        ) from e
+        # Fallback to simple response if LangGraph fails
+        logger.error(f"LangGraph agent failed: {str(e)}")
+
+        fallback_response = f"""I'm experiencing some technical difficulties with my advanced reasoning, but I can still help!
+
+🔧 **I have access to powerful health tools:**
+- Parse Apple Health data securely
+- Store data with Redis 7-day TTL memory
+- Query metrics with O(1) speed
+- Generate intelligent health insights
+
+📊 **Redis Advantages I can demonstrate:**
+- Automatic TTL expiration vs manual cleanup
+- Instant lookups vs slow file parsing
+- Persistent conversation memory
+
+Try asking about your "health data" or "BMI trends"!
+
+Error details: {str(e)[:100]}..."""
+
+        return ChatResponse(
+            response=fallback_response,
+            session_id=message.session_id,
+            ai_agent_used=False,
+        )

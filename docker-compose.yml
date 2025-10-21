@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   redis:
-    image: redis/redis-stack:latest
+    image: redis/redis-stack:7.4.0-v1
     container_name: redis-wellness
     ports:
       - "6379:6379"
@@ -32,6 +32,9 @@ services:
       - OLLAMA_HOST=http://host.docker.internal:11434
       - APP_HOST=0.0.0.0
       - APP_PORT=8000
+      - REDIS_SESSION_TTL_SECONDS=18144000
+      - REDIS_HEALTH_DATA_TTL_SECONDS=18144000
+      - REDIS_DEFAULT_TTL_DAYS=210
     depends_on:
       redis:
         condition: service_healthy

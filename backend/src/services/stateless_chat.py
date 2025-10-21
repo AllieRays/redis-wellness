@@ -1,65 +1,64 @@
-"""Stateless chat service without conversation memory."""
+"""
+Stateless RAG Agent Chat Service.
 
-import httpx
-from fastapi import HTTPException
+STRICTLY stateless - NO memory, NO history, NO state.
 
-from src.config import get_settings
+Each request is completely independent:
+- No conversation history
+- No semantic memory retrieval
+- No Redis reads/writes (except for health data tools)
+- New random session ID per request
+- Pure agent + tools only
+
+Purpose: Demonstrate the difference when memory is absent.
+"""
+
+import uuid
+
+from ..agents.health_rag_agent import process_health_chat
 
 
 class StatelessChatService:
-    """Chat service that processes messages without storing conversation history."""
+    """
+    Stateless chat service with NO memory.
 
-    def __init__(self):
-        self.settings = get_settings()
+    Guarantees:
+    - No conversation history
+    - No semantic memory
+    - No session persistence
+    - Each message processed independently
+    """
 
-    async def chat(self, message: str) -> str:
+    async def chat(self, message: str) -> dict:
         """
-        Process a chat message without maintaining conversation history.
+        Process a completely stateless chat message.
 
         Args:
             message: The user's message
 
         Returns:
-            The AI's response
-
-        Raises:
-            HTTPException: If there's an error communicating with Ollama
+            Dict with response and validation metadata
         """
-        try:
-            # Prepare a single message for Ollama (no conversation history)
-            messages = [{"role": "user", "content": message}]
+        # Generate unique session ID for this single request
+        # (ensures no accidental state sharing)
+        ephemeral_session_id = f"stateless_{uuid.uuid4().hex[:8]}"
 
-            # Call Ollama
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                ollama_response = await client.post(
-                    f"{self.settings.ollama_base_url}/api/chat",
-                    json={
-                        "model": self.settings.ollama_model,
-                        "messages": messages,
-                        "stream": False,
-                    },
-                )
+        # Process with RAG agent but WITHOUT memory manager
+        # AND without conversation history
+        result = await process_health_chat(
+            message=message,
+            user_id="your_user",
+            session_id=ephemeral_session_id,
+            conversation_history=None,  # ← NO HISTORY
+            memory_manager=None,  # ← NO MEMORY
+        )
 
-                if ollama_response.status_code != 200:
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"Ollama error: {ollama_response.status_code}",
-                    )
+        # Return response with validation info
+        return {
+            "response": result["response"],
+            "validation": result.get("validation", {}),
+        }
 
-                ollama_data = ollama_response.json()
-                ai_response = ollama_data.get("message", {}).get(
-                    "content", "No response"
-                )
 
-            return ai_response
-
-        except httpx.TimeoutException as e:
-            raise HTTPException(status_code=504, detail="Ollama request timeout") from e
-        except httpx.RequestError as e:
-            raise HTTPException(
-                status_code=503, detail=f"Ollama connection error: {str(e)}"
-            ) from e
-        except Exception as e:
-            raise HTTPException(
-                status_code=500, detail=f"Internal server error: {str(e)}"
-            ) from e
+# Global service instance
+stateless_chat_service = StatelessChatService()
