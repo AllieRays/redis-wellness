@@ -89,7 +89,9 @@ function addMessage(
     }
 
     if (memoryIndicators.length > 0) {
-      metadataHtml = `<div class="message-metadata">${memoryIndicators.join(' ')}</div>`;
+      metadataHtml = `<div class="message-metadata">${memoryIndicators.join(
+        ' '
+      )}</div>`;
     }
   }
 

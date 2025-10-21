@@ -7,13 +7,13 @@ This directory contains scripts for parsing and loading Apple Health data into t
 ### 🆕 Recommended Scripts (Fixed & Improved)
 
 **`parse_apple_health.py`** - Parse Apple Health XML to JSON
-- Reads `apple_health_export/export.xml` 
+- Reads `apple_health_export/export.xml`
 - Generates `parsed_health_data.json` with structured health data
 - Usage: `python scripts/parse_apple_health.py`
 
 **`load_health_to_redis.py`** - Load parsed JSON into Redis
 - Reads `parsed_health_data.json`
-- Stores data in Redis with proper keys for chat system  
+- Stores data in Redis with proper keys for chat system
 - Sets 7-month TTL on all data
 - Usage: `python scripts/load_health_to_redis.py`
 
@@ -36,7 +36,7 @@ This directory contains scripts for parsing and loading Apple Health data into t
 # 1. Parse your Apple Health export
 python scripts/parse_apple_health.py
 
-# 2. Load into Redis for chat system  
+# 2. Load into Redis for chat system
 python scripts/load_health_to_redis.py
 ```
 
@@ -52,7 +52,7 @@ python scripts/load_health_to_redis.py
 ## Prerequisites
 
 - Apple Health export placed in `apple_health_export/export.xml`
-- Redis running (via `docker-compose up redis`)  
+- Redis running (via `docker-compose up redis`)
 - Python packages: `redis`, plus backend dependencies
 
 ## Output
@@ -65,7 +65,7 @@ python scripts/load_health_to_redis.py
 
 The parsed JSON contains:
 - `record_count` - Total health records
-- `workouts` - Exercise/activity data  
+- `workouts` - Exercise/activity data
 - `metrics_summary` - Latest values by metric type
 - `metrics_records` - Full historical data
 - `date_range` - Data span (2020-2025+)

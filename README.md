@@ -221,40 +221,81 @@ memory:{user_id}:{timestamp} → {
 
 ## 🔧 Project Structure
 
+**Clean Architecture with Proper Separation of Concerns:**
+
+> **Recent Refactoring**: The project structure was recently reorganized for better separation of concerns. All files are now properly categorized into `/agents` (actual AI agents), `/services` (data layer), `/utils` (pure utilities), and `/tools` (LangChain tools). All tests have been moved to `/backend/tests/` for proper monorepo structure.
+
 ```
 .
 ├── backend/
 │   ├── src/
-│   │   ├── agents/
+│   │   ├── agents/                      # Only actual AI agents
 │   │   │   ├── health_rag_agent.py      # LangGraph agentic workflow
-│   │   │   ├── query_classifier.py      # Tool routing layer
-│   │   │   ├── tool_wrappers.py         # Health data tools
-│   │   │   └── memory_manager.py        # RedisVL dual memory
-│   │   ├── api/
-│   │   │   ├── chat_routes.py           # Stateless vs. Redis comparison
-│   │   │   └── agent_routes.py          # Direct tool endpoints
-│   │   ├── services/
-│   │   │   ├── redis_chat.py            # RAG chat service
-│   │   │   └── stateless_chat.py        # No-memory baseline
-│   │   └── parsers/
-│   │       └── apple_health_parser.py   # XML parsing
+│   │   │   └── __init__.py              # Agent exports
+│   │   ├── services/                    # Data layer services
+│   │   │   ├── redis_chat.py            # RAG chat with memory
+│   │   │   ├── stateless_chat.py        # No-memory baseline
+│   │   │   ├── memory_manager.py        # RedisVL dual memory
+│   │   │   ├── redis_connection.py      # Redis connection management
+│   │   │   ├── redis_health_tool.py     # Health data operations
+│   │   │   └── health_vectorizer.py     # Embedding generation
+│   │   ├── utils/                       # Pure utilities & helpers
+│   │   │   ├── query_classifier.py      # Intent classification
+│   │   │   ├── numeric_validator.py     # LLM hallucination detection
+│   │   │   ├── math_tools.py            # Mathematical analysis
+│   │   │   ├── base.py                  # Base classes & decorators
+│   │   │   ├── stats_utils.py           # Statistical calculations
+│   │   │   ├── time_utils.py            # Time parsing utilities
+│   │   │   └── conversion_utils.py      # Unit conversions
+│   │   ├── tools/                       # LangChain tools for agents
+│   │   │   ├── agent_tools.py           # Creates user-bound tools
+│   │   │   ├── health_insights_tool.py  # AI-callable insights
+│   │   │   └── health_parser_tool.py    # AI-callable XML parsing
+│   │   ├── api/                         # HTTP API layer
+│   │   │   ├── chat_routes.py           # Chat endpoints
+│   │   │   ├── agent_routes.py          # Tool endpoints
+│   │   │   └── routes.py                # Router aggregation
+│   │   ├── models/                      # Data models
+│   │   │   └── health.py                # Pydantic health models
+│   │   ├── parsers/                     # Data parsers
+│   │   │   └── apple_health_parser.py   # XML parsing with validation
+│   │   ├── main.py                      # FastAPI application
+│   │   └── config.py                    # Configuration
+│   ├── tests/                           # All backend tests
+│   │   ├── unit/                        # Unit tests (no dependencies)
+│   │   │   ├── test_math_tools.py       # Mathematical functions
+│   │   │   ├── test_numeric_validator.py # Validation logic
+│   │   │   └── test_stateless_isolation.py # Pure function tests
+│   │   ├── test_redis_chat_rag.py       # RAG memory integration
+│   │   └── test_redis_chat_api.py       # HTTP API tests
 │   ├── Dockerfile
 │   └── pyproject.toml
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── main.ts                      # Chat UI
-│   │   ├── api.ts                       # Backend client
-│   │   └── style.css
+│   │   ├── main.ts                      # Side-by-side chat UI
+│   │   ├── api.ts                       # Backend API client
+│   │   ├── types.ts                     # TypeScript interfaces
+│   │   └── style.css                    # Modern UI styling
 │   ├── Dockerfile
 │   └── package.json
 │
-├── docs/
+├── docs/                                # Technical documentation
 │   ├── QWEN_TOOL_CALLING_IMPLEMENTATION_PLAN.md
-│   └── INTELLIGENT_HEALTH_TOOLS_PLAN.md
+│   ├── INTELLIGENT_HEALTH_TOOLS_PLAN.md
+│   └── RAG_IMPLEMENTATION.md
+│
+├── scripts/                             # Utility scripts
+│   ├── load_health_to_redis.py         # Health data loading
+│   └── parse_apple_health.py           # XML parsing scripts
+│
+├── demos/                               # Demo scripts
+│   ├── demo_chat_comparison.py         # Chat comparison demo
+│   └── demo_health_insights.py         # Health insights demo
 │
 ├── docker-compose.yml
-└── start.sh
+├── start.sh
+└── WARP.md                              # Development guidance
 ```
 
 ## 📚 API Endpoints

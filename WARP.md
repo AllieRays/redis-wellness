@@ -34,19 +34,49 @@ Redis/RedisVL stores:
 
 ## Key Components
 
-**Backend Structure (`/backend/src/`)**:
+**Backend Structure (`/backend/src/`)** - Clean Architecture:
 
+**Core Application:**
 - `main.py` - FastAPI application with CORS middleware
-- `api/chat_routes.py` - Core chat endpoints (stateless vs. Redis comparison)
-- `api/agent_routes.py` - Direct tool endpoints for testing
-- `agents/health_rag_agent.py` - LangGraph agentic workflow
-- `agents/query_classifier.py` - Intelligent tool routing layer
-- `agents/memory_manager.py` - RedisVL dual memory system
-- `agents/tool_wrappers.py` - Health data tools integration
-- `services/redis_chat.py` - RAG chat service with memory
-- `services/stateless_chat.py` - No-memory baseline service
-- `parsers/apple_health_parser.py` - Apple Health XML parsing
-- `tools/` - Health insights, math, and performance tools
+- `config.py` - Application configuration and settings
+
+**API Layer (`/api/`):**
+- `chat_routes.py` - Core chat endpoints (stateless vs. Redis comparison)
+- `agent_routes.py` - Direct tool endpoints for testing
+- `routes.py` - Main router aggregation
+
+**AI Agents (`/agents/`)** - Only actual AI agents:
+- `health_rag_agent.py` - LangGraph agentic workflow with tool calling
+- `__init__.py` - Agent exports and initialization
+
+**Services (`/services/`)** - Data layer and business logic:
+- `redis_chat.py` - RAG chat service with dual memory
+- `stateless_chat.py` - No-memory baseline service
+- `memory_manager.py` - RedisVL dual memory system (short + long-term)
+- `redis_connection.py` - Production-ready Redis connection management
+- `redis_health_tool.py` - Redis-powered health data operations
+- `health_vectorizer.py` - Embedding generation and vector storage
+
+**Utils (`/utils/`)** - Pure utilities and helpers:
+- `query_classifier.py` - Intent classification for tool routing
+- `numeric_validator.py` - LLM hallucination detection and validation
+- `math_tools.py` - Pure mathematical analysis functions
+- `base.py` - Base classes, decorators, and error handling
+- `performance_tool.py` - Redis vs stateless performance comparison
+- `stats_utils.py` - Statistical calculation utilities
+- `time_utils.py` - Time parsing and date utilities
+- `conversion_utils.py` - Unit conversion functions
+
+**Tools (`/tools/`)** - LangChain tools for AI agents:
+- `agent_tools.py` - Creates user-bound LangChain tools
+- `health_insights_tool.py` - AI-callable health insights generation
+- `health_parser_tool.py` - AI-callable Apple Health XML parsing
+
+**Data Models (`/models/`):**
+- `health.py` - Pydantic models for health data structures
+
+**Parsers (`/parsers/`):**
+- `apple_health_parser.py` - Apple Health XML parsing with security validation
 
 **Frontend Structure (`/frontend/src/`)**:
 
@@ -134,14 +164,25 @@ uv run python -m backend.src.main   # Run development server
 
 ### Testing
 
+**All tests moved to `/backend/tests/` for proper monorepo structure:**
+
 ```bash
-# Run all tests
+# Run all backend tests
+cd backend
 uv run pytest tests/
 
-# Test specific components
-uv run pytest tests/unit/test_redis_chat_rag.py
-uv run pytest tests/unit/test_health_parsing.py
-uv run pytest tests/test_redis_chat_api.py
+# Unit tests (no external dependencies)
+uv run pytest tests/unit/
+
+# Integration tests (require Redis/services)
+uv run pytest tests/ -k "not unit"
+
+# Specific test categories
+uv run pytest tests/unit/test_numeric_validator.py  # Validation logic
+uv run pytest tests/unit/test_math_tools.py         # Mathematical functions
+uv run pytest tests/unit/test_stateless_isolation.py # Pure function tests
+uv run pytest tests/test_redis_chat_rag.py          # RAG memory system
+uv run pytest tests/test_redis_chat_api.py          # HTTP API integration
 
 # Health check endpoints
 curl http://localhost:8000/health
@@ -154,16 +195,19 @@ curl http://localhost:8000/api/chat/demo/info
 # Run all linting and formatting
 ./lint.sh
 
-# Backend linting (Ruff + Black)
+# Backend linting (Ruff + Black) - Updated paths
 cd backend
-uv run ruff check --fix src ../tests
-uv run ruff format src ../tests
+uv run ruff check --fix src tests  # Tests now in backend/tests
+uv run ruff format src tests
 
 # Frontend linting (ESLint + Prettier)
 cd frontend
 npm run typecheck
 npm run lint
 npm run format
+
+# Pre-commit hooks (run automatically on commit)
+git commit -m "your message"  # Triggers all quality checks
 ```
 
 ### Health Data Integration
@@ -175,6 +219,22 @@ curl -X POST http://localhost:8000/api/health/upload \
 ```
 
 ## Development Notes
+
+### Project Structure Refactoring
+
+**Recent organizational improvements** for better separation of concerns:
+
+- **`/agents/`**: Contains only actual AI agents (LangGraph workflows)
+- **`/services/`**: Data layer services (Redis, memory, vectorization)
+- **`/utils/`**: Pure utilities and helpers (math, validation, classification)
+- **`/tools/`**: LangChain tools that agents directly call
+- **`/backend/tests/`**: All backend tests moved here for proper monorepo structure
+
+This structure ensures clear boundaries between:
+- AI logic (agents)
+- Data operations (services)
+- Pure functions (utils)
+- LLM-callable tools (tools)
 
 ### Redis Usage
 
@@ -271,7 +331,7 @@ Modern vanilla TypeScript with Vite featuring:
 curl -X POST http://localhost:8000/api/chat/stateless \
   -H "Content-Type: application/json" \
   -d '{"message": "What was my average heart rate last week?"}'
-  
+
 # Follow-up fails: "Is that good?" → "What are you referring to?"
 ```
 
@@ -280,7 +340,7 @@ curl -X POST http://localhost:8000/api/chat/stateless \
 curl -X POST http://localhost:8000/api/chat/redis \
   -H "Content-Type: application/json" \
   -d '{"message": "What was my average heart rate last week?", "session_id": "demo"}'
-  
+
 # Follow-up works: "Is that good?" → "87 bpm is within normal range..."
 ```
 

@@ -4,10 +4,10 @@ Parse Apple Health XML export and generate JSON data.
 
 Usage:
     python scripts/parse_apple_health.py
-    
+
 This script:
 1. Reads apple_health_export/export.xml
-2. Parses all health records and workouts 
+2. Parses all health records and workouts
 3. Generates structured JSON output
 4. Saves to parsed_health_data.json
 """
@@ -20,12 +20,12 @@ def main():
     project_root = Path(__file__).parent.parent
     backend_src = project_root / "backend" / "src"
     sys.path.insert(0, str(backend_src))
-    
+
     try:
         # Import with absolute path to avoid relative import issues
         import importlib.util
         import os
-        
+
         parser_path = project_root / "backend" / "src" / "parsers" / "apple_health_parser.py"
         spec = importlib.util.spec_from_file_location("apple_health_parser", parser_path)
         parser_module = importlib.util.module_from_spec(spec)
@@ -35,18 +35,18 @@ def main():
         print(f"❌ Import error: {e}")
         print("Make sure you're running this from the redis-wellness directory")
         return False
-    
+
     print("🏥 Parsing Apple Health export...")
-    
+
     # Initialize parser
     parser = AppleHealthParser()
     xml_path = project_root / "apple_health_export" / "export.xml"
-    
+
     if not xml_path.exists():
         print(f"❌ Apple Health export not found: {xml_path}")
         print("Please place your export.xml file in apple_health_export/")
         return False
-    
+
     # Parse the XML
     print(f"📄 Parsing {xml_path}...")
     try:
@@ -54,20 +54,20 @@ def main():
     except Exception as e:
         print(f"❌ Parsing failed: {e}")
         return False
-    
+
     print(f"✅ Parsed {len(health_data.records):,} health records")
     print(f"✅ Parsed {len(health_data.workouts):,} workouts")
-    
+
     # Convert to JSON structure
     print("📦 Converting to JSON structure...")
-    
+
     # Group records by type
     metrics_records = {}
     metrics_summary = {}
-    
+
     for record in health_data.records:
         record_type = record.record_type.replace("HKQuantityTypeIdentifier", "")
-        
+
         if record_type not in metrics_records:
             metrics_records[record_type] = []
             metrics_summary[record_type] = {
@@ -76,7 +76,7 @@ def main():
                 "count": 0,
                 "latest_date": None,
             }
-        
+
         # Add to records
         metrics_records[record_type].append({
             "date": record.start_date.strftime("%Y-%m-%d %H:%M:%S"),
@@ -84,7 +84,7 @@ def main():
             "unit": record.unit,
             "source": record.source_name,
         })
-        
+
         # Update summary
         metrics_summary[record_type]["count"] += 1
         if (
@@ -93,7 +93,7 @@ def main():
         ):
             metrics_summary[record_type]["latest_date"] = record.start_date.strftime("%Y-%m-%d")
             metrics_summary[record_type]["latest_value"] = record.value
-    
+
     # Process workouts
     workouts = []
     for workout in health_data.workouts:
@@ -110,10 +110,10 @@ def main():
             "source": workout.source_name,
         }
         workouts.append(workout_dict)
-    
+
     # Sort workouts by date (most recent first)
     workouts.sort(key=lambda x: x["date"], reverse=True)
-    
+
     # Create main health data structure
     parsed_data = {
         "user_id": "your_user",
@@ -137,14 +137,14 @@ def main():
         "workouts": workouts,
         "conversation_context": f"Health data export from {health_data.export_date.strftime('%Y-%m-%d')} with {len(health_data.records)} records and {len(workouts)} workouts.",
     }
-    
+
     # Save to JSON file
     output_file = project_root / "parsed_health_data.json"
     print(f"💾 Saving to {output_file}...")
-    
+
     with open(output_file, "w") as f:
         json.dump(parsed_data, f, indent=2)
-    
+
     print("✅ Health data successfully parsed and saved!")
     print(f"\n📊 Summary:")
     print(f"   • Total records: {len(health_data.records):,}")
@@ -152,7 +152,7 @@ def main():
     print(f"   • Metric types: {len(metrics_records):,}")
     print(f"   • Date range: {parsed_data['date_range']['start_date']} to {parsed_data['date_range']['end_date']}")
     print(f"   • Saved to: {output_file}")
-    
+
     return True
 
 if __name__ == "__main__":
