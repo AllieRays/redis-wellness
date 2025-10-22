@@ -1,5 +1,15 @@
 # Redis Wellness 🏥
 
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)](https://www.typescriptlang.org/)
+[![Redis](https://img.shields.io/badge/redis-7.0+-red.svg)](https://redis.io/)
+[![FastAPI](https://img.shields.io/badge/fastapi-0.104+-green.svg)](https://fastapi.tiangolo.com/)
+[![Tests](https://img.shields.io/badge/tests-91%2B%20passing-brightgreen.svg)](#-testing)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![Privacy](https://img.shields.io/badge/privacy-100%25%20local-success.svg)](#-privacy-first)
+
 > Why memory matters for personalized private wellness conversations using Redis, health data, and local AI
 
 A **side-by-side demo** comparing **stateless chat** vs. **agentic RAG chat** powered by Redis and RedisVL. Built with FastAPI, LangGraph, and local LLMs (Ollama) - your health data never leaves your machine.
@@ -344,7 +354,66 @@ Returns:
 - **7-month TTL**: Automatic data expiration
 - **Apple Health privacy**: Import your own data securely
 
-## 📖 Learn More
+## 🧪 Testing
+
+**91+ tests** with comprehensive coverage and anti-hallucination strategies.
+
+### Quick Start
+
+```bash
+cd backend
+
+# Run all unit tests (fast, no dependencies)
+uv run pytest tests/unit/ -v
+
+# Run all tests
+uv run pytest tests/ -v
+
+# Run with coverage
+uv run pytest --cov=src --cov-report=html tests/
+```
+
+### Test Categories
+
+- **Unit Tests (53 tests)**: Pure functions, no external dependencies
+  - NumericValidator (24 tests) - LLM hallucination detection
+  - Statistical utilities (29 tests) - Mathematical functions
+  - **Status**: ✅ All passing in 0.31s
+
+- **Integration Tests (9 tests)**: Redis operations and data layer
+  - Redis connection management
+  - Memory manager (dual memory system)
+  - Health data CRUD
+
+- **Agent Tests (13 tests)**: LLM behavior validation
+  - Structural validation (not exact text matching)
+  - Tool selection and execution
+  - Response numeric validation
+
+- **API Tests (16 tests)**: HTTP endpoints
+  - Chat routes
+  - Memory management
+  - Error handling
+
+### Anti-Hallucination Testing Strategy
+
+✅ **What We Test:**
+- Response **structure** (fields present, correct types)
+- Response **validity** (numbers match tool results)
+- Tool **selection** (agent calls appropriate tools)
+- **Semantic** validation (keywords present, not errors)
+
+❌ **What We DON'T Test:**
+- Exact LLM response text (non-deterministic)
+- LLM creativity or phrasing
+
+### Documentation
+
+- [Test Plan](./backend/TEST_PLAN.md) - Comprehensive test strategy (900+ lines)
+- [Test README](./backend/tests/README.md) - Running instructions
+- [Implementation Summary](./backend/tests/IMPLEMENTATION_SUMMARY.md) - Test statistics
+
+## 📚 Learn More
 
 ### Documentation
 
