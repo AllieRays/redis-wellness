@@ -5,8 +5,9 @@ import time
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routes import router
+from src.api.system_routes import router
 from src.config import get_settings
+from src.utils.api_errors import setup_exception_handlers
 
 # from src.middleware.rate_limit import RateLimitMiddleware
 # from src.monitoring.metrics import get_metrics, metrics_collector
@@ -58,6 +59,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Setup production error handling
+setup_exception_handlers(app)
+
 # Include API routes
 app.include_router(router, prefix="/api")
 
@@ -69,9 +73,11 @@ app.include_router(router, prefix="/api")
 #     return get_metrics()
 
 
+# Note: Production health checks now handled by /api/health endpoints
+# This endpoint maintained for backward compatibility
 @app.get("/health")
-async def health_check():
-    """Simple health check for load balancers."""
+async def basic_health_check():
+    """Basic health check for backward compatibility."""
     return {"status": "healthy", "timestamp": time.time()}
 
 

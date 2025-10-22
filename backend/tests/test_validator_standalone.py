@@ -4,15 +4,13 @@ Standalone test for numeric validator without complex dependencies.
 Run with: python tests/test_validator_standalone.py
 """
 
+import importlib.util
 import sys
 from pathlib import Path
 
 # Add backend to path
 backend_path = Path(__file__).parent.parent / "backend"
 sys.path.insert(0, str(backend_path))
-
-# Import validator module directly to avoid __init__ dependencies
-import importlib.util
 
 spec = importlib.util.spec_from_file_location(
     "numeric_validator", backend_path / "src" / "agents" / "numeric_validator.py"

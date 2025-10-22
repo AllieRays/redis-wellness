@@ -19,7 +19,7 @@ def setup_test_health_data():
     """Populate Redis with test health data."""
     r = redis.Redis(host="localhost", port=6379, decode_responses=True)
 
-    user_id = "your_user"
+    user_id = "wellness_user"
 
     # Create sample workout records
     workouts = [

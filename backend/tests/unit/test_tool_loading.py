@@ -10,7 +10,7 @@ sys.path.insert(0, "backend/src")
 from src.tools import create_user_bound_tools
 
 # Create tools for test user
-tools = create_user_bound_tools("your_user")
+tools = create_user_bound_tools("wellness_user")
 
 print(f"✅ Total tools loaded: {len(tools)}")
 print("\n📋 Tool names:")

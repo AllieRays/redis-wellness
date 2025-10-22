@@ -7,7 +7,7 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 This is a **side-by-side demo** comparing **stateless chat** vs. **agentic RAG chat** powered by Redis and RedisVL. The system demonstrates the transformative power of memory in AI conversations through:
 
 - **Frontend**: TypeScript + Vite (port 3000)
-- **Backend**: FastAPI Python (port 8000) with LangGraph agentic workflows
+- **Backend**: FastAPI Python (port 8000) with agentic tool-calling loops
 - **Storage**: Redis Stack with RedisVL vector search (ports 6379, 8001)
 - **LLM**: Qwen 2.5 7B + mxbai-embed-large via Ollama (port 11434)
 
@@ -20,7 +20,7 @@ The application showcases **dual memory systems**: short-term conversation histo
 │  Frontend (TS+Vite) ────→ Backend (FastAPI) ───→ Redis   │
 │       :3000                    :8000             :6379    │
 │                                  ↓                        │
-│                         LangGraph Agent                   │
+│                      Agentic Tool Loop (simple)           │
 │                              ↓                            │
 │                           Ollama (Host)                   │
 │                              :11434                       │
@@ -42,22 +42,33 @@ Redis/RedisVL stores:
 
 **API Layer (`/api/`):**
 - `chat_routes.py` - Core chat endpoints (stateless vs. Redis comparison)
-- `agent_routes.py` - Direct tool endpoints for testing
-- `routes.py` - Main router aggregation
+- `tools_routes.py` - Direct tool endpoints for testing
+- `system_routes.py` - Main router aggregation and system health
 
-**AI Agents (`/agents/`)** - Only actual AI agents:
-- `health_rag_agent.py` - LangGraph agentic workflow with tool calling
-- `__init__.py` - Agent exports and initialization
+**AI Agents (`/agents/`)** - Two agents for demo comparison:
+- `stateless_agent.py` - Baseline agent with NO memory (simple tool loop)
+- `stateful_rag_agent.py` - Full Redis + RedisVL memory agent (simple tool loop)
+- `__init__.py` - Agent exports
+
+Both agents use the same simple tool-calling loop pattern for maintainability.
+
+**Apple Health Module (`/apple_health/`)** - Complete Apple Health data processing:
+- `models.py` - Pydantic models (HealthRecord, WorkoutSummary, etc.)
+- `parser.py` - Secure XML parsing with validation
+- `tools.py` - Processing tools (parse XML + generate insights)
+- `query_tools.py` - LangChain tools for AI queries (search, aggregate, workouts)
+- `__init__.py` - Clean module exports
 
 **Services (`/services/`)** - Data layer and business logic:
 - `redis_chat.py` - RAG chat service with dual memory
 - `stateless_chat.py` - No-memory baseline service
 - `memory_manager.py` - RedisVL dual memory system (short + long-term)
 - `redis_connection.py` - Production-ready Redis connection management
-- `redis_health_tool.py` - Redis-powered health data operations
-- `health_vectorizer.py` - Embedding generation and vector storage
+- `redis_apple_health_manager.py` - Redis CRUD operations for Apple Health data
+- `embedding_cache.py` - Embedding cache for performance
 
 **Utils (`/utils/`)** - Pure utilities and helpers:
+- `agent_helpers.py` - Shared agent utilities (LLM, prompts, message handling)
 - `query_classifier.py` - Intent classification for tool routing
 - `numeric_validator.py` - LLM hallucination detection and validation
 - `math_tools.py` - Pure mathematical analysis functions
@@ -66,17 +77,6 @@ Redis/RedisVL stores:
 - `stats_utils.py` - Statistical calculation utilities
 - `time_utils.py` - Time parsing and date utilities
 - `conversion_utils.py` - Unit conversion functions
-
-**Tools (`/tools/`)** - LangChain tools for AI agents:
-- `agent_tools.py` - Creates user-bound LangChain tools
-- `health_insights_tool.py` - AI-callable health insights generation
-- `health_parser_tool.py` - AI-callable Apple Health XML parsing
-
-**Data Models (`/models/`):**
-- `health.py` - Pydantic models for health data structures
-
-**Parsers (`/parsers/`):**
-- `apple_health_parser.py` - Apple Health XML parsing with security validation
 
 **Frontend Structure (`/frontend/src/`)**:
 
@@ -87,7 +87,9 @@ Redis/RedisVL stores:
 
 **Documentation (`/docs/`)**:
 
-- `QWEN_TOOL_CALLING_IMPLEMENTATION_PLAN.md` - LangGraph + Qwen implementation
+- `HEALTH_DATA_PIPELINE.md` - Apple Health XML → Redis pipeline
+- `REORGANIZATION_SUMMARY.md` - Project structure cleanup (Oct 2025)
+- `LANGGRAPH_REMOVAL_PLAN.md` - Why we removed LangGraph and use simple loops
 - `INTELLIGENT_HEALTH_TOOLS_PLAN.md` - Agentic health tools design
 - `RAG_IMPLEMENTATION.md` - RedisVL memory architecture
 - `linting.md` - Code quality and pre-commit setup
@@ -220,21 +222,23 @@ curl -X POST http://localhost:8000/api/health/upload \
 
 ## Development Notes
 
-### Project Structure Refactoring
+### Project Structure (Updated October 2025)
 
-**Recent organizational improvements** for better separation of concerns:
+**Consolidated Apple Health module** for clarity and maintainability:
 
-- **`/agents/`**: Contains only actual AI agents (LangGraph workflows)
+- **`/apple_health/`**: All Apple Health data processing (models, parser, tools, queries)
+- **`/agents/`**: AI agents (simple tool-calling loops)
 - **`/services/`**: Data layer services (Redis, memory, vectorization)
 - **`/utils/`**: Pure utilities and helpers (math, validation, classification)
-- **`/tools/`**: LangChain tools that agents directly call
-- **`/backend/tests/`**: All backend tests moved here for proper monorepo structure
+- **`/api/`**: HTTP endpoints and request/response models
+- **`/backend/tests/`**: All tests in proper monorepo structure
 
 This structure ensures clear boundaries between:
-- AI logic (agents)
+- Apple Health processing (apple_health)
+- AI logic (agents with simple loops)
 - Data operations (services)
 - Pure functions (utils)
-- LLM-callable tools (tools)
+- LLM-callable tools (query_tools)
 
 ### Redis Usage
 
@@ -271,23 +275,31 @@ TTL: 7 months
 
 **Health Data:**
 - `/api/health/upload` - Upload Apple Health XML
-- `/api/agent/search-health` - Direct health tool access
-- `/api/agent/aggregate-metrics` - Health data aggregation
-- `/api/agent/search-workouts` - Workout data retrieval
+- `/api/tools/query-health-metrics` - Direct health tool access
+- `/api/tools/generate-health-insights` - Health data aggregation
+- `/api/tools/parse-health-file` - Health file parsing
 
 ### Docker Network
 
 Services communicate via `wellness-network` bridge network. Backend connects to host Ollama using `host.docker.internal`.
 
-### LangGraph Agentic System
+### Agentic Tool-Calling System
 
 Key features of the agentic workflow:
 
 - **Query Classification**: Intelligent tool routing layer
-- **3 Specialized Tools**: Health data retrieval, aggregation, workouts
-- **Dual Memory**: Short-term + long-term semantic memory
+- **5 Specialized Tools**: Health records search, workouts, aggregation, analytics, file parsing
+- **Dual Memory**: Short-term + long-term semantic memory (Redis + RedisVL)
 - **Tool Calling**: Qwen 2.5 7B optimized for function calling
-- **State Management**: LangGraph handles multi-step workflows
+- **Simple Loop**: Up to 8 iterations for complex multi-step queries
+- **Autonomous**: LLM decides which tools to call, chains them, decides when done
+
+**Why Simple Loop, Not LangGraph?**
+- Redis already handles persistence (no need for checkpointers)
+- Queries complete in one turn (~3-15 seconds)
+- Simpler to debug and maintain
+- Same agentic behavior: autonomous tool selection, chaining, and decision-making
+- See `/docs/LANGGRAPH_REMOVAL_PLAN.md` for full analysis
 
 ### TypeScript Frontend
 

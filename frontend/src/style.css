@@ -29,9 +29,11 @@ body {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   width: 100%;
   max-width: 1400px;
-  height: 90vh;
   display: flex;
   flex-direction: column;
+  height: auto;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .header {
@@ -75,9 +77,10 @@ body {
 
 .chat-container {
   display: flex;
-  flex: 1;
+  flex: 1 1 60vh;
   gap: 1px;
   background: #e5e7eb;
+  min-height: 300px;
 }
 
 .chat-panel {
@@ -289,4 +292,76 @@ button:disabled {
   font-size: 11px;
   font-weight: 600;
   vertical-align: middle;
+}
+
+/* Stats Comparison Table */
+.stats-container {
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f8fafc;
+  flex-shrink: 0;
+}
+
+.stats-container h2 {
+  font-size: 14px;
+  color: #374151;
+  margin-bottom: 12px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: transparent;
+  font-size: 13px;
+}
+
+.stats-table th,
+.stats-table td {
+  padding: 6px 12px;
+  text-align: left;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.stats-table th {
+  background: transparent;
+  font-weight: 600;
+  color: #666;
+  font-size: 12px;
+  border-bottom: 2px solid #ddd;
+}
+
+.stats-table td {
+  color: #1f2937;
+  font-size: 14px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+}
+
+.stats-table tr:last-child th,
+.stats-table tr:last-child td {
+  border-bottom: none;
+}
+
+.stats-table tr:nth-child(even) {
+  background: #f9fafb;
+}
+
+/* Stateless column highlighting */
+.stats-table td:nth-child(2) {
+  color: #6b7280;
+}
+
+/* Redis column highlighting */
+.stats-table td:nth-child(3) {
+  color: #059669;
+  font-weight: 500;
+}
+
+/* Special styling for trimming status */
+.stats-table td[id*='trimming'] {
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }

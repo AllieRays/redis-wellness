@@ -19,7 +19,7 @@ import pytest
 
 from src.services.stateless_chat import StatelessChatService
 from src.utils.conversion_utils import kg_to_lbs
-from src.utils.math_tools import calculate_weight_trends
+from src.utils.health_analysis_tools import calculate_weight_trends
 from src.utils.stats_utils import (
     calculate_basic_stats,
 )

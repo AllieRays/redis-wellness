@@ -10,16 +10,15 @@ This script will test the complete pipeline:
 """
 
 import asyncio
-
-# Add the backend src to Python path
 import pathlib
 import sys
 
+# Add the backend src to Python path
 repo_root = pathlib.Path(__file__).parent.parent.parent
 sys.path.insert(0, str(repo_root / "backend" / "src"))
 
 from src.agents.health_agent import process_health_conversation  # noqa: E402
-from src.services.redis_health_tool import (
+from src.services.redis_health_tool import (  # noqa: E402
     query_health_metrics,
     store_health_data,
 )

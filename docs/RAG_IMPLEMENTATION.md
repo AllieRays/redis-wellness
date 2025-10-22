@@ -246,7 +246,7 @@ uv add sentence-transformers numpy
 from src.tools.health_vectorizer import vectorize_user_health_data
 
 # One-time indexing
-result = vectorize_user_health_data(user_id="your_user")
+result = vectorize_user_health_data(user_id="wellness_user")
 # → Creates vector embeddings for all 255K records
 # → Stores in RedisVL index with HNSW
 ```
@@ -257,7 +257,7 @@ from src.services.health_rag import query_health_with_rag
 
 response = await query_health_with_rag(
     user_query="When did I last work out?",
-    user_id="your_user",
+    user_id="wellness_user",
     max_iterations=3,  # Agent can iterate up to 3 times
     top_k=10           # Retrieve 10 records per iteration
 )
@@ -274,7 +274,7 @@ print(response["retrieved_records"])  # How many records used
 async def rag_chat(request: ChatRequest):
     result = await query_health_with_rag(
         user_query=request.message,
-        user_id="your_user"
+        user_id="wellness_user"
     )
     return {"response": result["response"], "reasoning": result["agent_reasoning"]}
 ```
@@ -316,7 +316,7 @@ async def rag_chat(request: ChatRequest):
    ```bash
    # Vectorize your health data
    curl -X POST http://localhost:8000/api/health/vectorize \
-     -d '{"user_id": "your_user"}'
+     -d '{"user_id": "wellness_user"}'
 
    # Query with RAG
    curl -X POST http://localhost:8000/api/chat/rag \

@@ -15,7 +15,11 @@ export interface StatelessChatRequest {
 
 export interface StatelessChatResponse {
   response: string;
+  tools_used: ToolUsed[];
+  tool_calls_made: number;
+  validation: Record<string, unknown>;
   type: 'stateless';
+  response_time_ms?: number;
 }
 
 export interface RedisChatRequest {
@@ -34,13 +38,24 @@ export interface MemoryStats {
   long_term_available: boolean;
 }
 
+export interface TokenStats {
+  message_count: number;
+  token_count: number;
+  max_tokens: number;
+  usage_percent: number;
+  threshold_percent: number;
+  is_over_threshold: boolean;
+}
+
 export interface RedisChatResponse {
   response: string;
   session_id: string;
   tools_used: ToolUsed[];
   tool_calls_made: number;
   memory_stats: MemoryStats;
+  token_stats?: TokenStats;
   type: 'redis_with_memory';
+  response_time_ms?: number;
 }
 
 export interface HealthCheckResponse {

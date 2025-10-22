@@ -1,5 +1,5 @@
 """
-Stateless RAG Agent Chat Service.
+Stateless Chat Service - Demo Baseline.
 
 STRICTLY stateless - NO memory, NO history, NO state.
 
@@ -7,15 +7,13 @@ Each request is completely independent:
 - No conversation history
 - No semantic memory retrieval
 - No Redis reads/writes (except for health data tools)
-- New random session ID per request
 - Pure agent + tools only
 
 Purpose: Demonstrate the difference when memory is absent.
 """
 
-import uuid
-
-from ..agents.health_rag_agent import process_health_chat
+from ..agents import StatelessHealthAgent
+from ..utils.user_config import get_user_id
 
 
 class StatelessChatService:
@@ -29,6 +27,10 @@ class StatelessChatService:
     - Each message processed independently
     """
 
+    def __init__(self):
+        """Initialize stateless service with dedicated agent."""
+        self.agent = StatelessHealthAgent()
+
     async def chat(self, message: str) -> dict:
         """
         Process a completely stateless chat message.
@@ -39,23 +41,17 @@ class StatelessChatService:
         Returns:
             Dict with response and validation metadata
         """
-        # Generate unique session ID for this single request
-        # (ensures no accidental state sharing)
-        ephemeral_session_id = f"stateless_{uuid.uuid4().hex[:8]}"
-
-        # Process with RAG agent but WITHOUT memory manager
-        # AND without conversation history
-        result = await process_health_chat(
+        # Process with stateless agent (NO memory)
+        result = await self.agent.chat(
             message=message,
-            user_id="your_user",
-            session_id=ephemeral_session_id,
-            conversation_history=None,  # ← NO HISTORY
-            memory_manager=None,  # ← NO MEMORY
+            user_id=get_user_id(),
         )
 
-        # Return response with validation info
+        # Return full agent response with metrics for demo comparison
         return {
             "response": result["response"],
+            "tools_used": result.get("tools_used", []),
+            "tool_calls_made": result.get("tool_calls_made", 0),
             "validation": result.get("validation", {}),
         }
 

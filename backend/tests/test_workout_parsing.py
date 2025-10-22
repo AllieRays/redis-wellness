@@ -106,10 +106,10 @@ def test_workout_data_structure():
         assert isinstance(workout["type"], str), "Type should be string"
         assert isinstance(workout["date"], str), "Date should be ISO format string"
         assert isinstance(
-            workout["duration_minutes"], (int, type(None))
+            workout["duration_minutes"], int | type(None)
         ), "Duration should be int or None"
         assert isinstance(
-            workout["calories"], (int, type(None))
+            workout["calories"], int | type(None)
         ), "Calories should be int or None"
         assert isinstance(workout["source"], str), "Source should be string"
 

@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen2.5:7b"
     embedding_model: str = "mxbai-embed-large"
 
+    # Token limits for context management
+    # Qwen 2.5 7B has ~32k effective context window
+    max_context_tokens: int = 24000  # Conservative limit (75% of 32k)
+    token_usage_threshold: float = 0.8  # Trigger trimming at 80% of max
+    min_messages_to_keep: int = 2  # Always keep at least 2 recent messages
+
     class Config:
         env_file = ".env"
         case_sensitive = False

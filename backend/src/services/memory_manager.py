@@ -13,7 +13,7 @@ Architecture:
 
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -23,6 +23,12 @@ from redisvl.query.filter import Tag
 from redisvl.schema import IndexSchema
 
 from ..config import get_settings
+from ..utils.token_manager import get_token_manager
+from ..utils.user_config import (
+    get_user_session_key,
+    validate_user_context,
+)
+from .embedding_cache import get_embedding_cache
 from .redis_connection import RedisConnectionManager
 
 logger = logging.getLogger(__name__)
@@ -40,6 +46,12 @@ class MemoryManager:
         """Initialize memory manager with embedding model and Redis."""
         self.settings = get_settings()
         self.redis_manager = RedisConnectionManager()
+
+        # Initialize token manager for context window management
+        self.token_manager = get_token_manager()
+
+        # Initialize embedding cache (1 hour TTL)
+        self.embedding_cache = get_embedding_cache(ttl_seconds=3600)
 
         # Initialize Ollama client for embeddings
         self.ollama_base_url = self.settings.ollama_base_url
@@ -121,7 +133,9 @@ class MemoryManager:
         """
         try:
             with self.redis_manager.get_connection() as redis_client:
-                session_key = f"health_chat_session:{session_id}"
+                # Validate user_id and use single user session key
+                validate_user_context(user_id)
+                session_key = get_user_session_key(session_id)
 
                 # Get recent messages
                 messages = redis_client.lrange(session_key, 0, limit - 1)
@@ -153,10 +167,146 @@ class MemoryManager:
             logger.error(f"Short-term memory retrieval failed: {e}")
             return None
 
+    async def store_short_term_message(
+        self, user_id: str, session_id: str, role: str, content: str
+    ) -> bool:
+        """
+        Store a message in short-term conversation history.
+
+        Args:
+            user_id: User identifier
+            session_id: Session identifier
+            role: Message role ('user' or 'assistant')
+            content: Message content
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            import uuid
+
+            with self.redis_manager.get_connection() as redis_client:
+                # Validate user_id and use single user session key
+                validate_user_context(user_id)
+                session_key = get_user_session_key(session_id)
+
+                message_data = {
+                    "id": str(uuid.uuid4()),
+                    "role": role,
+                    "content": content,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+
+                # Store in Redis LIST (prepend for newest-first)
+                redis_client.lpush(session_key, json.dumps(message_data))
+
+                # Set TTL for automatic cleanup
+                redis_client.expire(session_key, self.memory_ttl)
+
+                logger.debug(f"Stored {role} message in session {session_id}")
+                return True
+
+        except Exception as e:
+            logger.error(f"Short-term message storage failed: {e}")
+            return False
+
+    async def get_short_term_context_token_aware(
+        self, user_id: str, session_id: str, limit: int = 10
+    ) -> tuple[str | None, dict[str, Any]]:
+        """
+        Get short-term context with automatic trimming based on token limits.
+
+        Retrieves recent messages and trims them if they exceed the token threshold,
+        ensuring the LLM's context window is never exceeded.
+
+        Args:
+            user_id: User identifier
+            session_id: Session identifier
+            limit: Initial number of recent messages to include
+
+        Returns:
+            Tuple of (formatted_context_string, usage_stats_dict)
+            Usage stats includes: message_count, token_count, usage_percent, is_over_threshold
+        """
+        try:
+            with self.redis_manager.get_connection() as redis_client:
+                session_key = f"health_chat_session:{session_id}"
+
+                # Get recent messages
+                raw_messages = redis_client.lrange(session_key, 0, limit - 1)
+
+                if not raw_messages:
+                    return None, {"message_count": 0, "token_count": 0}
+
+                # Parse messages
+                messages = []
+                for msg_json in reversed(
+                    raw_messages
+                ):  # Reverse for chronological order
+                    try:
+                        msg_data = json.loads(msg_json)
+                        messages.append(msg_data)
+                    except json.JSONDecodeError:
+                        continue
+
+                # Check and trim if needed
+                if messages:
+                    (
+                        trimmed_messages,
+                        original_tokens,
+                        trimmed_tokens,
+                    ) = self.token_manager.trim_messages(messages)
+
+                    # Format trimmed context
+                    context_lines = ["Recent conversation:"]
+
+                    for msg in trimmed_messages:
+                        role = msg.get("role", "unknown")
+                        content = msg.get("content", "")
+
+                        # Truncate long messages for display
+                        if len(content) > 200:
+                            content = content[:200] + "..."
+
+                        context_lines.append(f"{role.capitalize()}: {content}")
+
+                    # Get usage statistics
+                    usage_stats = self.token_manager.get_usage_stats(trimmed_messages)
+
+                    context_str = (
+                        "\n".join(context_lines) if len(context_lines) > 1 else None
+                    )
+                    return context_str, usage_stats
+
+                return None, {"message_count": 0, "token_count": 0}
+
+        except Exception as e:
+            logger.error(f"Token-aware context retrieval failed: {e}")
+            return None, {"error": str(e)}
+
     # ========== LONG-TERM MEMORY (SEMANTIC) ==========
 
     async def _generate_embedding(self, text: str) -> list[float] | None:
-        """Generate embedding using Ollama."""
+        """
+        Generate embedding using Ollama with caching.
+
+        Checks embedding cache first to avoid expensive regeneration.
+        On cache miss, generates fresh embedding and caches it.
+
+        Args:
+            text: Text to embed
+
+        Returns:
+            Embedding vector or None if generation fails
+        """
+        # Try to get from cache first
+        embedding = await self.embedding_cache.get_or_generate(
+            query=text, generate_fn=lambda: self._generate_embedding_uncached(text)
+        )
+        return embedding
+
+    async def _generate_embedding_uncached(self, text: str) -> list[float] | None:
+        """Generate embedding using Ollama (no cache lookup)."""
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
@@ -199,7 +349,7 @@ class MemoryManager:
                 return False
 
             # Create memory record
-            timestamp = int(datetime.now().timestamp())
+            timestamp = int(datetime.now(UTC).timestamp())
             memory_key = f"memory:semantic:{user_id}:{session_id}:{timestamp}"
 
             # Store in RedisVL
@@ -229,8 +379,56 @@ class MemoryManager:
             logger.error(f"Semantic memory storage failed: {e}")
             return False
 
+    async def get_session_history_only(
+        self, session_id: str, limit: int = 5
+    ) -> list[dict[str, Any]]:
+        """
+        Get conversation history for CURRENT SESSION ONLY.
+
+        This retrieves short-term memory without cross-session semantic search.
+        Use for queries like "What was the first thing I asked?"
+
+        Args:
+            session_id: Session identifier
+            limit: Number of recent messages
+
+        Returns:
+            List of message dicts with role, content, timestamp
+        """
+        try:
+            with self.redis_manager.get_connection() as redis_client:
+                session_key = f"health_chat_session:{session_id}"
+                messages = redis_client.lrange(session_key, 0, limit - 1)
+
+                if not messages:
+                    return []
+
+                # Parse and return in chronological order
+                parsed = []
+                for msg_json in reversed(messages):
+                    try:
+                        msg_data = json.loads(msg_json)
+                        parsed.append(
+                            {
+                                "role": msg_data.get("role"),
+                                "content": msg_data.get("content"),
+                                "timestamp": msg_data.get("timestamp"),
+                            }
+                        )
+                    except json.JSONDecodeError:
+                        continue
+
+                return parsed
+        except Exception as e:
+            logger.error(f"Session history retrieval failed: {e}")
+            return []
+
     async def retrieve_semantic_memory(
-        self, user_id: str, query: str, top_k: int = 3
+        self,
+        user_id: str,
+        query: str,
+        top_k: int = 3,
+        exclude_session_id: str | None = None,
     ) -> dict[str, Any]:
         """
         Retrieve relevant memories via semantic search.
@@ -239,6 +437,7 @@ class MemoryManager:
             user_id: User identifier
             query: Query text to search for
             top_k: Number of memories to retrieve
+            exclude_session_id: Optional session ID to exclude from search
 
         Returns:
             Dict with context string and metadata

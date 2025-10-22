@@ -4,6 +4,28 @@ import type { Message } from './types';
 
 const redisSessionId: string = `real-health-${Date.now()}`;
 
+// Stats tracking
+const statelessStats = {
+  messageCount: 0,
+  toolsUsed: 0,
+  tokenCount: 0,
+  totalResponseTime: 0,
+  avgResponseTime: 0,
+  lastResponseTime: 0,
+};
+
+const redisStats = {
+  messageCount: 0,
+  toolsUsed: 0,
+  tokenCount: 0,
+  tokenUsagePercent: 0,
+  semanticMemories: 0,
+  isOverThreshold: false,
+  totalResponseTime: 0,
+  avgResponseTime: 0,
+  lastResponseTime: 0,
+};
+
 // DOM Elements
 const statelessChatArea = document.getElementById(
   'stateless-chat-area'
@@ -146,6 +168,58 @@ function renderMarkdown(text: string): string {
   return html;
 }
 
+// Update stats comparison table
+function updateStatsTable(): void {
+  // Update stateless stats
+  const statelessMsgEl = document.getElementById('stat-stateless-msg');
+  const statelessTokensEl = document.getElementById('stat-stateless-tokens');
+  const statelessUsageEl = document.getElementById('stat-stateless-usage');
+  const statelessToolsEl = document.getElementById('stat-stateless-tools');
+  const statelessLatencyEl = document.getElementById('stat-stateless-latency');
+
+  if (statelessMsgEl) statelessMsgEl.textContent = String(statelessStats.messageCount);
+  if (statelessTokensEl)
+    statelessTokensEl.textContent = String(statelessStats.tokenCount);
+  if (statelessUsageEl) statelessUsageEl.textContent = 'N/A';
+  if (statelessToolsEl) statelessToolsEl.textContent = String(statelessStats.toolsUsed);
+  if (statelessLatencyEl) {
+    statelessLatencyEl.textContent =
+      statelessStats.avgResponseTime > 0
+        ? `${statelessStats.avgResponseTime.toFixed(0)}ms`
+        : 'N/A';
+  }
+
+  // Update Redis stats
+  const redisMsgEl = document.getElementById('stat-redis-msg');
+  const redisTokensEl = document.getElementById('stat-redis-tokens');
+  const redisUsageEl = document.getElementById('stat-redis-usage');
+  const redisToolsEl = document.getElementById('stat-redis-tools');
+  const redisSemanticEl = document.getElementById('stat-redis-semantic');
+  const redisTrimmingEl = document.getElementById('stat-redis-trimming');
+  const redisLatencyEl = document.getElementById('stat-redis-latency');
+
+  if (redisMsgEl) redisMsgEl.textContent = String(redisStats.messageCount);
+  if (redisTokensEl) redisTokensEl.textContent = String(redisStats.tokenCount);
+  if (redisUsageEl)
+    redisUsageEl.textContent =
+      redisStats.tokenUsagePercent > 0
+        ? `${redisStats.tokenUsagePercent.toFixed(1)}%`
+        : 'N/A';
+  if (redisToolsEl) redisToolsEl.textContent = String(redisStats.toolsUsed);
+  if (redisSemanticEl)
+    redisSemanticEl.textContent = String(redisStats.semanticMemories);
+  if (redisTrimmingEl) {
+    redisTrimmingEl.textContent = redisStats.isOverThreshold ? '✂️ Active' : 'Inactive';
+    redisTrimmingEl.style.color = redisStats.isOverThreshold ? '#ff6b6b' : '#51cf66';
+  }
+  if (redisLatencyEl) {
+    redisLatencyEl.textContent =
+      redisStats.avgResponseTime > 0
+        ? `${redisStats.avgResponseTime.toFixed(0)}ms`
+        : 'N/A';
+  }
+}
+
 // Show loading indicator
 function showLoading(chatArea: HTMLDivElement): HTMLDivElement {
   const loadingDiv = document.createElement('div');
@@ -176,6 +250,23 @@ async function sendStatelessMessage(message: string): Promise<void> {
 
     removeLoading(statelessChatArea, loadingDiv);
     addMessage(statelessChatArea, 'assistant', data.response);
+
+    // Update stats - use ACTUAL data from agent response
+    statelessStats.messageCount += 2; // user + assistant
+    statelessStats.toolsUsed += data.tool_calls_made || 0; // Actual tool calls
+    // Note: Stateless has no token tracking (no memory to accumulate)
+    // We could estimate ~1200 tokens per message but that's not accurate
+    statelessStats.tokenCount = 0; // No context accumulation
+
+    // Update response time metrics (if available)
+    if (data.response_time_ms !== undefined) {
+      statelessStats.lastResponseTime = data.response_time_ms;
+      statelessStats.totalResponseTime += data.response_time_ms;
+      const responseCount = statelessStats.messageCount / 2; // Divide by 2 since we count user+assistant
+      statelessStats.avgResponseTime = statelessStats.totalResponseTime / responseCount;
+    }
+
+    updateStatsTable();
   } catch (error) {
     console.error('Error sending stateless message:', error);
     removeLoading(statelessChatArea, loadingDiv);
@@ -209,6 +300,28 @@ async function sendRedisMessage(message: string): Promise<void> {
       tools_used: data.tools_used,
       memory_stats: data.memory_stats,
     });
+
+    // Update stats - Redis with memory and tokens
+    redisStats.messageCount += 2; // user + assistant
+    redisStats.toolsUsed += data.tool_calls_made;
+    redisStats.semanticMemories = data.memory_stats.semantic_hits;
+
+    // Update token stats from response
+    if (data.token_stats && data.token_stats.token_count !== undefined) {
+      redisStats.tokenCount = data.token_stats.token_count;
+      redisStats.tokenUsagePercent = data.token_stats.usage_percent;
+      redisStats.isOverThreshold = data.token_stats.is_over_threshold;
+    }
+
+    // Update response time metrics (if available)
+    if (data.response_time_ms !== undefined) {
+      redisStats.lastResponseTime = data.response_time_ms;
+      redisStats.totalResponseTime += data.response_time_ms;
+      const responseCount = redisStats.messageCount / 2; // Divide by 2 since we count user+assistant
+      redisStats.avgResponseTime = redisStats.totalResponseTime / responseCount;
+    }
+
+    updateStatsTable();
   } catch (error) {
     console.error('Error sending Redis message:', error);
     removeLoading(redisChatArea, loadingDiv);

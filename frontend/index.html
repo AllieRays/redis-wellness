@@ -17,6 +17,52 @@
           </div>
         </div>
 
+        <!-- Stats Comparison Table -->
+        <div class="stats-container" style="display: block; background: white; padding: 20px; border: 2px solid red;">
+          <h2>📊 Performance Comparison</h2>
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Stateless</th>
+                <th>Redis (with Memory)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Messages in Context</td>
+                <td id="stat-stateless-msg">0</td>
+                <td id="stat-redis-msg">0</td>
+              </tr>
+              <tr>
+                <td>Token Count</td>
+                <td id="stat-stateless-tokens">0</td>
+                <td id="stat-redis-tokens">0</td>
+              </tr>
+              <tr>
+                <td>Context Usage</td>
+                <td id="stat-stateless-usage">0%</td>
+                <td id="stat-redis-usage">0%</td>
+              </tr>
+              <tr>
+                <td>Tools Used (Total)</td>
+                <td id="stat-stateless-tools">0</td>
+                <td id="stat-redis-tools">0</td>
+              </tr>
+              <tr>
+                <td>Semantic Memories</td>
+                <td id="stat-stateless-semantic">N/A</td>
+                <td id="stat-redis-semantic">0</td>
+              </tr>
+              <tr>
+                <td>Avg Response Time</td>
+                <td id="stat-stateless-latency">N/A</td>
+                <td id="stat-redis-latency">N/A</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         <div class="chat-container">
           <!-- Stateless Chat -->
           <div class="chat-panel">

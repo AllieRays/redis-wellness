@@ -96,7 +96,7 @@ def validate_tool_input(input_schema: dict[str, Any]):
                     "Input validation failed",
                     "VALIDATION_ERROR",
                     {"function": func.__name__},
-                )
+                ) from e
 
         return wrapper
 

@@ -31,7 +31,7 @@ def parse_workouts_from_xml(file_path):
             # Parse date
             try:
                 start_date = datetime.strptime(start_date_str, "%Y-%m-%d %H:%M:%S %z")
-            except:
+            except Exception:
                 start_date = None
 
             # Find energy burned (if available)

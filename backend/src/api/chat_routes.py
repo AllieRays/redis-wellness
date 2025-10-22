@@ -7,16 +7,24 @@ Demonstrates the power of RedisVL memory through side-by-side comparison:
 """
 
 import logging
+import time
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Request
+from pydantic import BaseModel, ConfigDict, Field
 
-from ..services.redis_chat import redis_chat_service
-from ..services.stateless_chat import stateless_chat_service
+from ..services.redis_chat import RedisChatService
+from ..services.stateless_chat import StatelessChatService
+from ..utils.user_config import get_user_id
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["Health Chat Demo"])
+
+# ========== Service Initialization ==========
+
+# Initialize services (services manage agents internally)
+stateless_service = StatelessChatService()
+redis_service = RedisChatService()
 
 
 # ========== Request/Response Models ==========
@@ -39,20 +47,29 @@ class StatelessChatResponse(BaseModel):
     """Response model for stateless chat."""
 
     response: str
-    validation: dict[str, Any] = {}
+    tools_used: list[dict[str, Any]] = Field(default_factory=list)
+    tool_calls_made: int = 0
+    validation: dict[str, Any] = Field(default_factory=dict)
     type: str = "stateless"
+    response_time_ms: float = Field(default=0.0)  # Response latency in milliseconds
 
 
 class RedisChatResponse(BaseModel):
     """Response model for Redis chat."""
 
+    model_config = ConfigDict(use_enum_values=True)
+
     response: str
     session_id: str
-    tools_used: list[dict[str, Any]] = []
+    tools_used: list[dict[str, Any]] = Field(default_factory=list)
     tool_calls_made: int = 0
-    memory_stats: dict[str, Any] = {}
-    validation: dict[str, Any] = {}
+    memory_stats: dict[str, Any] = Field(default_factory=dict)
+    token_stats: dict[str, Any] = Field(
+        default_factory=dict
+    )  # Context window usage tracking
+    validation: dict[str, Any] = Field(default_factory=dict)
     type: str = "redis_with_memory"
+    response_time_ms: float = Field(default=0.0)  # Response latency in milliseconds
 
 
 class ConversationMessage(BaseModel):
@@ -92,72 +109,83 @@ class ClearSessionResponse(BaseModel):
 
 
 @router.post("/stateless", response_model=StatelessChatResponse)
-async def stateless_chat(request: StatelessChatRequest):
+async def stateless_chat(request: StatelessChatRequest, http_request: Request):
     """
-    Stateless chat endpoint - NO memory system.
+    Stateless chat endpoint - Uses StatelessChatService.
 
     Features:
-    - Same LangGraph agent
-    - Same tool calling
+    - Simple tool calling
+    - Health data retrieval
     - NO conversation history
     - NO semantic memory
     - Each message completely independent
 
-    Use case: Show what happens without RedisVL memory.
+    Use case: Baseline to show Redis memory value.
     """
-    try:
-        result = await stateless_chat_service.chat(request.message)
+    start_time = time.time()
 
-        # Handle both string and dict responses
-        if isinstance(result, dict):
-            return StatelessChatResponse(
-                response=result["response"],
-                validation=result.get("validation", {}),
-                type="stateless",
-            )
-        else:
-            # Legacy string response
-            return StatelessChatResponse(
-                response=result, validation={}, type="stateless"
-            )
+    result = await stateless_service.chat(message=request.message)
 
-    except Exception as e:
-        logger.error(f"Stateless chat failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    response_time_ms = (time.time() - start_time) * 1000  # Convert to milliseconds
+
+    # Convert tools_used from list of strings to list of dicts
+    tools_used = result.get("tools_used", [])
+    if tools_used and isinstance(tools_used[0], str):
+        tools_used = [{"name": tool} for tool in tools_used]
+
+    return StatelessChatResponse(
+        response=result["response"],
+        tools_used=tools_used,
+        tool_calls_made=result.get("tool_calls_made", 0),
+        validation=result.get("validation", {}),
+        type="stateless",
+        response_time_ms=response_time_ms,
+    )
 
 
-@router.post("/redis", response_model=RedisChatResponse)
-async def redis_chat(request: RedisChatRequest):
+@router.post("/redis")
+async def redis_chat(request: RedisChatRequest, http_request: Request):
     """
-    Redis chat endpoint - FULL memory system.
+    Redis chat endpoint - Uses RedisChatService with FULL memory.
 
     Features:
-    - LangGraph agent with tool calling
-    - Short-term memory (last 10 messages)
+    - LangGraph workflow with memory
+    - Health tool calling
+    - Short-term memory (Redis LIST) - conversation history
     - Long-term memory (RedisVL semantic search)
     - Conversation persistence (7-month TTL)
     - Context-aware responses
 
-    Use case: Showcase the power of RedisVL memory.
+    Use case: Showcase the power of Redis + RedisVL memory.
     """
-    try:
-        result = await redis_chat_service.chat(
-            message=request.message, session_id=request.session_id
-        )
+    start_time = time.time()
 
-        return RedisChatResponse(
-            response=result["response"],
-            session_id=result["session_id"],
-            tools_used=result.get("tools_used", []),
-            tool_calls_made=result.get("tool_calls_made", 0),
-            memory_stats=result.get("memory_stats", {}),
-            validation=result.get("validation", {}),
-            type=result.get("type", "redis_with_memory"),
-        )
+    # Use RedisChatService which handles conversation storage
+    result = await redis_service.chat(
+        message=request.message, session_id=request.session_id
+    )
 
-    except Exception as e:
-        logger.error(f"Redis chat failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    response_time_ms = (time.time() - start_time) * 1000  # Convert to milliseconds
+
+    # Convert tools_used from list of strings to list of dicts
+    tools_used = result.get("tools_used", [])
+    if tools_used and isinstance(tools_used[0], str):
+        tools_used = [{"name": tool} for tool in tools_used]
+
+    # Return dict directly to ensure all fields are included
+    response_dict = {
+        "response": result["response"],
+        "session_id": request.session_id,
+        "tools_used": tools_used,
+        "tool_calls_made": result.get("tool_calls_made", 0),
+        "memory_stats": result.get("memory_stats", {}),
+        "token_stats": result.get("token_stats", {}),
+        "validation": result.get("validation", {}),
+        "type": "redis_with_memory",
+        "response_time_ms": response_time_ms,
+    }
+    print(f"\n\n=== RESPONSE DICT: {response_dict}\n\n")
+    return response_dict
 
 
 # ========== Memory Management Endpoints ==========
@@ -168,31 +196,26 @@ async def get_conversation_history(session_id: str, limit: int = 10):
     """
     Get conversation history (short-term memory).
 
-    Only available for Redis chat.
+    Retrieves recent messages from Redis conversation history.
+    Only available for Redis chat (stateless chat has no history).
     """
-    try:
-        messages = await redis_chat_service.get_conversation_history(
-            session_id=session_id, limit=limit
+    # Get conversation history from Redis service
+    messages = await redis_service.get_conversation_history(session_id, limit=limit)
+
+    conversation_messages = [
+        ConversationMessage(
+            role=msg["role"],
+            content=msg["content"],
+            timestamp=msg.get("timestamp", ""),
         )
+        for msg in messages
+    ]
 
-        conversation_messages = [
-            ConversationMessage(
-                role=msg["role"],
-                content=msg["content"],
-                timestamp=msg.get("timestamp", ""),
-            )
-            for msg in messages
-        ]
-
-        return ConversationHistoryResponse(
-            session_id=session_id,
-            messages=conversation_messages,
-            total_messages=len(conversation_messages),
-        )
-
-    except Exception as e:
-        logger.error(f"History retrieval failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return ConversationHistoryResponse(
+        session_id=session_id,
+        messages=conversation_messages,
+        total_messages=len(conversation_messages),
+    )
 
 
 @router.get("/memory/{session_id}", response_model=MemoryStatsResponse)
@@ -204,19 +227,45 @@ async def get_memory_stats(session_id: str):
     - Short-term memory: Message count, TTL
     - Long-term memory: Semantic memory count
     """
-    try:
-        stats = await redis_chat_service.get_memory_stats(session_id)
+    stats = await redis_service.get_memory_stats(session_id)
 
-        return MemoryStatsResponse(
-            short_term=stats.get("short_term", {}),
-            long_term=stats.get("long_term", {}),
-            user_id=stats.get("user_id", "unknown"),
-            session_id=stats.get("session_id", session_id),
-        )
+    return MemoryStatsResponse(
+        short_term=stats.get("short_term", {}),
+        long_term=stats.get("long_term", {}),
+        user_id=stats.get("user_id", "unknown"),
+        session_id=stats.get("session_id", session_id),
+    )
 
-    except Exception as e:
-        logger.error(f"Memory stats failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/tokens/{session_id}")
+async def get_token_usage(session_id: str, limit: int = 10):
+    """
+    Get token usage statistics for a session's context.
+
+    Shows:
+    - Current token count
+    - Maximum token limit
+    - Usage percentage
+    - Whether trimming is needed
+
+    Useful for monitoring context window usage and detecting when
+    automatic trimming will occur.
+    """
+    user_id = get_user_id()  # Single user configuration
+    (
+        context_str,
+        token_stats,
+    ) = await redis_service.memory_manager.get_short_term_context_token_aware(
+        user_id, session_id, limit=limit
+    )
+
+    return {
+        "session_id": session_id,
+        "token_stats": token_stats,
+        "status": "over_threshold"
+        if token_stats.get("is_over_threshold")
+        else "under_threshold",
+    }
 
 
 @router.delete("/session/{session_id}", response_model=ClearSessionResponse)
@@ -226,20 +275,13 @@ async def clear_session(session_id: str):
 
     Clears both short-term and long-term memories.
     """
-    try:
-        success = await redis_chat_service.clear_session(session_id)
+    success = await redis_service.clear_session(session_id)
 
-        return ClearSessionResponse(
-            success=success,
-            session_id=session_id,
-            message=(
-                "Session cleared successfully" if success else "Session clear failed"
-            ),
-        )
-
-    except Exception as e:
-        logger.error(f"Session clear failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return ClearSessionResponse(
+        success=success,
+        session_id=session_id,
+        message=("Session cleared successfully" if success else "Session clear failed"),
+    )
 
 
 # ========== Demo Information Endpoint ==========

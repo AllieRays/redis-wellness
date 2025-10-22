@@ -1,16 +1,20 @@
 """
 AI Agents for Redis Wellness Application.
 
-LangGraph-powered agents with RAG capabilities and dual memory system.
+Two agent types for side-by-side comparison:
+- StatelessHealthAgent: Baseline with NO memory
+- StatefulRAGAgent: Full Redis + RedisVL memory
 """
 
 from ..services.memory_manager import MemoryManager, get_memory_manager
-from .health_rag_agent import HealthRAGAgent, get_health_rag_agent, process_health_chat
+from .stateful_rag_agent import StatefulRAGAgent
+from .stateless_agent import StatelessHealthAgent
 
 __all__ = [
-    "HealthRAGAgent",
-    "get_health_rag_agent",
-    "process_health_chat",
+    # Agents for demo comparison
+    "StatelessHealthAgent",
+    "StatefulRAGAgent",
+    # Memory management
     "MemoryManager",
     "get_memory_manager",
 ]
