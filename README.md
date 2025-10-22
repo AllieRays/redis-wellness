@@ -12,7 +12,7 @@
 
 > Why memory matters for personalized private wellness conversations using Redis, health data, and local AI
 
-A **side-by-side demo** comparing **stateless chat** vs. **agentic RAG chat** powered by Redis and RedisVL. Built with FastAPI, LangGraph, and local LLMs (Ollama) - your health data never leaves your machine.
+A **side-by-side demo** comparing **stateless chat** vs. **agentic RAG chat** powered by Redis and RedisVL. Built with FastAPI and local LLMs (Ollama) - your health data never leaves your machine.
 
 ## 🎯 The Demo: Stateless vs. Memory-Powered Chat
 
@@ -29,13 +29,13 @@ This project demonstrates the transformative power of memory in AI conversations
 - ✅ Understands pronouns and references ("it", "that", "then")
 - ✅ Semantic memory with vector search
 - ✅ Context-aware, personalized responses
-- ✅ LangGraph agentic tool calling
+- ✅ Autonomous agentic tool calling
 
 ## 🏗️ Architecture
 
 ```mermaid
 graph TB
-    subgraph "Docker Network"
+    subgraph Docker["Docker Network"]
         Frontend["Frontend<br/>TypeScript + Vite<br/>:3000"]
         Backend["Backend<br/>FastAPI + Python<br/>:8000"]
         Redis[("Redis Stack<br/>+ RedisVL<br/>:6379")]
@@ -45,10 +45,10 @@ graph TB
         Backend -->|Redis Commands| Redis
         RedisInsight -.->|Monitor| Redis
 
-        subgraph "Backend Components"
-            Agent["Stateful RAG Agent<br/>(Simple Tool Loop)"]
-            Tools["9 Health Tools<br/>(LangChain)"]]
-            Memory["Memory Manager<br/>(Dual System)"]
+        subgraph BackendComponents["Backend Components"]
+            Agent["Stateful RAG Agent<br/>Simple Tool Loop"]
+            Tools["9 Health Tools<br/>LangChain"]
+            Memory["Memory Manager<br/>Dual System"]
 
             Backend --> Agent
             Agent --> Tools
@@ -56,10 +56,10 @@ graph TB
             Memory --> Redis
         end
 
-        subgraph "Redis/RedisVL Storage"
-            ShortTerm["📝 Short-Term Memory<br/>Conversation History<br/>(Redis LIST)"]
-            LongTerm["🧠 Long-Term Memory<br/>Semantic Search<br/>(RedisVL HNSW)"]
-            HealthData["💊 Health Data Cache<br/>Apple Health Records<br/>(7-month TTL)"]
+        subgraph RedisStorage["Redis/RedisVL Storage"]
+            ShortTerm["Short-Term Memory<br/>Conversation History<br/>Redis LIST"]
+            LongTerm["Long-Term Memory<br/>Semantic Search<br/>RedisVL HNSW"]
+            HealthData["Health Data Cache<br/>Apple Health Records<br/>7-month TTL"]
 
             Redis --> ShortTerm
             Redis --> LongTerm
@@ -67,10 +67,10 @@ graph TB
         end
     end
 
-    subgraph "Host Machine"
+    subgraph Host["Host Machine"]
         Ollama["Ollama<br/>:11434"]
-        LLM["Qwen 2.5 7B<br/>(Tool Calling)"]
-        Embeddings["mxbai-embed-large<br/>(Vectors)"]
+        LLM["Qwen 2.5 7B<br/>Tool Calling"]
+        Embeddings["mxbai-embed-large<br/>Vectors"]
 
         Ollama --> LLM
         Ollama --> Embeddings
@@ -80,12 +80,12 @@ graph TB
     Agent -.->|Function Calling| LLM
     Memory -.->|Generate Vectors| Embeddings
 
-    style Frontend fill:#61dafb,stroke:#333,stroke-width:2px,color:#000
-    style Backend fill:#009688,stroke:#333,stroke-width:2px,color:#fff
-    style Redis fill:#dc382d,stroke:#333,stroke-width:2px,color:#fff
-    style Ollama fill:#000,stroke:#333,stroke-width:2px,color:#fff
-    style Agent fill:#ff6b6b,stroke:#333,stroke-width:2px,color:#fff
-    style Memory fill:#4ecdc4,stroke:#333,stroke-width:2px,color:#fff
+    style Frontend fill:#61dafb,stroke:#333,stroke-width:2px
+    style Backend fill:#009688,stroke:#333,stroke-width:2px
+    style Redis fill:#dc382d,stroke:#333,stroke-width:2px
+    style Ollama fill:#000,stroke:#333,stroke-width:2px
+    style Agent fill:#ff6b6b,stroke:#333,stroke-width:2px
+    style Memory fill:#4ecdc4,stroke:#333,stroke-width:2px
 ```
 
 ### Key Components
@@ -382,7 +382,7 @@ Returns:
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
-| **Agent Framework** | LangGraph | Stateful agentic workflows |
+| **Agent Framework** | Simple Tool Loop | Lightweight agentic workflow |
 | **LLM** | Qwen 2.5 7B (Ollama) | Local tool calling |
 | **Embeddings** | mxbai-embed-large | Semantic vectors |
 | **Memory** | Redis + RedisVL | Short + long-term memory |
@@ -467,7 +467,7 @@ uv run pytest --cov=src --cov-report=html tests/
 ### Tech Resources
 
 - [RedisVL Documentation](https://redisvl.com)
-- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
+- [LangChain Documentation](https://python.langchain.com) - For tool definitions
 - [Ollama Documentation](https://ollama.ai)
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 
