@@ -75,12 +75,21 @@ build/
 Thumbs.db
 
 
-# Apple health data
+# Apple health data - NEVER COMMIT
 apple_health_export/*
 export_cda.xml
 export.xml
+export*.xml
 health_*.json
 parsed_health_data.json
+*_health_data.json
+*.health.json
+# Any XML files that might be exports
+AppleHealth*.xml
+health_export*.xml
+# Sample/test data directories
+test_data/export*.xml
+fixtures/export*.xml
 
 # Docker development overrides
 docker-compose.override.yml

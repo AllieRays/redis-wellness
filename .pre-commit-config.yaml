@@ -48,3 +48,33 @@ repos:
       - id: check-added-large-files
         args: ["--maxkb=1000"]
         exclude: ^frontend/node_modules/
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+
+  # Security - prevent committing sensitive data
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: package-lock.json
+
+  # Python type checking (optional - can be slow)
+  # - repo: https://github.com/pre-commit/mirrors-mypy
+  #   rev: v1.7.1
+  #   hooks:
+  #     - id: mypy
+  #       files: ^backend/src/
+  #       args: [--ignore-missing-imports]
+
+  # Fast unit tests before commit (optional)
+  # - repo: local
+  #   hooks:
+  #     - id: pytest-fast
+  #       name: Run fast unit tests
+  #       entry: bash -c 'cd backend && uv run pytest tests/unit/ -x -q'
+  #       language: system
+  #       pass_filenames: false
+  #       always_run: false
+  #       stages: [commit]
