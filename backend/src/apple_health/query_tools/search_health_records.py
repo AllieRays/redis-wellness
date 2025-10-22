@@ -65,6 +65,9 @@ def create_search_health_records_tool(user_id: str):
             - "Show my BMI in early August" → time_period="early August"
             - "Weight trend last 2 weeks" → time_period="last 2 weeks"
 
+        DATE FORMAT: All dates in results are formatted as "YYYY-MM-DD" (e.g., "2025-10-22").
+        Dates are in UTC. Present to users in natural language: "October 22" or "Oct 22".
+
         Returns:
             Dict with matching records and metadata
         """
@@ -119,7 +122,7 @@ def create_search_health_records_tool(user_id: str):
                                 filtered_records.append(
                                     {
                                         "value": value,
-                                        "date": record["date"][:10],  # Just YYYY-MM-DD
+                                        "date": record_date.date().isoformat(),  # Proper date formatting: YYYY-MM-DD
                                     }
                                 )
 

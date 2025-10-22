@@ -38,7 +38,8 @@ def _get_heart_rate_during_workout(
         Dict with HR stats or None if no data
     """
     try:
-        # Parse workout time window
+        # Parse workout time window (workouts use ISO format from .isoformat())
+        # Note: Workouts are stored in ISO format, not health record format
         workout_start = datetime.fromisoformat(workout_start_str.replace("Z", "+00:00"))
         workout_end = workout_start + timedelta(minutes=duration_minutes)
 
@@ -145,6 +146,11 @@ def create_search_workouts_tool(user_id: str):
         CRITICAL: Workouts are returned sorted MOST RECENT FIRST. When presenting to users,
         ALWAYS list them in the order provided (most recent → oldest) for clarity.
 
+        DATE FORMAT: All dates are in UTC and formatted as:
+        - "date": "2025-10-22" (YYYY-MM-DD, date only)
+        - "day_of_week": "Friday" (use this, don't calculate!)
+        - "last_workout": "3 days ago" (human-readable, use this exact text)
+
         Use this when the user asks:
         - "When did I last work out?"
         - "Show me my recent workouts"
@@ -189,7 +195,8 @@ def create_search_workouts_tool(user_id: str):
                     start_date_str = workout.get("startDate", "")
                     if start_date_str:
                         try:
-                            # Parse ISO datetime - handle both naive and timezone-aware
+                            # Parse ISO datetime from workout data (stored with .isoformat())
+                            # Note: Workouts use ISO format, not health record format
                             workout_date = datetime.fromisoformat(
                                 start_date_str.replace("Z", "+00:00")
                             )
@@ -256,6 +263,7 @@ def create_search_workouts_tool(user_id: str):
                 if recent_workouts:
                     last_workout_date = recent_workouts[0]["date"]
                     try:
+                        # Parse date string (YYYY-MM-DD format)
                         date_obj = datetime.fromisoformat(last_workout_date)
                         # CRITICAL: Use UTC for consistent timezone handling
                         now = datetime.now(UTC)

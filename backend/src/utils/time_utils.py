@@ -3,6 +3,53 @@ Time parsing utilities for natural language date/time descriptions.
 
 All datetime operations use UTC. Frontend is responsible for timezone
 conversion and display to support global users.
+
+==========================================================================
+📅 DATETIME STANDARDS FOR LLM INTERACTIONS
+==========================================================================
+
+This module handles all datetime parsing and formatting for the application.
+When interacting with LLMs, follow these critical standards:
+
+**STORAGE FORMAT (Internal):**
+- All datetimes stored in ISO 8601 format: "2025-10-22T16:22:02+00:00"
+- All datetimes are UTC (no timezone conversion in backend)
+- Use `.isoformat()` for serialization to Redis/JSON
+
+**LLM INPUT FORMAT (What tools return to LLM):**
+- Health records: Date-only "YYYY-MM-DD" (e.g., "2025-10-22")
+- Workouts: Date-only "YYYY-MM-DD" + "day_of_week" field (e.g., "Friday")
+- Relative times: Human-readable strings (e.g., "3 days ago", "today")
+- NEVER send full ISO timestamps to LLM (too technical, causes confusion)
+
+**LLM OUTPUT FORMAT (How LLM should present to users):**
+- Natural language: "October 22", "last Friday", "3 days ago"
+- Avoid technical formats: NO "2025-10-22T16:22:02+00:00" in user responses
+- Use day_of_week from tool data instead of calculating
+- Use time_ago from tool data instead of calculating
+
+**PARSING FUNCTIONS:**
+- `parse_health_record_date()` - Parse any datetime from Redis (ISO or legacy)
+- `parse_time_period()` - Convert natural language to UTC date ranges
+- `format_datetime_utc()` - Format datetime to ISO 8601 string
+- `format_date_utc()` - Format datetime to date-only string (YYYY-MM-DD)
+
+**CRITICAL RULES FOR TOOL DEVELOPERS:**
+1. Parse stored datetimes with `parse_health_record_date()`
+2. Return dates to LLM as date-only strings: `.date().isoformat()`
+3. Include helper fields: day_of_week, time_ago, last_workout
+4. Document date formats in tool docstrings
+5. Never send full ISO timestamps to LLM
+
+**WHY THIS MATTERS:**
+LLMs struggle with ISO 8601 timestamps and timezone calculations.
+Providing clean, simple date strings with helper fields prevents:
+- Incorrect day-of-week calculations
+- Timezone confusion
+- Hallucinated relative time statements
+- Technical datetime strings in user responses
+
+==========================================================================
 """
 
 import re
@@ -28,7 +75,8 @@ def parse_time_period(time_period: str) -> tuple[datetime, datetime, str]:
     """
     # Get current time in UTC (timezone-agnostic backend)
     now_utc = datetime.now(UTC)
-    time_period_lower = time_period.lower().strip()
+    # Normalize input: replace underscores with spaces
+    time_period_lower = time_period.lower().strip().replace("_", " ")
 
     # Month names mapping
     months = {
@@ -212,14 +260,15 @@ def parse_health_record_date(
     """
     Parse health record date string to timezone-aware datetime.
 
-    All stored health records use format "%Y-%m-%d %H:%M:%S" and are
-    assumed to be in UTC timezone unless otherwise specified.
+    Supports both ISO 8601 format (primary) and legacy format (backwards compatibility):
+    - ISO 8601: "2025-10-21T12:53:11+00:00" or "2025-10-21T12:53:11Z"
+    - Legacy: "2025-10-21 12:53:11" (space-separated, no timezone)
 
     This is the canonical way to parse dates from Redis health data.
     Use this instead of datetime.strptime() to ensure timezone consistency.
 
     Args:
-        date_str: Date string in format "YYYY-MM-DD HH:MM:SS"
+        date_str: Date string in ISO 8601 or legacy format
         assume_utc: If True, naive datetimes are assumed UTC (default: True)
         strict: If True, raises ValueError for naive datetimes when assume_utc=False
 
@@ -230,23 +279,28 @@ def parse_health_record_date(
         ValueError: If date format is invalid or if datetime is naive and strict=True
 
     Examples:
-        >>> parse_health_record_date("2025-10-21 12:53:11")
+        >>> parse_health_record_date("2025-10-21T12:53:11+00:00")
         datetime.datetime(2025, 10, 21, 12, 53, 11, tzinfo=datetime.timezone.utc)
 
-        >>> parse_health_record_date("2025-10-21 12:53:11", assume_utc=False, strict=True)
-        ValueError: Naive datetime found...
+        >>> parse_health_record_date("2025-10-21 12:53:11")  # Legacy format
+        datetime.datetime(2025, 10, 21, 12, 53, 11, tzinfo=datetime.timezone.utc)
 
     Note:
         This function centralizes timezone handling for all health record dates.
-        Any changes to date storage format should be reflected here.
+        ISO 8601 is now the primary format for consistency.
     """
     try:
-        dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-    except ValueError as e:
-        raise ValueError(
-            f"Invalid health record date format: '{date_str}'. "
-            f"Expected format: 'YYYY-MM-DD HH:MM:SS'. Error: {e}"
-        ) from e
+        # Try ISO 8601 format first (primary format)
+        dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+    except ValueError:
+        # Fall back to legacy format for backwards compatibility
+        try:
+            dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid health record date format: '{date_str}'. "
+                f"Expected ISO 8601 ('2025-10-21T12:53:11+00:00') or legacy ('2025-10-21 12:53:11'). Error: {e}"
+            ) from e
 
     # Handle timezone awareness
     if dt.tzinfo is None:

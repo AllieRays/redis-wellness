@@ -42,7 +42,6 @@ Redis/RedisVL stores:
 
 **API Layer (`/api/`):**
 - `chat_routes.py` - Core chat endpoints (stateless vs. Redis comparison)
-- `tools_routes.py` - Direct tool endpoints for testing
 - `system_routes.py` - Main router aggregation and system health
 
 **AI Agents (`/agents/`)** - Two agents for demo comparison:
@@ -55,8 +54,7 @@ Both agents use the same simple tool-calling loop pattern for maintainability.
 **Apple Health Module (`/apple_health/`)** - Complete Apple Health data processing:
 - `models.py` - Pydantic models (HealthRecord, WorkoutSummary, etc.)
 - `parser.py` - Secure XML parsing with validation
-- `tools.py` - Processing tools (parse XML + generate insights)
-- `query_tools.py` - LangChain tools for AI queries (search, aggregate, workouts)
+- `query_tools/` - LangChain tools for AI queries (9 tools: search, aggregate, workouts, patterns, trends)
 - `__init__.py` - Clean module exports
 
 **Services (`/services/`)** - Data layer and business logic:
@@ -64,19 +62,19 @@ Both agents use the same simple tool-calling loop pattern for maintainability.
 - `stateless_chat.py` - No-memory baseline service
 - `memory_manager.py` - RedisVL dual memory system (short + long-term)
 - `redis_connection.py` - Production-ready Redis connection management
+- `redis_workout_indexer.py` - Fast Redis workout indexes (O(1) aggregations)
 - `redis_apple_health_manager.py` - Redis CRUD operations for Apple Health data
 - `embedding_cache.py` - Embedding cache for performance
 
 **Utils (`/utils/`)** - Pure utilities and helpers:
 - `agent_helpers.py` - Shared agent utilities (LLM, prompts, message handling)
-- `query_classifier.py` - Intent classification for tool routing
 - `numeric_validator.py` - LLM hallucination detection and validation
-- `math_tools.py` - Pure mathematical analysis functions
+- `workout_fetchers.py` - Workout data fetching from Redis indexes
+- `metric_aggregators.py` - Health metric aggregation utilities
 - `base.py` - Base classes, decorators, and error handling
-- `performance_tool.py` - Redis vs stateless performance comparison
 - `stats_utils.py` - Statistical calculation utilities
 - `time_utils.py` - Time parsing and date utilities
-- `conversion_utils.py` - Unit conversion functions
+- `health_analytics.py` - Health trend analysis functions
 
 **Frontend Structure (`/frontend/src/`)**:
 
@@ -274,10 +272,9 @@ TTL: 7 months
 - `/api/chat/session/{session_id}` - Clear session (DELETE)
 
 **Health Data:**
-- `/api/health/upload` - Upload Apple Health XML
-- `/api/tools/query-health-metrics` - Direct health tool access
-- `/api/tools/generate-health-insights` - Health data aggregation
-- `/api/tools/parse-health-file` - Health file parsing
+- Import via `import_health.py` script (not HTTP endpoint)
+- Data automatically indexed in Redis on import
+- Semantic memory cleared on import to prevent stale data
 
 ### Docker Network
 
@@ -287,12 +284,13 @@ Services communicate via `wellness-network` bridge network. Backend connects to 
 
 Key features of the agentic workflow:
 
-- **Query Classification**: Intelligent tool routing layer
-- **5 Specialized Tools**: Health records search, workouts, aggregation, analytics, file parsing
-- **Dual Memory**: Short-term + long-term semantic memory (Redis + RedisVL)
+- **Tool-First Policy**: Factual queries skip semantic memory to avoid stale cache
+- **9 Specialized Tools**: Health records, workouts, patterns, comparisons, trends, progress
+- **Dual Memory**: Short-term conversation + long-term context (Redis + RedisVL)
 - **Tool Calling**: Qwen 2.5 7B optimized for function calling
 - **Simple Loop**: Up to 8 iterations for complex multi-step queries
 - **Autonomous**: LLM decides which tools to call, chains them, decides when done
+- **Memory Clearing**: Import script clears semantic memory to prevent stale data
 
 **Why Simple Loop, Not LangGraph?**
 - Redis already handles persistence (no need for checkpointers)

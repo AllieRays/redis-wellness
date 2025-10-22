@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen2.5:7b"
     embedding_model: str = "mxbai-embed-large"
 
+    # User health context (personal medical history, injuries, goals)
+    # Set in .env file - keeps personal health data private and out of git
+    user_health_context: str = ""
+
     # Token limits for context management
     # Qwen 2.5 7B has ~32k effective context window
     max_context_tokens: int = 24000  # Conservative limit (75% of 32k)

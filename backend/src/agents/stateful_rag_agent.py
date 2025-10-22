@@ -22,7 +22,7 @@ from ..utils.agent_helpers import (
     create_health_llm,
 )
 from ..utils.numeric_validator import get_numeric_validator
-from ..utils.query_classifier import QueryClassifier
+from ..utils.verbosity_detector import VerbosityLevel, detect_verbosity
 
 logger = logging.getLogger(__name__)
 
@@ -38,11 +38,12 @@ class MemoryContext:
 
 class StatefulRAGAgent:
     """
-    RAG agent with Redis-backed memory and intelligent tool routing.
+    RAG agent with Redis-backed memory and autonomous tool selection.
 
     Architecture:
-    - Simple tool calling loop (like StatelessHealthAgent)
-    - Query classification for optimized tool selection
+    - Simple tool calling loop
+    - Native LLM tool selection (Qwen 2.5 chooses tools autonomously)
+    - Lightweight verbosity detection (for response style hints only)
     - Dual memory system (Redis + RedisVL)
     - Response validation against tool results
 
@@ -61,43 +62,56 @@ class StatefulRAGAgent:
 
         self.memory_manager = memory_manager
         self.llm = create_health_llm()
-        self.query_classifier = QueryClassifier()
 
         logger.info("StatefulRAGAgent initialized with Redis memory (simple loop)")
 
-    def _extract_current_query(self, messages: list) -> str:
-        """Extract the most recent user message content."""
-        for msg in reversed(messages):
-            if hasattr(msg, "content") and msg.content:
-                return msg.content
-        return ""
-
-    def _filter_tools(self, user_tools: list, classification: dict) -> list:
-        """Filter tools based on query classification confidence."""
-        if self.query_classifier.should_filter_tools(classification, threshold=0.5):
-            recommended = set(classification["recommended_tools"])
-            filtered = [t for t in user_tools if t.name in recommended]
-            logger.info(
-                f"Tool filtering: {len(filtered)}/{len(user_tools)} tools "
-                f"(confidence {classification['confidence']:.2f})"
-            )
-            return filtered
-
-        logger.info(
-            f"All {len(user_tools)} tools available "
-            f"(confidence {classification['confidence']:.2f} below threshold)"
-        )
-        return user_tools
-
-    def _build_system_prompt_with_memory(self, memory_context: MemoryContext) -> str:
-        """Construct system prompt with memory context injected."""
+    def _build_system_prompt_with_memory(
+        self, memory_context: MemoryContext, verbosity: VerbosityLevel
+    ) -> str:
+        """Construct system prompt with memory context and verbosity instructions."""
         prompt_parts = [build_base_system_prompt(), ""]
+
+        # Add verbosity instructions
+        if verbosity == VerbosityLevel.DETAILED:
+            prompt_parts.extend(
+                [
+                    "📊 VERBOSITY MODE: DETAILED",
+                    "User requested more information. Provide:",
+                    "- Comprehensive explanations of the data",
+                    "- Analytical insights and trends",
+                    "- Contextual interpretations (what the numbers mean)",
+                    "- Relevant comparisons to typical ranges or previous data",
+                    "- Actionable takeaways when appropriate",
+                    "",
+                ]
+            )
+        elif verbosity == VerbosityLevel.COMPREHENSIVE:
+            prompt_parts.extend(
+                [
+                    "📊 VERBOSITY MODE: COMPREHENSIVE",
+                    "User requested in-depth analysis. Provide:",
+                    "- Full breakdown of all data points",
+                    "- Statistical analysis with context",
+                    "- Health implications and interpretations",
+                    "- Comparisons across time periods",
+                    "- Detailed patterns and trends",
+                    "- Recommendations based on the data",
+                    "",
+                ]
+            )
 
         prompt_parts.extend(
             [
+                "⚠️ TOOL-FIRST POLICY:",
+                "- For factual questions about workouts/health data → ALWAYS call tools (source of truth)",
+                "- Semantic memory is for USER CONTEXT ONLY (goals, preferences, patterns)",
+                "- NEVER answer workout/metric questions from memory alone",
+                "- If memory conflicts with tool results → trust tools",
+                "",
                 "🧠 MEMORY SCOPE:",
                 "- 'Earlier today' or 'first question' → Use current conversation",
                 "- 'My goals' or 'usually' → Use semantic memory insights",
+                "- 'What workouts' or 'how many' → IGNORE memory, CALL TOOLS",
                 "",
                 "🧠 MEMORY CONTEXT:",
             ]
@@ -116,12 +130,54 @@ class StatefulRAGAgent:
 
         return "\n".join(prompt_parts)
 
+    def _is_factual_data_query(self, message: str) -> bool:
+        """Detect if query is asking for factual data (should skip semantic memory)."""
+        message_lower = message.lower()
+
+        # Keywords that indicate factual data queries
+        factual_keywords = [
+            "how many",
+            "what day",
+            "which day",
+            "when do i",
+            "when did i",
+            "show me",
+            "list",
+            "total",
+            "count",
+            "average",
+            "sum",
+            "recent",
+            "last week",
+            "last month",
+            "yesterday",
+            "today",
+            "workouts",
+            "calories",
+            "heart rate",
+            "steps",
+            "distance",
+            "what were",
+            "what was",
+            "tell me about my",
+            "do i work out",
+            "consistently",
+            "pattern",
+            "frequency",
+        ]
+
+        return any(keyword in message_lower for keyword in factual_keywords)
+
     async def _retrieve_memory_context(
         self, user_id: str, session_id: str, message: str
     ) -> MemoryContext:
-        """Retrieve dual memory context from Redis and RedisVL."""
+        """Retrieve dual memory context from Redis and RedisVL.
+
+        Implements tool-first policy: skips semantic memory for factual queries.
+        """
         context = MemoryContext()
 
+        # Always retrieve short-term (recent conversation)
         try:
             context.short_term = await self.memory_manager.get_short_term_context(
                 user_id, session_id
@@ -132,6 +188,16 @@ class StatefulRAGAgent:
             logger.warning(f"Short-term retrieval failed: {e}", exc_info=True)
             context.short_term = None
 
+        # Skip semantic memory for factual data queries (tool-first policy)
+        if self._is_factual_data_query(message):
+            logger.info(
+                "⚠️ Factual query detected - skipping semantic memory (tool-first policy)"
+            )
+            context.long_term = None
+            context.semantic_hits = 0
+            return context
+
+        # Retrieve semantic memory only for context/preference queries
         try:
             result = await self.memory_manager.retrieve_semantic_memory(
                 user_id, message, top_k=3
@@ -139,7 +205,9 @@ class StatefulRAGAgent:
             context.long_term = result.get("context")
             context.semantic_hits = result.get("hits", 0)
             if context.semantic_hits > 0:
-                logger.info(f"Semantic memory: {context.semantic_hits} hits")
+                logger.info(
+                    f"Semantic memory: {context.semantic_hits} hits (context/preference query)"
+                )
         except Exception as e:
             logger.warning(f"Semantic retrieval failed: {e}", exc_info=True)
             context.long_term = None
@@ -189,19 +257,21 @@ class StatefulRAGAgent:
             # 3. Create user-bound tools
             user_tools = create_user_bound_tools(user_id, conversation_history=messages)
 
-            # 4. Query classification for tool filtering
-            current_query = self._extract_current_query(messages)
-            classification = self.query_classifier.classify_intent(current_query)
+            # 4. Detect verbosity level from query (for response style only)
+            verbosity = detect_verbosity(message)
+            logger.info(f"Detected verbosity: {verbosity}")
 
+            # 5. Present ALL tools - let Qwen 2.5 natively choose
+            # This showcases true agentic behavior for the demo
+            tools_to_use = user_tools
             logger.info(
-                f"Query intent: {classification['intent']}, "
-                f"confidence: {classification['confidence']:.2f}"
+                f"🤖 Presenting all {len(tools_to_use)} tools to LLM for native tool selection"
             )
 
-            tools_to_use = self._filter_tools(user_tools, classification)
-
-            # 5. Build system prompt with memory context
-            system_content = self._build_system_prompt_with_memory(memory_context)
+            # 6. Build system prompt with memory context and verbosity
+            system_content = self._build_system_prompt_with_memory(
+                memory_context, verbosity=verbosity
+            )
             system_msg = SystemMessage(content=system_content)
 
             conversation = [system_msg] + messages
@@ -209,7 +279,7 @@ class StatefulRAGAgent:
             tools_used_list = []
             tool_results = []
 
-            # 6. Simple tool loop (no LangGraph - same as stateless agent)
+            # 7. Simple tool loop (no LangGraph - same as stateless agent)
             for iteration in range(max_tool_calls):
                 # Bind tools and call LLM
                 llm_with_tools = self.llm.bind_tools(tools_to_use)
@@ -258,14 +328,14 @@ class StatefulRAGAgent:
                     if not tool_found:
                         logger.warning(f"Tool {tool_name} not found")
 
-            # 7. Extract final response
+            # 8. Extract final response
             final_response = conversation[-1]
             if isinstance(final_response, AIMessage):
                 response_text = final_response.content
             else:
                 response_text = str(final_response)
 
-            # 8. Validate response
+            # 9. Validate response
             validator = get_numeric_validator()
             validation_result = validator.validate_response(
                 response_text=response_text,
@@ -283,7 +353,7 @@ class StatefulRAGAgent:
                     f"Validation passed (score: {validation_result['score']:.2%})"
                 )
 
-            # 9. Store semantic memory for long-term insights
+            # 10. Store semantic memory for long-term insights
             await self._store_memory_interaction(
                 user_id, session_id, message, response_text
             )

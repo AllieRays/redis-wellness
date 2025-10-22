@@ -9,9 +9,6 @@ from src.api.system_routes import router
 from src.config import get_settings
 from src.utils.api_errors import setup_exception_handlers
 
-# from src.middleware.rate_limit import RateLimitMiddleware
-# from src.monitoring.metrics import get_metrics, metrics_collector
-
 settings = get_settings()
 
 app = FastAPI(
@@ -21,30 +18,6 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
-
-# Add production middleware
-
-# # Rate limiting middleware (Redis-backed) - temporarily disabled
-# app.add_middleware(RateLimitMiddleware)
-
-# # HTTP metrics middleware - temporarily disabled
-# @app.middleware("http")
-# async def metrics_middleware(request: Request, call_next):
-#     """Collect HTTP metrics for monitoring."""
-#     start_time = time.time()
-#
-#     response = await call_next(request)
-#
-#     # Record HTTP metrics
-#     duration = time.time() - start_time
-#     metrics_collector.record_http_request(
-#         method=request.method,
-#         endpoint=request.url.path,
-#         status_code=response.status_code,
-#         duration=duration
-#     )
-#
-#     return response
 
 # CORS middleware for frontend (served on :3000)
 app.add_middleware(
@@ -66,13 +39,6 @@ setup_exception_handlers(app)
 app.include_router(router, prefix="/api")
 
 
-# # Monitoring endpoints - temporarily disabled
-# @app.get("/metrics", response_class=PlainTextResponse)
-# async def prometheus_metrics():
-#     """Prometheus metrics endpoint for monitoring."""
-#     return get_metrics()
-
-
 # Note: Production health checks now handled by /api/health endpoints
 # This endpoint maintained for backward compatibility
 @app.get("/health")
@@ -90,12 +56,11 @@ async def root():
         "features": [
             "Privacy-first health data parsing",
             "Redis-powered conversational memory",
-            "TTL-based short-term memory (7 days)",
-            "Production-ready monitoring",
-            "Rate limiting and circuit breakers",
+            "RedisVL semantic search with HNSW index",
+            "Dual memory system (short + long term)",
+            "Local-first with Ollama (no cloud APIs)",
         ],
         "docs": "/docs",
-        # "metrics": "/metrics"  # temporarily disabled
     }
 
 

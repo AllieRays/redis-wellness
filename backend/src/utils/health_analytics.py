@@ -8,7 +8,6 @@ All calculations done in Python using NumPy/SciPy.
 No LLM hallucination for mathematical results.
 """
 
-from datetime import datetime
 from typing import Any
 
 from .conversion_utils import kg_to_lbs
@@ -19,7 +18,7 @@ from .stats_utils import (
     calculate_pearson_correlation,
 )
 from .stats_utils import compare_periods as stats_compare_periods
-from .time_utils import parse_time_period
+from .time_utils import parse_health_record_date, parse_time_period
 
 
 def calculate_weight_trends(
@@ -84,7 +83,7 @@ def calculate_weight_trends(
         # Filter records by time period
         filtered_records = []
         for record in weight_records:
-            record_date = datetime.strptime(record["date"], "%Y-%m-%d %H:%M:%S")
+            record_date = parse_health_record_date(record["date"])
             if filter_start <= record_date <= filter_end:
                 filtered_records.append(record)
 
@@ -100,9 +99,7 @@ def calculate_weight_trends(
         filtered_records.sort(key=lambda x: x["date"])
 
         # Extract dates and values
-        dates = [
-            datetime.strptime(r["date"], "%Y-%m-%d %H:%M:%S") for r in filtered_records
-        ]
+        dates = [parse_health_record_date(r["date"]) for r in filtered_records]
 
         # Convert values to lbs
         values_lbs = []
@@ -228,7 +225,8 @@ def compare_time_periods(
         period2_records = []
 
         for record in all_records:
-            record_date = datetime.strptime(record["date"], "%Y-%m-%d %H:%M:%S")
+            # Parse date using canonical function (ensures UTC timezone)
+            record_date = parse_health_record_date(record["date"])
 
             # Parse value
             try:
@@ -316,7 +314,7 @@ def correlate_metrics(
         # Create date-indexed dictionaries for matching
         x_by_date = {}
         for record in records_x:
-            record_date = datetime.strptime(record["date"], "%Y-%m-%d %H:%M:%SS")
+            record_date = parse_health_record_date(record["date"])
             if filter_start <= record_date <= filter_end:
                 try:
                     value = float(record["value"])
@@ -329,7 +327,7 @@ def correlate_metrics(
 
         y_by_date = {}
         for record in records_y:
-            record_date = datetime.strptime(record["date"], "%Y-%m-%d %H:%M:%S")
+            record_date = parse_health_record_date(record["date"])
             if filter_start <= record_date <= filter_end:
                 try:
                     value = float(record["value"])

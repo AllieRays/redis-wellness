@@ -53,7 +53,7 @@ class MemoryManager:
         # Initialize embedding cache (1 hour TTL)
         self.embedding_cache = get_embedding_cache(ttl_seconds=3600)
 
-        # Initialize Ollama client for embeddings
+        # Initialize Ollama mxbai-embed-large (1024-dim) for semantic embeddings
         self.ollama_base_url = self.settings.ollama_base_url
         self.embedding_model = self.settings.embedding_model
         logger.info(f"Using Ollama embedding model: {self.embedding_model}")
@@ -510,6 +510,45 @@ class MemoryManager:
         except Exception as e:
             logger.error(f"Semantic memory retrieval failed: {e}")
             return {"context": None, "hits": 0, "memories": []}
+
+    async def clear_factual_memory(self, user_id: str) -> dict[str, int]:
+        """
+        Clear all factual semantic memories for a user.
+
+        This should be called after data imports to prevent stale cached answers.
+        Preserves conversational context but removes factual health data memories.
+
+        Args:
+            user_id: User identifier
+
+        Returns:
+            Dict with count of deleted keys
+        """
+        try:
+            with self.redis_manager.get_connection() as redis_client:
+                # Clear all semantic memories for this user
+                pattern = f"memory:semantic:{user_id}:*"
+                cursor = 0
+                deleted_count = 0
+
+                while True:
+                    cursor, keys = redis_client.scan(cursor, match=pattern, count=100)
+
+                    if keys:
+                        redis_client.delete(*keys)
+                        deleted_count += len(keys)
+
+                    if cursor == 0:
+                        break
+
+            logger.info(
+                f"Cleared {deleted_count} semantic memories for user: {user_id}"
+            )
+            return {"deleted_count": deleted_count, "user_id": user_id}
+
+        except Exception as e:
+            logger.error(f"Factual memory clearing failed: {e}")
+            return {"error": str(e), "deleted_count": 0}
 
     async def clear_session_memory(self, session_id: str) -> bool:
         """

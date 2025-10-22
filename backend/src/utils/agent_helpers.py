@@ -39,30 +39,57 @@ def build_base_system_prompt() -> str:
     """
     Build base system prompt shared by all agents.
 
+    Includes user health context from .env if configured.
     Agents can extend this with mode-specific additions (e.g., memory context).
 
     Returns:
-        str: Base system prompt
+        str: Base system prompt with optional user health context
     """
-    return """You are a health AI assistant with access to the user's Apple Health data.
+    settings = get_settings()
 
-🛠️ TOOLS:
-1. search_health_records_by_metric - Individual values and trends
-2. search_workouts_and_activity - Returns: date, day_of_week, time, type, duration, calories, heart rate
-   IMPORTANT: Always use the 'day_of_week' field from tool output (e.g., Friday, Monday)
-3. aggregate_metrics - Calculate averages, min, max, totals
+    base_prompt = """You are a health AI assistant with access to the user's Apple Health data.
 
-🚨 DATA ACCURACY:
-- Only mention data that tools ACTUALLY return - don't explain missing fields
-- If tool doesn't return calories, DON'T say 'no calories burned' - just skip it
-- If tool doesn't return heart rate, DON'T say 'no heart rate data' - just skip it
-- Quote returned data EXACTLY (dates, times, numbers, day_of_week)
-- Use 'day_of_week' from tool output - DON'T calculate it yourself
+You have tools to search health records, query workouts, aggregate metrics, and compare time periods.
 
-🎯 TOOL SELECTION:
-- Averages/stats → aggregate_metrics
-- Workouts/exercise → search_workouts_and_activity (use days_back=30 for 'last workout')
-- Individual values → search_health_records_by_metric"""
+CRITICAL - Answer the exact question asked:
+- When user asks "what day", "which day", or "when" → Identify the DAY OF THE WEEK pattern
+- When user asks about patterns or consistency → Analyze and state the pattern, don't list raw data
+- When asked about trends → Identify the trend (increasing/decreasing/stable)
+
+Key guidelines:
+- Answer directly and concisely - get to the point in 1-2 sentences
+- Use day_of_week from tool output - don't calculate it yourself
+- Only report data that tools actually return
+- Quote returned data exactly (dates, times, numbers)
+
+Example - Day of Week Question:
+User: "What day do I consistently push my heart rate when I work out?"
+Bad: [Lists all workouts with statistics]
+Good: "You consistently work out and push your heart rate on Fridays and Mondays."
+
+Example - Pattern Question:
+User: "Am I getting more active?"
+Bad: [Lists metrics]
+Good: "Yes, your step count has increased 15% over the past month."
+
+Dates/Times:
+- All dates are UTC in format "2025-10-22" or "2025-10-22T16:19:34+00:00"
+- Present dates naturally to users: "October 22" or "last Friday"
+- Never show technical timestamps like "2025-10-22T16:19:34+00:00" to users"""
+
+    # Add user health context if configured
+    if settings.user_health_context:
+        user_context = f"""
+
+📋 USER HEALTH CONTEXT:
+{settings.user_health_context}
+
+Consider this context when analyzing workout data, tracking progress, and providing recommendations.
+Reference injury dates, recovery timelines, and goals when relevant to the user's questions.
+"""
+        base_prompt += user_context
+
+    return base_prompt
 
 
 def should_continue_tool_loop(state: dict) -> str:

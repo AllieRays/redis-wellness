@@ -117,20 +117,23 @@ def create_compare_periods_tool(user_id: str):
         Use this when the user asks to compare:
         - "Compare my weight this month vs last month"
         - "How does my heart rate this week compare to last week?"
-        - "Compare my activity levels"
-        - Period-over-period analysis
+        - Period-over-period analysis for ONE SPECIFIC METRIC
 
         Args:
             metric_type: Type of metric ("BodyMass", "HeartRate", "StepCount", "BodyMassIndex", "ActiveEnergyBurned")
-            period1: First time period ("this_month", "last_30_days", etc.)
-            period2: Second time period ("last_month", "previous_30_days", etc.)
+            period1: First time period - Use natural language with spaces ("October 2025", "this month", "last week")
+            period2: Second time period - Use natural language with spaces ("September 2025", "last month", "previous week")
 
         Returns:
             Dict with comparison statistics and significance testing
 
         Examples:
-            - "Compare my weight this month vs last month" → metric_type="BodyMass", period1="this_month", period2="last_month"
-            - "How does my heart rate compare?" → metric_type="HeartRate", period1="last_week", period2="previous_week"
+            - "Compare my weight this month vs last month" → metric_type="BodyMass", period1="this month", period2="last month"
+            - "Compare October 2025 to September 2025 steps" → metric_type="StepCount", period1="October 2025", period2="September 2025"
+            - "How does my heart rate compare?" → metric_type="HeartRate", period1="this week", period2="last week"
+
+        IMPORTANT: For broad queries like "compare activity levels", DO NOT use this tool.
+        Instead use aggregate_metrics for each period separately.
         """
         logger.info(
             f"🔧 compare_time_periods_tool called: metric_type='{metric_type}', period1='{period1}', period2='{period2}', user_id={user_id}"

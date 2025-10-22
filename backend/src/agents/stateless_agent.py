@@ -24,6 +24,7 @@ from ..utils.agent_helpers import (
     create_health_llm,
 )
 from ..utils.numeric_validator import get_numeric_validator
+from ..utils.verbosity_detector import VerbosityLevel, detect_verbosity
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,6 @@ class StatelessHealthAgent:
     - NO conversation history
     - NO semantic memory
     - NO Redis storage
-    - NO LangGraph workflow
     - NO memory context
 
     This is the BASELINE for demonstrating memory value.
@@ -54,11 +54,46 @@ class StatelessHealthAgent:
         self.llm = create_health_llm()
         logger.info("StatelessHealthAgent initialized (no memory, simple tool calling)")
 
+    def _build_system_prompt_with_verbosity(self, verbosity: VerbosityLevel) -> str:
+        """Build system prompt with verbosity instructions."""
+        prompt_parts = [build_base_system_prompt(), ""]
+
+        # Add verbosity instructions
+        if verbosity == VerbosityLevel.DETAILED:
+            prompt_parts.extend(
+                [
+                    "📊 VERBOSITY MODE: DETAILED",
+                    "User requested more information. Provide:",
+                    "- Comprehensive explanations of the data",
+                    "- Analytical insights and trends",
+                    "- Contextual interpretations (what the numbers mean)",
+                    "- Relevant comparisons to typical ranges or previous data",
+                    "- Actionable takeaways when appropriate",
+                    "",
+                ]
+            )
+        elif verbosity == VerbosityLevel.COMPREHENSIVE:
+            prompt_parts.extend(
+                [
+                    "📊 VERBOSITY MODE: COMPREHENSIVE",
+                    "User requested in-depth analysis. Provide:",
+                    "- Full breakdown of all data points",
+                    "- Statistical analysis with context",
+                    "- Health implications and interpretations",
+                    "- Comparisons across time periods",
+                    "- Detailed patterns and trends",
+                    "- Recommendations based on the data",
+                    "",
+                ]
+            )
+
+        return "\n".join(prompt_parts)
+
     async def chat(
         self,
         message: str,
         user_id: str,
-        max_tool_calls: int = 5,
+        max_tool_calls: int = 8,
     ) -> dict[str, Any]:
         """
         Process stateless chat with basic tool calling but NO memory.
@@ -66,18 +101,22 @@ class StatelessHealthAgent:
         Args:
             message: User's message
             user_id: User identifier
-            max_tool_calls: Maximum tool calls per turn
+            max_tool_calls: Maximum tool calls per turn (default: 8)
 
         Returns:
             Dict with response and validation
         """
         try:
+            # Detect verbosity level from query (for response style only)
+            verbosity = detect_verbosity(message)
+            logger.info(f"Stateless query verbosity: {verbosity}")
+
             # Create tools (same as stateful agent)
             messages = [HumanMessage(content=message)]
             user_tools = create_user_bound_tools(user_id, conversation_history=messages)
 
-            # Simple tool calling loop (no LangGraph)
-            system_content = build_base_system_prompt()
+            # Simple tool calling loop
+            system_content = self._build_system_prompt_with_verbosity(verbosity)
             system_msg = SystemMessage(content=system_content)
 
             conversation = [system_msg, HumanMessage(content=message)]
@@ -85,8 +124,8 @@ class StatelessHealthAgent:
             tools_used_list = []
             tool_results = []
 
-            # Basic tool loop (max iterations to prevent infinite loops)
-            for _ in range(max_tool_calls):
+            # Simple tool loop (same as stateful agent, but no memory)
+            for iteration in range(max_tool_calls):
                 # Bind tools and call LLM
                 llm_with_tools = self.llm.bind_tools(user_tools)
                 response = await llm_with_tools.ainvoke(conversation)
@@ -94,6 +133,7 @@ class StatelessHealthAgent:
 
                 # Check if LLM wants to call tools
                 if not hasattr(response, "tool_calls") or not response.tool_calls:
+                    logger.info(f"Agent finished after {iteration + 1} iteration(s)")
                     break
 
                 # Execute tools
@@ -101,6 +141,8 @@ class StatelessHealthAgent:
                     tool_calls_made += 1
                     tool_name = tool_call.get("name", "unknown")
                     tools_used_list.append(tool_name)
+
+                    logger.info(f"Tool call #{tool_calls_made}: {tool_name}")
 
                     # Find and execute tool
                     tool_found = False
@@ -138,7 +180,7 @@ class StatelessHealthAgent:
             else:
                 response_text = str(final_response)
 
-            # Validation
+            # Validate response (same as stateful agent)
             validator = get_numeric_validator()
             validation_result = validator.validate_response(
                 response_text=response_text,
@@ -149,11 +191,11 @@ class StatelessHealthAgent:
             # Log validation results
             if not validation_result["valid"]:
                 logger.warning(
-                    f"Stateless validation failed (score: {validation_result['score']:.2%})"
+                    f"Validation failed (score: {validation_result['score']:.2%})"
                 )
             else:
                 logger.info(
-                    f"Stateless validation passed (score: {validation_result['score']:.2%})"
+                    f"Validation passed (score: {validation_result['score']:.2%})"
                 )
 
             return {

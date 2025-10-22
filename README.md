@@ -44,11 +44,11 @@ Redis/RedisVL stores:
 
 ## ✨ Key Features
 
-### Agentic RAG with LangGraph
-- **LangGraph workflow**: Stateful agent with tool calling
-- **3 specialized tools**: Health data retrieval, aggregation, workouts
-- **Qwen 2.5 7B**: Optimized local LLM for tool calling
-- **Query classification**: Intelligent tool routing layer
+### Agentic RAG with Simple Tool Loop
+- **Simple tool-calling loop**: Lightweight, maintainable agent architecture
+- **9 specialized tools**: Health records, workouts, comparisons, trends, patterns
+- **Qwen 2.5 7B**: Optimized local LLM for function calling
+- **Tool-first policy**: Factual queries use tools, semantic memory for context only
 
 ### Dual Memory System (RedisVL)
 - **Short-term memory**: Recent conversation (Redis LIST)
@@ -407,22 +407,4 @@ MIT
 
 **Built with ❤️ to demonstrate why memory matters in AI conversations**
 
-*A Redis + RedisVL demonstration project*
-
-
-----
-
-Your data includes:
-•  💪 Workouts: 154 (Traditional Strength Training on Oct 16, 14, 12, 9...)
-•  ⚖️ Weight: 431 records (Latest: 136.8 lbs on Oct 19)
-•  📊 BMI: 359 records
-•  🚶 Steps: 25,387 records
-•  ❤️ Heart Rate: 100,047 records
-•  😴 Sleep: 1,195 records
-•  🔥 Active Energy: 13,643 records
-
-his IS agentic - the LLM autonomously:
-•  Plans which tools to call
-•  Reacts to tool results
-•  Chains multiple tools together
-•  Decides when it has enough info
+*A Redis + RedisVL demonstration project showcasing tool-first agentic architecture*

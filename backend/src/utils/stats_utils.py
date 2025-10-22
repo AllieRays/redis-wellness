@@ -236,7 +236,7 @@ def calculate_pearson_correlation(
         "correlation": float(correlation),
         "p_value": float(p_value),
         "strength": strength_description,
-        "significant": p_value < 0.05,
+        "significant": bool(float(p_value) < 0.05),
     }
 
 
@@ -302,6 +302,6 @@ def compare_periods(
         "statistical_test": {
             "t_statistic": float(t_statistic),
             "p_value": float(t_p_value),
-            "significant": t_p_value < 0.05,
+            "significant": bool(float(t_p_value) < 0.05),
         },
     }

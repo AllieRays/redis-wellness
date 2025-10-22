@@ -326,8 +326,8 @@ async def get_demo_info():
             "memory_system": {
                 "short_term": "Recent conversation (Redis LIST)",
                 "long_term": "Semantic search (RedisVL HNSW index)",
-                "embedding_model": "all-MiniLM-L6-v2",
-                "vector_dimensions": 384,
+                "embedding_model": "mxbai-embed-large",
+                "vector_dimensions": 1024,
             },
         },
         "comparison_scenarios": [
@@ -361,7 +361,7 @@ async def get_demo_info():
         "tech_stack": {
             "agent": "LangGraph with tool calling",
             "llm": "Ollama (local inference)",
-            "embedding": "SentenceTransformers (all-MiniLM-L6-v2)",
+            "embedding": "Ollama mxbai-embed-large (1024-dim)",
             "vector_search": "RedisVL with HNSW index",
             "memory_storage": "Redis with 7-month TTL",
             "backend": "FastAPI + Python 3.11",

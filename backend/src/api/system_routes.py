@@ -16,7 +16,6 @@ from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict
 
 from .chat_routes import router as chat_router
-from .tools_routes import router as tools_router
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 router.include_router(chat_router)
-router.include_router(tools_router)
 
 
 # ========== Health Check Models ==========
