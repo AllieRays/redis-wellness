@@ -33,24 +33,68 @@ This project demonstrates the transformative power of memory in AI conversations
 
 ## 🏗️ Architecture
 
-```
-                           Docker Network
-┌──────────────────────────────────────────────────────────┐
-│                                                           │
-│  Frontend (TS+Vite) ────→ Backend (FastAPI) ───→ Redis   │
-│       :3000                    :8000             :6379    │
-│                                  ↓                        │
-│                         LangGraph Agent                   │
-│                              ↓                            │
-│                           Ollama (Host)                   │
-│                              :11434                       │
-└───────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph "Docker Network"
+        Frontend["Frontend<br/>TypeScript + Vite<br/>:3000"]
+        Backend["Backend<br/>FastAPI + Python<br/>:8000"]
+        Redis[("Redis Stack<br/>+ RedisVL<br/>:6379")]
+        RedisInsight["RedisInsight<br/>:8001"]
 
-Redis/RedisVL stores:
-- Short-term memory (conversation history)
-- Long-term memory (semantic vector search)
-- Health data cache (7-month TTL)
+        Frontend -->|HTTP| Backend
+        Backend -->|Redis Commands| Redis
+        RedisInsight -.->|Monitor| Redis
+
+        subgraph "Backend Components"
+            Agent["Stateful RAG Agent<br/>(Simple Tool Loop)"]
+            Tools["9 Health Tools<br/>(LangChain)"]]
+            Memory["Memory Manager<br/>(Dual System)"]
+
+            Backend --> Agent
+            Agent --> Tools
+            Agent --> Memory
+            Memory --> Redis
+        end
+
+        subgraph "Redis/RedisVL Storage"
+            ShortTerm["📝 Short-Term Memory<br/>Conversation History<br/>(Redis LIST)"]
+            LongTerm["🧠 Long-Term Memory<br/>Semantic Search<br/>(RedisVL HNSW)"]
+            HealthData["💊 Health Data Cache<br/>Apple Health Records<br/>(7-month TTL)"]
+
+            Redis --> ShortTerm
+            Redis --> LongTerm
+            Redis --> HealthData
+        end
+    end
+
+    subgraph "Host Machine"
+        Ollama["Ollama<br/>:11434"]
+        LLM["Qwen 2.5 7B<br/>(Tool Calling)"]
+        Embeddings["mxbai-embed-large<br/>(Vectors)"]
+
+        Ollama --> LLM
+        Ollama --> Embeddings
+    end
+
+    Backend -.->|LLM API| Ollama
+    Agent -.->|Function Calling| LLM
+    Memory -.->|Generate Vectors| Embeddings
+
+    style Frontend fill:#61dafb,stroke:#333,stroke-width:2px,color:#000
+    style Backend fill:#009688,stroke:#333,stroke-width:2px,color:#fff
+    style Redis fill:#dc382d,stroke:#333,stroke-width:2px,color:#fff
+    style Ollama fill:#000,stroke:#333,stroke-width:2px,color:#fff
+    style Agent fill:#ff6b6b,stroke:#333,stroke-width:2px,color:#fff
+    style Memory fill:#4ecdc4,stroke:#333,stroke-width:2px,color:#fff
 ```
+
+### Key Components
+
+- **Frontend**: TypeScript + Vite UI for side-by-side chat comparison
+- **Backend**: FastAPI with dual-agent architecture (stateless vs. stateful)
+- **Redis/RedisVL**: Dual memory system (short-term + long-term semantic)
+- **Ollama**: Local LLM inference (Qwen 2.5 7B + embeddings)
+- **9 Health Tools**: Specialized LangChain tools for health data queries
 
 ## ✨ Key Features
 
