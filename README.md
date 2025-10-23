@@ -31,70 +31,49 @@ This project demonstrates the transformative power of memory in AI conversations
 - ✅ Context-aware, personalized responses
 - ✅ Autonomous agentic tool calling
 
-## 🏗️ Architecture
+## 🏗️ Architecture: The Demo Comparison
 
 ```mermaid
-graph TB
-    subgraph Docker["Docker Network"]
-        Frontend["Frontend<br/>TypeScript + Vite<br/>:3000"]
-        Backend["Backend<br/>FastAPI + Python<br/>:8000"]
-        Redis[("Redis Stack<br/>+ RedisVL<br/>:6379")]
-        RedisInsight["RedisInsight<br/>:8001"]
-
-        Frontend -->|HTTP| Backend
-        Backend -->|Redis Commands| Redis
-        RedisInsight -.->|Monitor| Redis
-
-        subgraph BackendComponents["Backend Components"]
-            Agent["Stateful RAG Agent<br/>Simple Tool Loop"]
-            Tools["9 Health Tools<br/>LangChain"]
-            Memory["Memory Manager<br/>Dual System"]
-
-            Backend --> Agent
-            Agent --> Tools
-            Agent --> Memory
-            Memory --> Redis
-        end
-
-        subgraph RedisStorage["Redis/RedisVL Storage"]
-            ShortTerm["Short-Term Memory<br/>Conversation History<br/>Redis LIST"]
-            LongTerm["Long-Term Memory<br/>Semantic Search<br/>RedisVL HNSW"]
-            HealthData["Health Data Cache<br/>Apple Health Records<br/>7-month TTL"]
-
-            Redis --> ShortTerm
-            Redis --> LongTerm
-            Redis --> HealthData
-        end
+graph LR
+    subgraph Stateless["Stateless Chat - NO MEMORY"]
+        SUser[User Query] --> SAgent[Stateless Agent]
+        SAgent --> STools[Health Tools]
+        STools --> SLLM[Ollama LLM]
+        SLLM --> SResponse[Response]
+        SResponse -.->|Forgets| SUser
     end
 
-    subgraph Host["Host Machine"]
-        Ollama["Ollama<br/>:11434"]
-        LLM["Qwen 2.5 7B<br/>Tool Calling"]
-        Embeddings["mxbai-embed-large<br/>Vectors"]
-
-        Ollama --> LLM
-        Ollama --> Embeddings
+    subgraph RAG["RAG Chat - WITH MEMORY"]
+        RUser[User Query] --> RAgent[RAG Agent]
+        RAgent --> RMemory[Redis Memory]
+        RMemory --> RShort[Short-Term]
+        RMemory --> RLong[Long-Term Semantic]
+        RAgent --> RTools[Health Tools]
+        RTools --> RLLM[Ollama LLM]
+        RLLM --> RResponse[Response]
+        RResponse --> RMemory
+        RResponse -.->|Remembers| RUser
     end
 
-    Backend -.->|LLM API| Ollama
-    Agent -.->|Function Calling| LLM
-    Memory -.->|Generate Vectors| Embeddings
+    Redis[(Redis + RedisVL)] --> RMemory
+    Ollama[Ollama Host] --> SLLM
+    Ollama --> RLLM
 
-    style Frontend fill:#61dafb,stroke:#333,stroke-width:2px
-    style Backend fill:#009688,stroke:#333,stroke-width:2px
+    style Stateless fill:#ffebee,stroke:#c62828,stroke-width:3px
+    style RAG fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px
     style Redis fill:#dc382d,stroke:#333,stroke-width:2px
     style Ollama fill:#000,stroke:#333,stroke-width:2px
-    style Agent fill:#ff6b6b,stroke:#333,stroke-width:2px
-    style Memory fill:#4ecdc4,stroke:#333,stroke-width:2px
 ```
 
-### Key Components
+### The Key Difference
 
-- **Frontend**: TypeScript + Vite UI for side-by-side chat comparison
-- **Backend**: FastAPI with dual-agent architecture (stateless vs. stateful)
-- **Redis/RedisVL**: Dual memory system (short-term + long-term semantic)
-- **Ollama**: Local LLM inference (Qwen 2.5 7B + embeddings)
-- **9 Health Tools**: Specialized LangChain tools for health data queries
+| | Stateless Chat | RAG Chat |
+|---|---|---|
+| **Memory** | ❌ None | ✅ Redis + RedisVL |
+| **Follow-ups** | ❌ Forgets context | ✅ Remembers conversation |
+| **Pronouns** | ❌ "What?" | ✅ Understands "it", "that" |
+| **User Goals** | ❌ Lost after query | ✅ Stored semantically |
+| **Response** | Generic | Personalized |
 
 ## ✨ Key Features
 
