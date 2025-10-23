@@ -257,7 +257,7 @@ function showLoading(chatArea: HTMLDivElement): HTMLDivElement {
     if (thinkingSpan) {
       thinkingSpan.textContent = thinkingTexts[textIndex] + '...';
     }
-  }, 600);
+  }, 1200);
 
   // Store interval ID so we can clear it later
   (loadingDiv as any).__thinkingInterval = interval;
@@ -286,19 +286,23 @@ async function sendStatelessMessage(message: string): Promise<void> {
   const loadingDiv = showLoading(statelessChatArea);
   let responseText = '';
   let messageDiv: HTMLDivElement | null = null;
+  let firstTokenReceived = false;
 
   try {
-    removeLoading(statelessChatArea, loadingDiv);
-
     // Create message div for streaming
     messageDiv = document.createElement('div');
     messageDiv.className = 'message-assistant';
     messageDiv.innerHTML = '<div class="message-bubble assistant"></div>';
-    statelessChatArea.appendChild(messageDiv);
     const bubbleEl = messageDiv.querySelector('.message-bubble') as HTMLElement;
 
     for await (const chunk of api.streamStatelessMessage({ message })) {
       if (chunk.type === 'token' && chunk.content) {
+        // Remove loading indicator on first token
+        if (!firstTokenReceived) {
+          removeLoading(statelessChatArea, loadingDiv);
+          statelessChatArea.appendChild(messageDiv);
+          firstTokenReceived = true;
+        }
         responseText += chunk.content;
         const iconPrefix =
           '<i class="fas fa-comment-dots" style="margin-right: 0.25rem;"></i>';
@@ -347,16 +351,14 @@ async function sendRedisMessage(message: string): Promise<void> {
   const loadingDiv = showLoading(redisChatArea);
   let responseText = '';
   let messageDiv: HTMLDivElement | null = null;
+  let firstTokenReceived = false;
 
   try {
-    removeLoading(redisChatArea, loadingDiv);
-
     // Create message div for streaming
     messageDiv = document.createElement('div');
     messageDiv.className = 'message-assistant';
     messageDiv.innerHTML =
       '<div class="message-bubble assistant"><img src="/redis-chat-icon.svg" alt="Redis" class="inline-block w-4 h-4 mr-1 align-text-bottom" /></div>';
-    redisChatArea.appendChild(messageDiv);
     const bubbleEl = messageDiv.querySelector('.message-bubble') as HTMLElement;
 
     for await (const chunk of api.streamRedisMessage({
@@ -364,6 +366,12 @@ async function sendRedisMessage(message: string): Promise<void> {
       session_id: redisSessionId,
     })) {
       if (chunk.type === 'token' && chunk.content) {
+        // Remove loading indicator on first token
+        if (!firstTokenReceived) {
+          removeLoading(redisChatArea, loadingDiv);
+          redisChatArea.appendChild(messageDiv);
+          firstTokenReceived = true;
+        }
         responseText += chunk.content;
         const iconPrefix =
           '<img src="/redis-chat-icon.svg" alt="Redis" class="inline-block w-4 h-4 mr-1 align-text-bottom" />';
