@@ -103,6 +103,13 @@ graph LR
 
 ### Install Ollama & Models
 
+**Why Ollama + Qwen?**
+- 🔒 **100% Privacy**: Runs locally, your health data never leaves your machine
+- ⚡ **Fast Setup**: One-command install, no API keys or cloud accounts
+- 🧠 **Smart Tool Calling**: Qwen 2.5 7B excels at function calling for agentic workflows
+- 📊 **Reasonable Size**: 4.7 GB model runs on most modern laptops
+- 🎯 **Optimized for Tools**: Better tool selection than larger general-purpose models
+
 ```bash
 # Install Ollama (macOS)
 brew install ollama
@@ -113,9 +120,11 @@ brew install ollama
 ollama serve
 
 # In another terminal, pull the models
-ollama pull qwen2.5:7b              # Main LLM (4.7 GB)
-ollama pull mxbai-embed-large       # Embeddings (669 MB)
+ollama pull qwen2.5:7b              # Main LLM - optimized for tool calling (4.7 GB)
+ollama pull mxbai-embed-large       # Embeddings - for semantic search (669 MB)
 ```
+
+> **Note**: First run will download models (~5.4 GB total). Subsequent runs are instant.
 
 ### Start Everything
 
