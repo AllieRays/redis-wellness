@@ -308,7 +308,7 @@ class MemoryManager:
     async def _generate_embedding_uncached(self, text: str) -> list[float] | None:
         """Generate embedding using Ollama (no cache lookup)."""
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.post(
                     f"{self.ollama_base_url}/api/embeddings",
                     json={"model": self.embedding_model, "prompt": text},

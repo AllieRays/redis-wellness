@@ -58,7 +58,7 @@ class StatelessHealthAgent:
         """Build system prompt with verbosity instructions."""
         prompt_parts = [build_base_system_prompt(), ""]
 
-        # Add verbosity instructions
+        # Add verbosity instructions (same as stateful agent)
         if verbosity == VerbosityLevel.DETAILED:
             prompt_parts.extend(
                 [
@@ -87,13 +87,24 @@ class StatelessHealthAgent:
                 ]
             )
 
+        # Add tool-first policy (same as stateful agent for consistent behavior)
+        prompt_parts.extend(
+            [
+                "⚠️ TOOL-FIRST POLICY:",
+                "- For factual questions about workouts/health data → ALWAYS call tools (source of truth)",
+                "- NEVER answer workout/metric questions without tool data",
+                "- Always verify data through tools before responding",
+                "",
+            ]
+        )
+
         return "\n".join(prompt_parts)
 
     async def chat(
         self,
         message: str,
         user_id: str,
-        max_tool_calls: int = 8,
+        max_tool_calls: int = 5,
     ) -> dict[str, Any]:
         """
         Process stateless chat with basic tool calling but NO memory.

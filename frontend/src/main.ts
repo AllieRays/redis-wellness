@@ -1,4 +1,5 @@
 import './style.css';
+import '@fortawesome/fontawesome-free/css/all.css';
 import { api } from './api';
 import type { Message } from './types';
 
@@ -89,10 +90,14 @@ function addMessage(
       semantic_hits: number;
       long_term_available: boolean;
     };
-  }
+  },
+  isRawHtml: boolean = false
 ): void {
   const messageDiv = document.createElement('div');
-  messageDiv.className = `message ${role}`;
+  messageDiv.className = role === 'user' ? 'message-user' : 'message-assistant';
+
+  // Determine if this is Redis chat by checking if it has memory_stats
+  const isRedisChat = role === 'assistant' && metadata?.memory_stats !== undefined;
 
   let metadataHtml = '';
 
@@ -102,11 +107,13 @@ function addMessage(
     const memoryIndicators = [];
 
     if (stats.short_term_available) {
-      memoryIndicators.push('<span class="memory-badge">📝 Short-term memory</span>');
+      memoryIndicators.push(
+        '<span class="memory-badge"><i class="fas fa-file-lines"></i> Short-term memory</span>'
+      );
     }
     if (stats.semantic_hits > 0) {
       memoryIndicators.push(
-        `<span class="memory-badge semantic">🧠 ${stats.semantic_hits} semantic memories</span>`
+        `<span class="memory-badge semantic"><i class="fas fa-brain"></i> ${stats.semantic_hits} semantic memories</span>`
       );
     }
 
@@ -120,14 +127,24 @@ function addMessage(
   // Add tools used for Redis chat
   if (role === 'assistant' && metadata?.tools_used && metadata.tools_used.length > 0) {
     const toolsList = metadata.tools_used
-      .map(tool => `<span class="tool-badge">🔧 ${tool.name}</span>`)
+      .map(
+        tool =>
+          `<span class="tool-badge"><i class="fas fa-wrench"></i> ${tool.name}</span>`
+      )
       .join(' ');
     metadataHtml += `<div class="message-metadata tools-used">${toolsList}</div>`;
   }
 
+  // Add Redis icon prefix for Redis assistant messages
+  const iconPrefix = isRedisChat
+    ? '<img src="/redis-chat-icon.svg" alt="Redis" class="inline-block w-4 h-4 mr-1 align-text-bottom" />'
+    : '';
+
+  // Use raw HTML for error messages, otherwise render markdown
+  const renderedContent = isRawHtml ? content : renderMarkdown(content);
+
   messageDiv.innerHTML = `
-    <div class="message-content">${renderMarkdown(content)}</div>
-    ${metadataHtml}
+    <div class="message-bubble ${role}">${iconPrefix}${renderedContent}${metadataHtml}</div>
   `;
 
   chatArea.appendChild(messageDiv);
@@ -171,17 +188,13 @@ function renderMarkdown(text: string): string {
 // Update stats comparison table
 function updateStatsTable(): void {
   // Update stateless stats
-  const statelessMsgEl = document.getElementById('stat-stateless-msg');
   const statelessTokensEl = document.getElementById('stat-stateless-tokens');
   const statelessUsageEl = document.getElementById('stat-stateless-usage');
-  const statelessToolsEl = document.getElementById('stat-stateless-tools');
   const statelessLatencyEl = document.getElementById('stat-stateless-latency');
 
-  if (statelessMsgEl) statelessMsgEl.textContent = String(statelessStats.messageCount);
   if (statelessTokensEl)
     statelessTokensEl.textContent = String(statelessStats.tokenCount);
   if (statelessUsageEl) statelessUsageEl.textContent = 'N/A';
-  if (statelessToolsEl) statelessToolsEl.textContent = String(statelessStats.toolsUsed);
   if (statelessLatencyEl) {
     statelessLatencyEl.textContent =
       statelessStats.avgResponseTime > 0
@@ -190,22 +203,18 @@ function updateStatsTable(): void {
   }
 
   // Update Redis stats
-  const redisMsgEl = document.getElementById('stat-redis-msg');
   const redisTokensEl = document.getElementById('stat-redis-tokens');
   const redisUsageEl = document.getElementById('stat-redis-usage');
-  const redisToolsEl = document.getElementById('stat-redis-tools');
   const redisSemanticEl = document.getElementById('stat-redis-semantic');
   const redisTrimmingEl = document.getElementById('stat-redis-trimming');
   const redisLatencyEl = document.getElementById('stat-redis-latency');
 
-  if (redisMsgEl) redisMsgEl.textContent = String(redisStats.messageCount);
   if (redisTokensEl) redisTokensEl.textContent = String(redisStats.tokenCount);
   if (redisUsageEl)
     redisUsageEl.textContent =
       redisStats.tokenUsagePercent > 0
         ? `${redisStats.tokenUsagePercent.toFixed(1)}%`
         : 'N/A';
-  if (redisToolsEl) redisToolsEl.textContent = String(redisStats.toolsUsed);
   if (redisSemanticEl)
     redisSemanticEl.textContent = String(redisStats.semanticMemories);
   if (redisTrimmingEl) {
@@ -224,7 +233,7 @@ function updateStatsTable(): void {
 function showLoading(chatArea: HTMLDivElement): HTMLDivElement {
   const loadingDiv = document.createElement('div');
   loadingDiv.className = 'loading';
-  loadingDiv.textContent = '💭 Thinking...';
+  loadingDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Thinking...';
   chatArea.appendChild(loadingDiv);
   chatArea.scrollTop = chatArea.scrollHeight;
   return loadingDiv;
@@ -273,7 +282,9 @@ async function sendStatelessMessage(message: string): Promise<void> {
     addMessage(
       statelessChatArea,
       'assistant',
-      '❌ Sorry, I encountered an error. Please make sure Ollama is running.'
+      '<i class="fas fa-exclamation-triangle"></i> Sorry, I encountered an error. Please make sure Ollama is running.',
+      undefined,
+      true
     );
   } finally {
     statelessSendButton.disabled = false;
@@ -328,7 +339,9 @@ async function sendRedisMessage(message: string): Promise<void> {
     addMessage(
       redisChatArea,
       'assistant',
-      '❌ Sorry, I encountered an error. Please make sure Ollama and Redis are running.'
+      '<i class="fas fa-exclamation-triangle"></i> Sorry, I encountered an error. Please make sure Ollama and Redis are running.',
+      undefined,
+      true
     );
   } finally {
     redisSendButton.disabled = false;

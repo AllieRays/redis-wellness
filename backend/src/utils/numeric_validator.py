@@ -239,9 +239,11 @@ class NumericValidator:
                         {
                             "response": resp_num,
                             "tool": tool_num,
-                            "confidence": "exact"
-                            if resp_num["value"] == tool_num["value"]
-                            else "fuzzy",
+                            "confidence": (
+                                "exact"
+                                if resp_num["value"] == tool_num["value"]
+                                else "fuzzy"
+                            ),
                         }
                     )
                     found_match = True

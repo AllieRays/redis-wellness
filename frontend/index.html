@@ -4,116 +4,151 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Redis Health Chat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   </head>
-  <body>
-    <div id="app">
-      <div class="container">
-        <div class="header">
-          <h1>🏥 Health Wellness Chat Demo</h1>
-          <p>Compare Stateless vs Redis-powered conversations</p>
-          <div class="status">
-            <span class="status-badge" id="redis-status">Redis: Checking...</span>
-            <span class="status-badge" id="ollama-status">Ollama: Checking...</span>
-          </div>
-        </div>
-
-        <!-- Stats Comparison Table -->
-        <div class="stats-container" style="display: block; background: white; padding: 20px; border: 2px solid red;">
-          <h2>📊 Performance Comparison</h2>
-          <table class="stats-table">
-            <thead>
-              <tr>
-                <th>Metric</th>
-                <th>Stateless</th>
-                <th>Redis (with Memory)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Messages in Context</td>
-                <td id="stat-stateless-msg">0</td>
-                <td id="stat-redis-msg">0</td>
-              </tr>
-              <tr>
-                <td>Token Count</td>
-                <td id="stat-stateless-tokens">0</td>
-                <td id="stat-redis-tokens">0</td>
-              </tr>
-              <tr>
-                <td>Context Usage</td>
-                <td id="stat-stateless-usage">0%</td>
-                <td id="stat-redis-usage">0%</td>
-              </tr>
-              <tr>
-                <td>Tools Used (Total)</td>
-                <td id="stat-stateless-tools">0</td>
-                <td id="stat-redis-tools">0</td>
-              </tr>
-              <tr>
-                <td>Semantic Memories</td>
-                <td id="stat-stateless-semantic">N/A</td>
-                <td id="stat-redis-semantic">0</td>
-              </tr>
-              <tr>
-                <td>Avg Response Time</td>
-                <td id="stat-stateless-latency">N/A</td>
-                <td id="stat-redis-latency">N/A</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="chat-container">
-          <!-- Stateless Chat -->
-          <div class="chat-panel">
-            <div class="chat-header">
-              <h2>💬 Stateless Chat</h2>
-              <p>No conversation memory - each message is independent</p>
-            </div>
-            <div class="chat-area" id="stateless-chat-area">
-              <div class="message assistant">
-                <div class="message-content">
-                  👋 Hi! I'm a stateless AI assistant. I don't remember previous messages.
-                </div>
-              </div>
-            </div>
-            <div class="input-area">
-              <form class="input-form" id="stateless-chat-form">
-                <input
-                  type="text"
-                  id="stateless-message-input"
-                  placeholder="Ask me anything (no memory)..."
-                  autocomplete="off"
-                />
-                <button type="submit" id="stateless-send-button">Send</button>
-              </form>
+  <body class="bg-bg-dark bg-texture h-screen overflow-hidden p-6 font-grotesk">
+    <div id="app" class="max-w-[1600px] mx-auto h-full flex flex-col">
+      <!-- Header -->
+      <header class="flex-shrink-0 mb-8">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <h1 class="text-5xl font-mono font-bold text-white mb-3">
+              <i class="fas fa-heartbeat"></i> Redis Wellness
+            </h1>
+            <p class="text-gray-400 text-base mb-4 max-w-4xl">
+              Why memory matters for intelligent private wellness conversations using Redis, Apple Health data, and Ollama
+            </p>
+            <div class="flex items-center gap-3">
+              <span class="status-badge" id="redis-status">Redis: Checking...</span>
+              <span class="status-badge" id="ollama-status">Ollama: Checking...</span>
+              <a href="https://github.com/AllieRays/redis-wellness" target="_blank" rel="noopener noreferrer"
+                 class="text-white hover:text-highlight transition-colors">
+                <i class="fab fa-github text-xl"></i>
+              </a>
             </div>
           </div>
 
-          <!-- Redis Chat -->
-          <div class="chat-panel">
-            <div class="chat-header">
-              <h2>🧠 Redis Chat</h2>
-              <p>Full conversation memory with RedisVL</p>
+          <!-- Performance Metrics -->
+          <div class="glass-card p-4 min-w-[400px]">
+            <h3 class="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider mb-3">Performance Comparison</h3>
+
+            <!-- Column Headers -->
+            <div class="flex justify-between items-center mb-2 pb-2 border-b border-white/10">
+              <span class="text-xs font-mono text-gray-500">Metric</span>
+              <div class="flex gap-3">
+                <span class="text-xs font-mono text-gray-500 w-12 text-center">Stateless</span>
+                <span class="text-xs font-mono text-gray-500 w-8 text-center"></span>
+                <span class="text-xs font-mono text-gray-500 w-12 text-center">Redis</span>
+              </div>
             </div>
-            <div class="chat-area" id="redis-chat-area">
-              <div class="message assistant">
-                <div class="message-content">
-                  👋 Hi! I'm your Redis-powered assistant. I remember our entire conversation!
+
+            <div class="space-y-2 text-xs">
+              <div class="flex justify-between items-center py-1">
+                <span class="text-gray-400">Tokens</span>
+                <div class="flex gap-3">
+                  <span class="font-mono text-white w-12 text-center" id="stat-stateless-tokens">0</span>
+                  <span class="text-gray-500 w-8 text-center">vs</span>
+                  <span class="font-mono text-highlight font-bold w-12 text-center" id="stat-redis-tokens">0</span>
+                </div>
+              </div>
+              <div class="flex justify-between items-center py-1 border-t border-white/5">
+                <span class="text-gray-400">Semantic Memory</span>
+                <div class="flex gap-3">
+                  <span class="font-mono text-white w-12 text-center" id="stat-stateless-semantic">N/A</span>
+                  <span class="text-gray-500 w-8 text-center">vs</span>
+                  <span class="font-mono text-highlight font-bold w-12 text-center" id="stat-redis-semantic">0</span>
+                </div>
+              </div>
+              <div class="flex justify-between items-center py-1 border-t border-white/5">
+                <span class="text-gray-400">Avg Response</span>
+                <div class="flex gap-3">
+                  <span class="font-mono text-white w-12 text-center" id="stat-stateless-latency">N/A</span>
+                  <span class="text-gray-500 w-8 text-center">vs</span>
+                  <span class="font-mono text-highlight font-bold w-12 text-center" id="stat-redis-latency">N/A</span>
                 </div>
               </div>
             </div>
-            <div class="input-area">
-              <form class="input-form" id="redis-chat-form">
-                <input
-                  type="text"
-                  id="redis-message-input"
-                  placeholder="Ask me anything (I remember)..."
-                  autocomplete="off"
-                />
-                <button type="submit" id="redis-send-button">Send</button>
-              </form>
+          </div>
+        </div>
+      </header>
+
+      <!-- Chat Panels Side by Side -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
+        <!-- Stateless Chat -->
+        <div class="chat-container glass-card">
+          <div class="border-b border-white/20 p-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-xl font-mono font-bold text-white">
+                <i class="fas fa-comment"></i> Stateless Chat
+              </h2>
+              <span class="px-3 py-1 rounded-[5px] bg-secondary/20 border border-secondary/30 text-secondary text-xs font-mono">
+                <i class="fas fa-ban"></i> No Memory
+              </span>
             </div>
+            <p class="text-gray-400 text-sm mt-1">No conversation memory - each message is independent</p>
+          </div>
+
+          <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4" id="stateless-chat-area">
+            <div class="message-assistant">
+              <div class="message-bubble assistant">
+                <i class="fas fa-hand-wave"></i> Hi! I'm a stateless AI assistant. I don't remember previous messages.
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t border-white/20 p-4">
+            <form class="flex gap-3" id="stateless-chat-form">
+              <input
+                type="text"
+                id="stateless-message-input"
+                placeholder="Ask me anything (no memory)..."
+                autocomplete="off"
+                class="flex-1 bg-white/5 border border-white/10 rounded-[5px] px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 transition-all"
+              />
+              <button type="submit" id="stateless-send-button" class="primary-button">
+                Send
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Redis Chat -->
+        <div class="chat-container glass-card">
+          <div class="border-b border-white/20 p-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-xl font-mono font-bold text-white flex items-center gap-2">
+                <img src="/redis-chat-icon.svg" alt="Redis" class="w-6 h-6" /> Redis Chat
+              </h2>
+              <span class="px-3 py-1 rounded-[5px] bg-highlight/20 border border-highlight/30 text-highlight text-xs font-mono">
+                <i class="fas fa-sparkles"></i> Full Memory
+              </span>
+            </div>
+            <p class="text-gray-400 text-sm mt-1">Full conversation memory with RedisVL</p>
+          </div>
+
+          <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4" id="redis-chat-area">
+            <div class="message-assistant">
+              <div class="message-bubble assistant">
+                <i class="fas fa-hand-wave"></i> Hi! I'm your Redis-powered assistant. I remember our entire conversation!
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t border-white/20 p-4">
+            <form class="flex gap-3" id="redis-chat-form">
+              <input
+                type="text"
+                id="redis-message-input"
+                placeholder="Ask me anything (I remember)..."
+                autocomplete="off"
+                class="flex-1 bg-white/5 border border-white/10 rounded-[5px] px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 transition-all"
+              />
+              <button type="submit" id="redis-send-button" class="primary-button">
+                Send
+              </button>
+            </form>
           </div>
         </div>
       </div>

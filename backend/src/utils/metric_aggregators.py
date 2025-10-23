@@ -298,7 +298,7 @@ def get_aggregation_summary(
         "aggregated_values": len(aggregated_values),
         "date_range": f"{filter_start.date()} to {filter_end.date()}",
         "sample_values": aggregated_values[:3] if aggregated_values else [],
-        "reduction_ratio": original_count / len(aggregated_values)
-        if aggregated_values
-        else 0,
+        "reduction_ratio": (
+            original_count / len(aggregated_values) if aggregated_values else 0
+        ),
     }

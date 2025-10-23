@@ -27,20 +27,20 @@ echo -e "\n${YELLOW}Backend (Python)${NC}"
 cd backend
 
 print_status "Running Ruff (linter)..."
-if ! uv run ruff check src ../tests; then
+if ! uv run ruff check src tests; then
     print_error "Ruff linting failed"
     exit 1
 fi
 
 print_status "Running Ruff (formatter check)..."
-if ! uv run ruff format --check src ../tests; then
-    print_error "Ruff formatting check failed. Run 'uv run ruff format src ../tests' to fix."
+if ! uv run ruff format --check src tests; then
+    print_error "Ruff formatting check failed. Run 'uv run ruff format src tests' to fix."
     exit 1
 fi
 
 print_status "Running Black (formatter check)..."
-if ! uv run black --check src ../tests; then
-    print_error "Black formatting check failed. Run 'uv run black src ../tests' to fix."
+if ! uv run black --check src tests; then
+    print_error "Black formatting check failed. Run 'uv run black src tests' to fix."
     exit 1
 fi
 

@@ -262,9 +262,11 @@ async def get_token_usage(session_id: str, limit: int = 10):
     return {
         "session_id": session_id,
         "token_stats": token_stats,
-        "status": "over_threshold"
-        if token_stats.get("is_over_threshold")
-        else "under_threshold",
+        "status": (
+            "over_threshold"
+            if token_stats.get("is_over_threshold")
+            else "under_threshold"
+        ),
     }
 
 

@@ -238,7 +238,7 @@ class StatefulRAGAgent:
         user_id: str,
         session_id: str = "default",
         conversation_history: list[dict] | None = None,
-        max_tool_calls: int = 8,  # Increased for complex multi-step queries
+        max_tool_calls: int = 5,  # Balanced for speed vs capability
     ) -> dict[str, Any]:
         """Process message through RAG pipeline with memory retrieval and storage."""
         try:

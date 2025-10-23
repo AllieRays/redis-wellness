@@ -30,7 +30,7 @@ def create_health_llm() -> ChatOllama:
         model=settings.ollama_model,
         base_url=settings.ollama_base_url,
         temperature=0.05,
-        num_predict=2048,
+        num_predict=1024,  # Reduced from 2048 for faster responses
         timeout=60,
     )
 
