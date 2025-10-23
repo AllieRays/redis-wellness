@@ -188,12 +188,82 @@ class RedisChatService:
                 "token_stats": token_stats,  # Include token usage info
                 "session_id": session_id,
                 "type": "redis_rag_with_memory",
+                "validation": result.get("validation", {}),
             }
 
         except Exception as e:
             raise InfrastructureError(
                 message="Chat processing failed",
                 error_code="CHAT_PROCESSING_FAILED",
+                details={"user_id": sanitize_user_id(user_id)},
+            ) from e
+
+    async def chat_stream(self, message: str, session_id: str = "default"):
+        """Stream tokens as they're generated (with memory)."""
+        try:
+            user_id = self._extract_user_id(session_id)
+
+            # Resolve pronouns
+            with self.redis_manager.get_connection() as redis_client:
+                pronoun_resolver = get_pronoun_resolver(redis_client)
+                resolved_message = pronoun_resolver.resolve_pronouns(
+                    session_id, message
+                )
+                message_to_process = (
+                    resolved_message if resolved_message != message else message
+                )
+
+            # Store user message
+            await self.store_message(session_id, "user", message_to_process)
+
+            # Get history
+            history = await self.get_conversation_history(session_id, limit=10)
+
+            # Stream from agent and collect metadata
+            response_text = ""
+            final_data = None
+            async for chunk in self.agent.chat_stream(
+                message=message_to_process,
+                user_id=user_id,
+                session_id=session_id,
+                conversation_history=history,
+            ):
+                if chunk.get("type") == "token":
+                    response_text += chunk.get("content", "")
+                    yield chunk
+                elif chunk.get("type") == "done":
+                    final_data = chunk.get("data", {})
+
+            # Store AI response
+            await self.store_message(session_id, "assistant", response_text)
+
+            # Get token stats for frontend metrics
+            (
+                _,
+                token_stats,
+            ) = await self.memory_manager.get_short_term_context_token_aware(
+                user_id, session_id, limit=20
+            )
+
+            # Update pronoun context
+            with self.redis_manager.get_connection() as redis_client:
+                pronoun_resolver = get_pronoun_resolver(redis_client)
+                pronoun_resolver.update_context(
+                    session_id=session_id,
+                    query=message,
+                    response=response_text,
+                    tools_used=final_data.get("tools_used", []) if final_data else [],
+                )
+
+            # Yield done event with token_stats for frontend
+            if final_data:
+                final_data["token_stats"] = token_stats
+                yield {"type": "done", "data": final_data}
+
+        except Exception as e:
+            raise InfrastructureError(
+                message="Streaming chat failed",
+                error_code="STREAM_PROCESSING_FAILED",
                 details={"user_id": sanitize_user_id(user_id)},
             ) from e
 

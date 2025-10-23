@@ -55,6 +55,14 @@ class StatelessChatService:
             "validation": result.get("validation", {}),
         }
 
+    async def chat_stream(self, message: str):
+        """Stream tokens as they're generated (stateless)."""
+        async for chunk in self.agent.chat_stream(
+            message=message,
+            user_id=get_user_id(),
+        ):
+            yield chunk
+
 
 # Global service instance
 stateless_chat_service = StatelessChatService()

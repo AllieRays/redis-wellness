@@ -43,6 +43,39 @@ class ApiClient {
     });
   }
 
+  async *streamStatelessMessage(
+    data: StatelessChatRequest
+  ): AsyncGenerator<{ type: string; content?: string; data?: any }> {
+    const response = await fetch(`${API_BASE_URL}/api/chat/stateless/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) throw new Error(`Stream error: ${response.statusText}`);
+    if (!response.body) throw new Error('No response body');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = JSON.parse(line.slice(6));
+          yield data;
+        }
+      }
+    }
+  }
+
   async sendRedisMessage(data: RedisChatRequest): Promise<RedisChatResponse> {
     return this.request<RedisChatResponse>('/api/chat/redis', {
       method: 'POST',
@@ -50,8 +83,47 @@ class ApiClient {
     });
   }
 
+  async *streamRedisMessage(
+    data: RedisChatRequest
+  ): AsyncGenerator<{ type: string; content?: string; data?: any }> {
+    const response = await fetch(`${API_BASE_URL}/api/chat/redis/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) throw new Error(`Stream error: ${response.statusText}`);
+    if (!response.body) throw new Error('No response body');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = JSON.parse(line.slice(6));
+          yield data;
+        }
+      }
+    }
+  }
+
   async healthCheck(): Promise<HealthCheckResponse> {
-    return this.request<HealthCheckResponse>('/health');
+    return this.request<HealthCheckResponse>('/api/health/check');
+  }
+
+  async clearCache(sessionId: string): Promise<{ success: boolean; message: string }> {
+    return this.request(`/api/chat/session/${sessionId}`, {
+      method: 'DELETE',
+    });
   }
 }
 

@@ -229,55 +229,101 @@ function updateStatsTable(): void {
   }
 }
 
-// Show loading indicator
+// Show skeleton loading indicator with animated text
 function showLoading(chatArea: HTMLDivElement): HTMLDivElement {
   const loadingDiv = document.createElement('div');
-  loadingDiv.className = 'loading';
-  loadingDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Thinking...';
+  loadingDiv.className = 'message-assistant';
+  loadingDiv.innerHTML = `
+    <div class="message-bubble assistant">
+      <span class="thinking-text">Thinking</span>
+    </div>
+  `;
   chatArea.appendChild(loadingDiv);
   chatArea.scrollTop = chatArea.scrollHeight;
+
+  // Animate thinking text
+  const thinkingTexts = [
+    'Thinking',
+    'Analyzing',
+    'Processing',
+    'Retrieving data',
+    'Computing',
+  ];
+  let textIndex = 0;
+  const thinkingSpan = loadingDiv.querySelector('.thinking-text') as HTMLElement;
+
+  const interval = setInterval(() => {
+    textIndex = (textIndex + 1) % thinkingTexts.length;
+    if (thinkingSpan) {
+      thinkingSpan.textContent = thinkingTexts[textIndex] + '...';
+    }
+  }, 600);
+
+  // Store interval ID so we can clear it later
+  (loadingDiv as any).__thinkingInterval = interval;
+
   return loadingDiv;
 }
 
 // Remove loading indicator
 function removeLoading(chatArea: HTMLDivElement, loadingDiv: HTMLDivElement): void {
+  // Clear thinking animation interval
+  if ((loadingDiv as any).__thinkingInterval) {
+    clearInterval((loadingDiv as any).__thinkingInterval);
+  }
+
   if (chatArea.contains(loadingDiv)) {
     chatArea.removeChild(loadingDiv);
   }
 }
 
-// Send stateless message
+// Send stateless message with streaming
 async function sendStatelessMessage(message: string): Promise<void> {
   addMessage(statelessChatArea, 'user', message);
   statelessMessageInput.value = '';
   statelessSendButton.disabled = true;
 
   const loadingDiv = showLoading(statelessChatArea);
+  let responseText = '';
+  let messageDiv: HTMLDivElement | null = null;
 
   try {
-    const data = await api.sendStatelessMessage({ message });
-
     removeLoading(statelessChatArea, loadingDiv);
-    addMessage(statelessChatArea, 'assistant', data.response);
 
-    // Update stats - use ACTUAL data from agent response
-    statelessStats.messageCount += 2; // user + assistant
-    statelessStats.toolsUsed += data.tool_calls_made || 0; // Actual tool calls
-    // Note: Stateless has no token tracking (no memory to accumulate)
-    // We could estimate ~1200 tokens per message but that's not accurate
-    statelessStats.tokenCount = 0; // No context accumulation
+    // Create message div for streaming
+    messageDiv = document.createElement('div');
+    messageDiv.className = 'message-assistant';
+    messageDiv.innerHTML = '<div class="message-bubble assistant"></div>';
+    statelessChatArea.appendChild(messageDiv);
+    const bubbleEl = messageDiv.querySelector('.message-bubble') as HTMLElement;
 
-    // Update response time metrics (if available)
-    if (data.response_time_ms !== undefined) {
-      statelessStats.lastResponseTime = data.response_time_ms;
-      statelessStats.totalResponseTime += data.response_time_ms;
-      const responseCount = statelessStats.messageCount / 2; // Divide by 2 since we count user+assistant
-      statelessStats.avgResponseTime = statelessStats.totalResponseTime / responseCount;
+    for await (const chunk of api.streamStatelessMessage({ message })) {
+      if (chunk.type === 'token' && chunk.content) {
+        responseText += chunk.content;
+        const iconPrefix =
+          '<i class="fas fa-comment-dots" style="margin-right: 0.25rem;"></i>';
+        bubbleEl.innerHTML = iconPrefix + renderMarkdown(responseText);
+        statelessChatArea.scrollTop = statelessChatArea.scrollHeight;
+      } else if (chunk.type === 'done' && chunk.data) {
+        // Update stats
+        const data = chunk.data;
+        statelessStats.messageCount += 2;
+        statelessStats.toolsUsed += data.tool_calls_made || 0;
+        statelessStats.tokenCount = 0;
+
+        if (data.response_time_ms !== undefined) {
+          statelessStats.lastResponseTime = data.response_time_ms;
+          statelessStats.totalResponseTime += data.response_time_ms;
+          const responseCount = statelessStats.messageCount / 2;
+          statelessStats.avgResponseTime =
+            statelessStats.totalResponseTime / responseCount;
+        }
+        updateStatsTable();
+      }
     }
-
-    updateStatsTable();
   } catch (error) {
     console.error('Error sending stateless message:', error);
+    if (messageDiv) statelessChatArea.removeChild(messageDiv);
     removeLoading(statelessChatArea, loadingDiv);
     addMessage(
       statelessChatArea,
@@ -292,49 +338,101 @@ async function sendStatelessMessage(message: string): Promise<void> {
   }
 }
 
-// Send Redis message
+// Send Redis message with streaming
 async function sendRedisMessage(message: string): Promise<void> {
   addMessage(redisChatArea, 'user', message);
   redisMessageInput.value = '';
   redisSendButton.disabled = true;
 
   const loadingDiv = showLoading(redisChatArea);
+  let responseText = '';
+  let messageDiv: HTMLDivElement | null = null;
 
   try {
-    const data = await api.sendRedisMessage({
+    removeLoading(redisChatArea, loadingDiv);
+
+    // Create message div for streaming
+    messageDiv = document.createElement('div');
+    messageDiv.className = 'message-assistant';
+    messageDiv.innerHTML =
+      '<div class="message-bubble assistant"><img src="/redis-chat-icon.svg" alt="Redis" class="inline-block w-4 h-4 mr-1 align-text-bottom" /></div>';
+    redisChatArea.appendChild(messageDiv);
+    const bubbleEl = messageDiv.querySelector('.message-bubble') as HTMLElement;
+
+    for await (const chunk of api.streamRedisMessage({
       message,
       session_id: redisSessionId,
-    });
+    })) {
+      if (chunk.type === 'token' && chunk.content) {
+        responseText += chunk.content;
+        const iconPrefix =
+          '<img src="/redis-chat-icon.svg" alt="Redis" class="inline-block w-4 h-4 mr-1 align-text-bottom" />';
+        bubbleEl.innerHTML = iconPrefix + renderMarkdown(responseText);
+        redisChatArea.scrollTop = redisChatArea.scrollHeight;
+      } else if (chunk.type === 'done' && chunk.data) {
+        // Add metadata after streaming completes
+        const data = chunk.data;
+        let metadataHtml = '';
 
-    removeLoading(redisChatArea, loadingDiv);
-    addMessage(redisChatArea, 'assistant', data.response, {
-      tools_used: data.tools_used,
-      memory_stats: data.memory_stats,
-    });
+        if (data.memory_stats) {
+          const stats = data.memory_stats;
+          const memoryIndicators = [];
+          if (stats.short_term_available) {
+            memoryIndicators.push(
+              '<span class="memory-badge"><i class="fas fa-file-lines"></i> Short-term memory</span>'
+            );
+          }
+          if (stats.semantic_hits > 0) {
+            memoryIndicators.push(
+              `<span class="memory-badge semantic"><i class="fas fa-brain"></i> ${stats.semantic_hits} semantic memories</span>`
+            );
+          }
+          if (memoryIndicators.length > 0) {
+            metadataHtml = `<div class="message-metadata">${memoryIndicators.join(
+              ' '
+            )}</div>`;
+          }
+        }
 
-    // Update stats - Redis with memory and tokens
-    redisStats.messageCount += 2; // user + assistant
-    redisStats.toolsUsed += data.tool_calls_made;
-    redisStats.semanticMemories = data.memory_stats.semantic_hits;
+        if (data.tools_used && data.tools_used.length > 0) {
+          const toolsList = data.tools_used
+            .map(
+              (tool: any) =>
+                `<span class="tool-badge"><i class="fas fa-wrench"></i> ${
+                  tool.name || tool
+                }</span>`
+            )
+            .join(' ');
+          metadataHtml += `<div class="message-metadata tools-used">${toolsList}</div>`;
+        }
 
-    // Update token stats from response
-    if (data.token_stats && data.token_stats.token_count !== undefined) {
-      redisStats.tokenCount = data.token_stats.token_count;
-      redisStats.tokenUsagePercent = data.token_stats.usage_percent;
-      redisStats.isOverThreshold = data.token_stats.is_over_threshold;
+        const iconPrefix =
+          '<img src="/redis-chat-icon.svg" alt="Redis" class="inline-block w-4 h-4 mr-1 align-text-bottom" />';
+        bubbleEl.innerHTML = iconPrefix + renderMarkdown(responseText) + metadataHtml;
+
+        // Update stats
+        redisStats.messageCount += 2;
+        redisStats.toolsUsed += data.tool_calls_made || 0;
+        redisStats.semanticMemories = data.memory_stats?.semantic_hits || 0;
+
+        if (data.token_stats) {
+          redisStats.tokenCount = data.token_stats.token_count;
+          redisStats.tokenUsagePercent = data.token_stats.usage_percent;
+          redisStats.isOverThreshold = data.token_stats.is_over_threshold;
+        }
+
+        if (data.response_time_ms !== undefined) {
+          redisStats.lastResponseTime = data.response_time_ms;
+          redisStats.totalResponseTime += data.response_time_ms;
+          const responseCount = redisStats.messageCount / 2;
+          redisStats.avgResponseTime = redisStats.totalResponseTime / responseCount;
+        }
+        updateStatsTable();
+      }
     }
-
-    // Update response time metrics (if available)
-    if (data.response_time_ms !== undefined) {
-      redisStats.lastResponseTime = data.response_time_ms;
-      redisStats.totalResponseTime += data.response_time_ms;
-      const responseCount = redisStats.messageCount / 2; // Divide by 2 since we count user+assistant
-      redisStats.avgResponseTime = redisStats.totalResponseTime / responseCount;
-    }
-
-    updateStatsTable();
   } catch (error) {
     console.error('Error sending Redis message:', error);
+    if (messageDiv) redisChatArea.removeChild(messageDiv);
     removeLoading(redisChatArea, loadingDiv);
     addMessage(
       redisChatArea,
@@ -364,6 +462,52 @@ redisChatForm.addEventListener('submit', (e: Event) => {
   const message = redisMessageInput.value.trim();
   if (message) {
     sendRedisMessage(message);
+  }
+});
+
+// Clear cache button handler
+const clearCacheButton = document.getElementById(
+  'clear-cache-button'
+) as HTMLButtonElement;
+clearCacheButton.addEventListener('click', async () => {
+  if (
+    confirm(
+      'Clear Redis conversation cache? This will erase all conversation history but keep your health data.'
+    )
+  ) {
+    try {
+      clearCacheButton.disabled = true;
+      clearCacheButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Clearing...';
+
+      await api.clearCache(redisSessionId);
+
+      // Clear chat areas
+      redisChatArea.innerHTML = `
+        <div class="message-assistant">
+          <div class="message-bubble assistant">
+            <i class="fas fa-hand-wave"></i> Cache cleared! I'm ready for a fresh conversation.
+          </div>
+        </div>
+      `;
+
+      // Reset stats
+      redisStats.messageCount = 0;
+      redisStats.toolsUsed = 0;
+      redisStats.tokenCount = 0;
+      redisStats.semanticMemories = 0;
+      updateStatsTable();
+
+      clearCacheButton.innerHTML = '<i class="fas fa-check"></i> Cleared!';
+      setTimeout(() => {
+        clearCacheButton.innerHTML = '<i class="fas fa-trash-alt"></i> Clear Cache';
+        clearCacheButton.disabled = false;
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to clear cache:', error);
+      alert('Failed to clear cache. Please try again.');
+      clearCacheButton.innerHTML = '<i class="fas fa-trash-alt"></i> Clear Cache';
+      clearCacheButton.disabled = false;
+    }
   }
 });
 

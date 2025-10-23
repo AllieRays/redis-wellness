@@ -240,6 +240,48 @@ class StatefulRAGAgent:
         conversation_history: list[dict] | None = None,
         max_tool_calls: int = 5,  # Balanced for speed vs capability
     ) -> dict[str, Any]:
+        """Non-streaming chat (original implementation)."""
+        result = None
+        async for chunk in self._chat_impl(
+            message,
+            user_id,
+            session_id,
+            conversation_history,
+            max_tool_calls,
+            stream=False,
+        ):
+            if chunk.get("type") in ["done", "error"]:
+                result = chunk.get("data")
+        return result if result else {}
+
+    async def chat_stream(
+        self,
+        message: str,
+        user_id: str,
+        session_id: str = "default",
+        conversation_history: list[dict] | None = None,
+        max_tool_calls: int = 5,
+    ):
+        """Streaming chat that yields tokens as they arrive."""
+        async for chunk in self._chat_impl(
+            message,
+            user_id,
+            session_id,
+            conversation_history,
+            max_tool_calls,
+            stream=True,
+        ):
+            yield chunk
+
+    async def _chat_impl(
+        self,
+        message: str,
+        user_id: str,
+        session_id: str = "default",
+        conversation_history: list[dict] | None = None,
+        max_tool_calls: int = 5,
+        stream: bool = False,
+    ):
         """Process message through RAG pipeline with memory retrieval and storage."""
         try:
             # 1. Build message history
@@ -283,7 +325,33 @@ class StatefulRAGAgent:
             for iteration in range(max_tool_calls):
                 # Bind tools and call LLM
                 llm_with_tools = self.llm.bind_tools(tools_to_use)
-                response = await llm_with_tools.ainvoke(conversation)
+
+                # Always use streaming mode for the LLM call if stream=True
+                if stream:
+                    response_content = ""
+                    response_has_tool_calls = False
+
+                    async for chunk in llm_with_tools.astream(conversation):
+                        # Check for tool calls
+                        if hasattr(chunk, "tool_calls") and chunk.tool_calls:
+                            response_has_tool_calls = True
+
+                        # Stream text content
+                        if hasattr(chunk, "content") and chunk.content:
+                            response_content += chunk.content
+                            # Only yield tokens if this is the final response (no tool calls)
+                            if not response_has_tool_calls:
+                                yield {"type": "token", "content": chunk.content}
+
+                    # Create AIMessage from streamed content
+                    response = AIMessage(content=response_content)
+                    if response_has_tool_calls:
+                        # Re-invoke to get tool_calls attribute properly
+                        response = await llm_with_tools.ainvoke(conversation)
+                else:
+                    # Non-streaming mode
+                    response = await llm_with_tools.ainvoke(conversation)
+
                 conversation.append(response)
 
                 # Check if LLM wants to call tools
@@ -358,7 +426,7 @@ class StatefulRAGAgent:
                 user_id, session_id, message, response_text
             )
 
-            return {
+            result = {
                 "response": response_text,
                 "tools_used": list(set(tools_used_list)),
                 "tool_calls_made": tool_calls_made,
@@ -384,5 +452,8 @@ class StatefulRAGAgent:
                 "type": "stateful_rag_agent",
             }
 
+            yield {"type": "done", "data": result}
+
         except Exception as e:
-            return build_error_response(e, "stateful_rag_agent")
+            error_response = build_error_response(e, "stateful_rag_agent")
+            yield {"type": "error", "data": error_response}

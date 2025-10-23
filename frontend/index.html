@@ -12,8 +12,8 @@
     <div id="app" class="max-w-[1600px] mx-auto h-full flex flex-col">
       <!-- Header -->
       <header class="flex-shrink-0 mb-8">
-        <div class="flex items-start justify-between mb-3">
-          <div>
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex-1">
             <h1 class="text-5xl font-mono font-bold text-white mb-3">
               <i class="fas fa-heartbeat"></i> Redis Wellness
             </h1>
@@ -23,9 +23,12 @@
             <div class="flex items-center gap-3">
               <span class="status-badge" id="redis-status">Redis: Checking...</span>
               <span class="status-badge" id="ollama-status">Ollama: Checking...</span>
+              <button id="clear-cache-button" class="status-badge" style="cursor: pointer;">
+                <i class="fas fa-trash-alt"></i> Clear Cache
+              </button>
               <a href="https://github.com/AllieRays/redis-wellness" target="_blank" rel="noopener noreferrer"
-                 class="text-white hover:text-highlight transition-colors">
-                <i class="fab fa-github text-xl"></i>
+                 id="github-link" class="status-badge transition-all no-underline">
+                <i class="fab fa-github"></i> GitHub
               </a>
             </div>
           </div>
@@ -87,13 +90,12 @@
                 <i class="fas fa-ban"></i> No Memory
               </span>
             </div>
-            <p class="text-gray-400 text-sm mt-1">No conversation memory - each message is independent</p>
           </div>
 
           <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4" id="stateless-chat-area">
             <div class="message-assistant">
               <div class="message-bubble assistant">
-                <i class="fas fa-hand-wave"></i> Hi! I'm a stateless AI assistant. I don't remember previous messages.
+                <i class="fas fa-comment-dots"></i> Hi! I'm a Stateless AI Agent.
               </div>
             </div>
           </div>
@@ -122,16 +124,15 @@
                 <img src="/redis-chat-icon.svg" alt="Redis" class="w-6 h-6" /> Redis Chat
               </h2>
               <span class="px-3 py-1 rounded-[5px] bg-highlight/20 border border-highlight/30 text-highlight text-xs font-mono">
-                <i class="fas fa-sparkles"></i> Full Memory
+                <i class="fas fa-brain"></i> Full Memory
               </span>
             </div>
-            <p class="text-gray-400 text-sm mt-1">Full conversation memory with RedisVL</p>
           </div>
 
           <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4" id="redis-chat-area">
             <div class="message-assistant">
               <div class="message-bubble assistant">
-                <i class="fas fa-hand-wave"></i> Hi! I'm your Redis-powered assistant. I remember our entire conversation!
+                <img src="/redis-chat-icon.svg" alt="Redis" class="inline-block w-4 h-4 mr-1 align-text-bottom" /> Hi! I'm a Stateful AI Agent Powered by Redis.
               </div>
             </div>
           </div>

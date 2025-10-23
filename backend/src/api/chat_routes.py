@@ -6,11 +6,13 @@ Demonstrates the power of RedisVL memory through side-by-side comparison:
 - Redis: Full RAG with dual memory system (short-term + long-term semantic)
 """
 
+import json
 import logging
 import time
 from typing import Any
 
 from fastapi import APIRouter, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..services.redis_chat import RedisChatService
@@ -108,6 +110,32 @@ class ClearSessionResponse(BaseModel):
 # ========== Chat Endpoints ==========
 
 
+@router.post("/stateless/stream")
+async def stateless_chat_stream(request: StatelessChatRequest, http_request: Request):
+    """
+    Stateless chat with streaming - tokens appear as they're generated.
+
+    Returns Server-Sent Events (SSE) stream with:
+    - {"type": "token", "content": "..."} for each token
+    - {"type": "done", "data": {...}} with final metadata
+    """
+
+    async def generate():
+        start_time = time.time()
+        try:
+            async for chunk in stateless_service.chat_stream(message=request.message):
+                # Add response_time_ms to done event
+                if chunk.get("type") == "done" and chunk.get("data"):
+                    response_time_ms = (time.time() - start_time) * 1000
+                    chunk["data"]["response_time_ms"] = response_time_ms
+                yield f"data: {json.dumps(chunk)}\n\n"
+        except Exception as e:
+            logger.error(f"Streaming error: {e}", exc_info=True)
+            yield f'data: {{"type": "error", "content": "{str(e)}"}}\n\n'
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
 @router.post("/stateless", response_model=StatelessChatResponse)
 async def stateless_chat(request: StatelessChatRequest, http_request: Request):
     """
@@ -141,6 +169,34 @@ async def stateless_chat(request: StatelessChatRequest, http_request: Request):
         type="stateless",
         response_time_ms=response_time_ms,
     )
+
+
+@router.post("/redis/stream")
+async def redis_chat_stream(request: RedisChatRequest, http_request: Request):
+    """
+    Redis chat with streaming - tokens appear as they're generated.
+
+    Returns Server-Sent Events (SSE) stream with:
+    - {"type": "token", "content": "..."} for each token
+    - {"type": "done", "data": {...}} with final metadata
+    """
+
+    async def generate():
+        start_time = time.time()
+        try:
+            async for chunk in redis_service.chat_stream(
+                message=request.message, session_id=request.session_id
+            ):
+                # Add response_time_ms to done event
+                if chunk.get("type") == "done" and chunk.get("data"):
+                    response_time_ms = (time.time() - start_time) * 1000
+                    chunk["data"]["response_time_ms"] = response_time_ms
+                yield f"data: {json.dumps(chunk)}\n\n"
+        except Exception as e:
+            logger.error(f"Streaming error: {e}", exc_info=True)
+            yield f'data: {{"type": "error", "content": "{str(e)}"}}\n\n'
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 @router.post("/redis")
