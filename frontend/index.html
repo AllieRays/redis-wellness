@@ -14,7 +14,7 @@
       <header class="flex-shrink-0 mb-8">
         <div class="flex items-center justify-between mb-3">
           <div class="flex-1">
-            <h1 class="text-5xl font-mono font-bold text-white mb-3">
+            <h1 class="text-4xl font-mono font-bold text-white mb-3">
               <i class="fas fa-heartbeat"></i> Memory Matters
             </h1>
             <p class="text-gray-300 text-lg mb-2 max-w-4xl">
@@ -23,7 +23,7 @@
             <p class="text-gray-400 text-sm mb-4 max-w-4xl">
               Comparing stateless and stateful Agentic RAG with Apple Health data, Ollama, LangChain, Redis, and RedisVL.
             </p>
-            <div class="flex items-center gap-3">
+            <div id="control-buttons" class="flex items-center gap-3" style="display: none;">
               <span class="status-badge" id="redis-status">Redis: Checking...</span>
               <span class="status-badge" id="ollama-status">Ollama: Checking...</span>
               <button id="clear-cache-button" class="status-badge" style="cursor: pointer;">
@@ -38,7 +38,12 @@
 
           <!-- Performance Metrics -->
           <div class="glass-card p-4 min-w-[400px]">
-            <h3 class="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider mb-3">Performance Comparison</h3>
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-xs font-mono font-bold text-gray-400 uppercase tracking-wider">Performance Comparison</h3>
+              <button id="toggle-controls" class="text-gray-400 hover:text-white transition-colors" style="cursor: pointer;">
+                <i class="fas fa-eye-slash"></i>
+              </button>
+            </div>
 
             <!-- Column Headers -->
             <div class="flex justify-between items-center mb-2 pb-2 border-b border-white/10">
@@ -120,8 +125,8 @@
         </div>
 
         <!-- Redis Chat -->
-        <div class="chat-container glass-card">
-          <div class="border-b border-white/20 p-4">
+        <div class="chat-container glass-card redis-chat-highlight">
+            <div class="border-b border-white/20 p-4">
             <div class="flex items-center justify-between">
               <h2 class="text-xl font-mono font-bold text-white flex items-center gap-2">
                 <img src="/redis-chat-icon.svg" alt="Redis" class="w-6 h-6" /> Redis Chat
@@ -153,7 +158,6 @@
                 Send
               </button>
             </form>
-          </div>
         </div>
       </div>
     </div>

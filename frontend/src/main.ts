@@ -380,6 +380,7 @@ async function sendRedisMessage(message: string): Promise<void> {
       } else if (chunk.type === 'done' && chunk.data) {
         // Add metadata after streaming completes
         const data = chunk.data;
+        console.log('Done event received:', data);
         let metadataHtml = '';
 
         if (data.memory_stats) {
@@ -424,9 +425,10 @@ async function sendRedisMessage(message: string): Promise<void> {
         redisStats.semanticMemories = data.memory_stats?.semantic_hits || 0;
 
         if (data.token_stats) {
-          redisStats.tokenCount = data.token_stats.token_count;
-          redisStats.tokenUsagePercent = data.token_stats.usage_percent;
-          redisStats.isOverThreshold = data.token_stats.is_over_threshold;
+          console.log('Token stats received:', data.token_stats);
+          redisStats.tokenCount = data.token_stats.token_count || 0;
+          redisStats.tokenUsagePercent = data.token_stats.usage_percent || 0;
+          redisStats.isOverThreshold = data.token_stats.is_over_threshold || false;
         }
 
         if (data.response_time_ms !== undefined) {
@@ -518,6 +520,27 @@ clearCacheButton.addEventListener('click', async () => {
     }
   }
 });
+
+// Toggle control buttons visibility
+const toggleControlsButton = document.getElementById(
+  'toggle-controls'
+) as HTMLButtonElement;
+const controlButtonsContainer = document.getElementById(
+  'control-buttons'
+) as HTMLDivElement;
+
+if (toggleControlsButton && controlButtonsContainer) {
+  toggleControlsButton.addEventListener('click', () => {
+    const isHidden = controlButtonsContainer.style.display === 'none';
+    controlButtonsContainer.style.display = isHidden ? 'flex' : 'none';
+
+    // Update icon (eye = visible, eye-slash = hidden)
+    const icon = toggleControlsButton.querySelector('i');
+    if (icon) {
+      icon.className = isHidden ? 'fas fa-eye' : 'fas fa-eye-slash';
+    }
+  });
+}
 
 // Initialize
 checkHealth();
