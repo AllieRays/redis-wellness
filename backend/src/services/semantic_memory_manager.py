@@ -20,7 +20,6 @@ Storage Strategy:
 
 import json
 import logging
-from datetime import UTC, datetime
 from typing import Any
 
 from redisvl.index import SearchIndex
@@ -31,8 +30,9 @@ from redisvl.schema import IndexSchema
 from ..config import get_settings
 from ..utils.exceptions import MemoryRetrievalError
 from ..utils.redis_keys import RedisKeys
+from ..utils.time_utils import get_utc_timestamp
 from .embedding_service import get_embedding_service
-from .redis_connection import RedisConnectionManager
+from .redis_connection import RedisConnectionManager, get_redis_url
 
 logger = logging.getLogger(__name__)
 
@@ -111,8 +111,12 @@ class SemanticMemoryManager:
 
             self.semantic_index = SearchIndex(schema=schema)
 
-            # Connect to Redis
-            redis_url = f"redis://{self.settings.redis_host}:{self.settings.redis_port}/{self.settings.redis_db}"
+            # Connect to Redis using centralized utility
+            redis_url = get_redis_url(
+                host=self.settings.redis_host,
+                port=self.settings.redis_port,
+                db=self.settings.redis_db,
+            )
             self.semantic_index.connect(redis_url)
 
             # Create index if it doesn't exist
@@ -177,8 +181,8 @@ class SemanticMemoryManager:
             if embedding is None:
                 return False
 
-            # Create memory record
-            timestamp = int(datetime.now(UTC).timestamp())
+            # Create memory record using centralized utilities
+            timestamp = get_utc_timestamp()
             memory_key = RedisKeys.semantic_memory(category, fact_type, timestamp)
 
             # Store in RedisVL

@@ -126,6 +126,19 @@ class MemoryRetrievalError(BusinessLogicError):
         )
 
 
+class MemoryStorageError(BusinessLogicError):
+    """Memory system storage failed."""
+
+    def __init__(self, memory_type: str, reason: str = None, **kwargs):
+        super().__init__(
+            message=f"{memory_type} memory storage failed"
+            + (f": {reason}" if reason else ""),
+            error_code="MEMORY_STORAGE_FAILED",
+            details={"memory_type": memory_type, "reason": reason},
+            **kwargs,
+        )
+
+
 # === Infrastructure Errors ===
 
 

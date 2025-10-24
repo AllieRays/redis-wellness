@@ -38,12 +38,6 @@ if ! uv run ruff format --check src tests; then
     exit 1
 fi
 
-print_status "Running Black (formatter check)..."
-if ! uv run black --check src tests; then
-    print_error "Black formatting check failed. Run 'uv run black src tests' to fix."
-    exit 1
-fi
-
 cd ..
 
 # Frontend linting

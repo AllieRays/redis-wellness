@@ -7,7 +7,6 @@ Uses RedisVL for vector search.
 
 import json
 import logging
-from datetime import UTC, datetime
 from typing import Any
 
 import numpy as np
@@ -17,9 +16,11 @@ from redisvl.query.filter import Tag
 from redisvl.schema import IndexSchema
 
 from ..config import get_settings
+from ..utils.exceptions import MemoryRetrievalError, MemoryStorageError
 from ..utils.redis_keys import RedisKeys
+from ..utils.time_utils import get_utc_timestamp
 from .embedding_service import get_embedding_service
-from .redis_connection import get_redis_manager
+from .redis_connection import get_redis_manager, get_redis_url
 
 logger = logging.getLogger(__name__)
 
@@ -83,8 +84,12 @@ class EpisodicMemoryManager:
 
             self.episodic_index = SearchIndex(schema=schema)
 
-            # Connect to Redis
-            redis_url = f"redis://{self.settings.redis_host}:{self.settings.redis_port}/{self.settings.redis_db}"
+            # Connect to Redis using centralized utility
+            redis_url = get_redis_url(
+                host=self.settings.redis_host,
+                port=self.settings.redis_port,
+                db=self.settings.redis_db,
+            )
             self.episodic_index.connect(redis_url)
 
             # Create index (don't overwrite if exists)
@@ -135,9 +140,9 @@ class EpisodicMemoryManager:
                 logger.error("Failed to generate embedding for goal")
                 return False
 
-            # Create memory record
-            timestamp = int(datetime.now(UTC).timestamp())
-            memory_key = f"{RedisKeys.EPISODIC_PREFIX}{user_id}:goal:{timestamp}"
+            # Create memory record using centralized utilities
+            timestamp = get_utc_timestamp()
+            memory_key = RedisKeys.episodic_memory(user_id, "goal", timestamp)
 
             metadata = {
                 "metric": metric,
@@ -164,8 +169,11 @@ class EpisodicMemoryManager:
             return True
 
         except Exception as e:
-            logger.error(f"❌ Goal storage failed: {e}")
-            return False
+            logger.error(f"❌ Goal storage failed: {e}", exc_info=True)
+            raise MemoryStorageError(
+                memory_type="episodic",
+                reason=f"Failed to store goal: {str(e)}",
+            ) from e
 
     async def retrieve_goals(
         self,
@@ -243,8 +251,11 @@ class EpisodicMemoryManager:
             }
 
         except Exception as e:
-            logger.error(f"❌ Goal retrieval failed: {e}")
-            return {"context": None, "hits": 0, "goals": []}
+            logger.error(f"❌ Goal retrieval failed: {e}", exc_info=True)
+            raise MemoryRetrievalError(
+                memory_type="episodic",
+                reason=f"Failed to retrieve goals: {str(e)}",
+            ) from e
 
 
 # Singleton instance

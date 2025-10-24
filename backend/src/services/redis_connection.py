@@ -197,6 +197,30 @@ class RedisConnectionManager:
             logger.info("Redis connection pool closed")
 
 
+def get_redis_url(host: str = "localhost", port: int = 6379, db: int = 0) -> str:
+    """
+    Build Redis URL for RedisVL connections.
+
+    Args:
+        host: Redis host (default: "localhost")
+        port: Redis port (default: 6379)
+        db: Redis database number (default: 0)
+
+    Returns:
+        str: Redis URL in format "redis://host:port/db"
+
+    Example:
+        >>> url = get_redis_url("localhost", 6379, 0)
+        >>> print(url)
+        "redis://localhost:6379/0"
+
+    Note:
+        Use this instead of manually constructing URLs to ensure
+        consistency across the codebase.
+    """
+    return f"redis://{host}:{port}/{db}"
+
+
 # Global connection manager instance
 redis_connection_manager = RedisConnectionManager()
 

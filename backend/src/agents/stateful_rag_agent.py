@@ -1,9 +1,10 @@
 """
-Stateful LangGraph agent with episodic memory.
+Stateful LangGraph agent with episodic AND procedural memory.
 
 Now includes:
 - Checkpointing (conversation history)
 - Episodic memory (user goals, preferences)
+- Procedural memory (learned workflows with orchestration)
 """
 
 import logging
@@ -22,6 +23,7 @@ from typing_extensions import TypedDict  # Use typing_extensions for Python 3.11
 
 from ..apple_health.query_tools import create_user_bound_tools
 from ..services.episodic_memory_manager import EpisodicMemoryManager
+from ..services.procedural_memory_manager import ProceduralMemoryManager
 from ..utils.agent_helpers import build_base_system_prompt, create_health_llm
 from ..utils.conversation_fact_extractor import get_fact_extractor
 from ..utils.numeric_validator import get_numeric_validator
@@ -30,11 +32,14 @@ logger = logging.getLogger(__name__)
 
 
 class MemoryState(TypedDict):
-    """State with messages, user ID, and episodic memory context."""
+    """State with messages, user ID, episodic memory, and procedural memory."""
 
     messages: Annotated[list[BaseMessage], add_messages]
     user_id: str
     episodic_context: str | None  # Injected into LLM prompt
+    procedural_patterns: list[dict] | None  # Retrieved patterns
+    execution_plan: dict | None  # Planned tool sequence
+    workflow_start_time: int  # For timing workflows
 
 
 class StatefulRAGAgent:
@@ -44,23 +49,30 @@ class StatefulRAGAgent:
         self,
         checkpointer: BaseCheckpointSaver | None = None,
         episodic_memory: EpisodicMemoryManager | None = None,
+        procedural_memory: ProceduralMemoryManager | None = None,
     ):
         self.llm = create_health_llm()
         self.checkpointer = checkpointer
         self.episodic = episodic_memory
+        self.procedural = procedural_memory
         self.fact_extractor = get_fact_extractor()
         self.graph = self._build_graph()
 
-        if checkpointer and episodic_memory:
+        # Log initialization status
+        memory_features = []
+        if checkpointer:
+            memory_features.append("checkpointing")
+        if episodic_memory:
+            memory_features.append("episodic memory")
+        if procedural_memory:
+            memory_features.append("procedural memory")
+
+        if memory_features:
             logger.info(
-                "✅ StatefulRAGAgent initialized WITH checkpointing AND episodic memory"
-            )
-        elif checkpointer:
-            logger.info(
-                "✅ StatefulRAGAgent initialized WITH checkpointing (no episodic memory)"
+                f"✅ StatefulRAGAgent initialized WITH {', '.join(memory_features)}"
             )
         else:
-            logger.info("✅ StatefulRAGAgent initialized (no checkpointing, no memory)")
+            logger.info("✅ StatefulRAGAgent initialized (no memory features)")
 
     def _build_graph(self):
         """Build graph with episodic memory: Retrieve → LLM → Tools → Store → End."""

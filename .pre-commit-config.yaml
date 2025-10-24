@@ -9,12 +9,6 @@ repos:
       - id: ruff-format
         files: ^backend/
 
-  - repo: https://github.com/psf/black
-    rev: 23.11.0
-    hooks:
-      - id: black
-        files: ^backend/
-
   # TypeScript Frontend
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v8.54.0

@@ -59,6 +59,25 @@ from datetime import UTC, datetime, timedelta
 DEFAULT_RECENT_DAYS = 30
 
 
+def get_utc_timestamp() -> int:
+    """
+    Get current UTC timestamp.
+
+    Returns:
+        int: Current UTC timestamp in seconds since epoch
+
+    Example:
+        >>> ts = get_utc_timestamp()
+        >>> print(ts)
+        1729737600
+
+    Note:
+        Use this instead of generating timestamps manually to ensure
+        consistency across the codebase. All timestamps should be UTC.
+    """
+    return int(datetime.now(UTC).timestamp())
+
+
 def parse_time_period(time_period: str) -> tuple[datetime, datetime, str]:
     """
     Parse natural language time descriptions into UTC date ranges.

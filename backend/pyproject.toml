@@ -31,7 +31,6 @@ dependencies = [
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
-    "black>=23.9.0",
     "ruff>=0.1.0",
 ]
 
@@ -46,7 +45,6 @@ packages = ["src"]
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
-    "black>=23.9.0",
     "ruff>=0.1.0",
     "pre-commit>=4.3.0",
 ]
@@ -78,7 +76,7 @@ select = [
     "SIM", # flake8-simplify
 ]
 ignore = [
-    "E501",  # line too long, handled by black
+    "E501",  # line too long, handled by ruff formatter
     "B008",  # do not perform function calls in argument defaults
     "B905",  # zip without explicit strict parameter
 ]
@@ -88,7 +86,3 @@ known-first-party = ["src"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E501"]
-
-[tool.black]
-line-length = 88
-target-version = ["py311"]
