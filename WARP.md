@@ -218,6 +218,202 @@ curl -X POST http://localhost:8000/api/health/upload \
   -F "file=@export.xml"
 ```
 
+## Debugging Best Practices
+
+### Critical Debugging Checklist
+
+When debugging issues where data isn't flowing correctly between backend and frontend:
+
+**1. Verify API Contract Matching First**
+
+Before diving into complex debugging, check field name consistency:
+
+```bash
+# Check TypeScript interfaces
+grep -r "interface.*Stats" frontend/src/types.ts
+
+# Check backend response structure
+grep -r "memory_stats" backend/src/agents/
+grep -r "memory_stats" backend/src/services/
+
+# Common mismatch: semantic_retrieval vs semantic_hits
+```
+
+**Field name mismatches are silent killers** - they don't throw errors, data just disappears.
+
+**2. Docker Development Workflow**
+
+The Dockerfile uses `COPY` (not volume mounts), so:
+
+```bash
+# After ANY code change in backend/src/, you MUST rebuild:
+docker compose build backend
+docker compose up -d backend
+
+# Verify the change took effect:
+docker compose logs backend --tail 50
+
+# Quick fix without rebuild (for emergencies):
+docker cp /path/to/file.py redis-wellness-backend:/app/src/path/to/file.py
+docker compose restart backend
+```
+
+**3. Add Logging Early**
+
+Add comprehensive logging BEFORE starting multi-hour debugging sessions:
+
+```python
+# In backend code, add explicit logging for data flow
+logger.info(f"💾 Memory stats: semantic_hits={hits}, goals_stored={goals}")
+logger.info(f"📊 Final state: {len(messages)} messages")
+logger.info(f"✅ Retrieved episodic context: {context is not None}")
+```
+
+```typescript
+// In frontend code, log what you receive
+console.log('📥 Received memory_stats:', data.memory_stats);
+console.log('📊 Stats object keys:', Object.keys(data.memory_stats || {}));
+```
+
+**4. Test the Full Stack in Order**
+
+Debug systematically from backend to frontend:
+
+```bash
+# Step 1: Verify data exists in Redis
+redis-cli
+> KEYS episodic:*
+> HGETALL episodic:user123:1234567890
+
+# Step 2: Check backend calculates correctly
+docker compose logs backend | grep "Memory stats"
+
+# Step 3: Check backend returns correctly
+curl -X POST http://localhost:8000/api/chat/redis \
+  -H "Content-Type: application/json" \
+  -d '{"message": "test", "session_id": "debug"}' | jq '.memory_stats'
+
+# Step 4: Check frontend receives correctly
+# Open browser DevTools → Network → Find request → Check Response tab
+```
+
+**5. TypeScript Interface Verification**
+
+When adding new fields to API responses:
+
+```typescript
+// 1. Check the interface definition
+export interface MemoryStats {
+  semantic_hits: number;  // ← Must match backend exactly
+  goals_stored: number;
+}
+
+// 2. Check the usage site
+this.stats.semanticMemories = data.memory_stats?.semantic_hits || 0;
+//                                                 ^^^^^^^^^^^^^ Field name must match
+
+// 3. Grep for all usages to ensure consistency
+// grep -r "semantic_" frontend/src/
+```
+
+**6. Streaming Response Debugging**
+
+For streaming endpoints, ensure all data is included:
+
+```python
+# BAD - Missing memory_stats in done event
+yield {"type": "done", "data": {"response": text}}
+
+# GOOD - All fields included
+yield {
+    "type": "done",
+    "data": {
+        "response": text,
+        "tools_used": tools,
+        "memory_stats": result.get("memory_stats", {}),  # Don't forget!
+    }
+}
+```
+
+**7. Environment Variable Mismatches**
+
+Check that docker-compose.yml uses the SAME variable names as config.py:
+
+```yaml
+# docker-compose.yml
+environment:
+  - OLLAMA_BASE_URL=http://host.docker.internal:11434  # Must match config.py
+
+# backend/src/config.py
+ollama_base_url: str = Field(default="http://localhost:11434")
+# Variable name MUST match: OLLAMA_BASE_URL ← config expects this exact name
+```
+
+### Common Pitfall: Field Name Mismatches
+
+**Symptom**: Backend logs show correct values, but frontend displays 0 or undefined.
+
+**Root Cause**: Field names don't match between backend response and frontend interface.
+
+**Example from October 2024**:
+```python
+# Backend was sending:
+return {"memory_stats": {"semantic_retrieval": 1}}  # ❌ Wrong field name
+
+# Frontend expected:
+interface MemoryStats {
+  semantic_hits: number;  # ← Looking for this field
+}
+```
+
+**Fix**: Change backend to match frontend:
+```python
+# Backend now sends:
+return {"memory_stats": {"semantic_hits": 1}}  # ✅ Correct field name
+```
+
+**Prevention**: Always grep both codebases when adding new fields:
+```bash
+grep -r "semantic_hits" frontend/src/
+grep -r "semantic_hits" backend/src/
+```
+
+### Docker Rebuild Requirements
+
+**When to rebuild Docker images:**
+
+- ✅ After ANY change to `backend/src/` files
+- ✅ After changes to `pyproject.toml` or `uv.lock`
+- ✅ After changes to environment variables in docker-compose.yml
+- ❌ NOT needed for frontend changes (volume mounted)
+
+**Quick rebuild command:**
+```bash
+docker compose build backend && docker compose up -d backend && docker compose logs backend --tail 50
+```
+
+### Log Visibility Troubleshooting
+
+**Issue**: Logs not appearing even though code is executing.
+
+**Causes**:
+1. Multiple processes running (check with `lsof -i :8000`)
+2. Docker container running old code (rebuild needed)
+3. Background processes hiding output
+4. Wrong log level configured
+
+**Fix**:
+```bash
+# Kill all instances
+lsof -ti:8000 | xargs kill -9
+
+# Check Docker logs
+docker compose logs backend -f
+
+# Check background bash processes
+# Use /bashes command to see running shells
+```
+
 ## Development Notes
 
 ### Project Structure (Updated October 2025)
