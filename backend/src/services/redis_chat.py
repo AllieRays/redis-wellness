@@ -14,6 +14,7 @@ from typing import Any
 
 from ..agents import StatefulRAGAgent
 from ..config import get_settings
+from ..services.episodic_memory_manager import get_episodic_memory
 from ..services.redis_connection import get_redis_manager
 from ..utils.exceptions import (
     InfrastructureError,
@@ -36,8 +37,14 @@ class RedisChatService:
         # Get checkpointer for conversation persistence
         checkpointer = self.redis_manager.get_checkpointer()
 
-        # Use stateful LangGraph agent with checkpointing only (no memory yet)
-        self.agent = StatefulRAGAgent(checkpointer=checkpointer)
+        # Get episodic memory for goal storage/retrieval
+        episodic_memory = get_episodic_memory()
+
+        # Use stateful LangGraph agent with checkpointing AND episodic memory
+        self.agent = StatefulRAGAgent(
+            checkpointer=checkpointer,
+            episodic_memory=episodic_memory,
+        )
 
     def _get_session_key(self, session_id: str) -> str:
         """Generate session key for Redis (single-user mode)."""

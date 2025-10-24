@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     redis_health_data_ttl_seconds: int = 18144000  # 7 months
     redis_default_ttl_days: int = 210  # 7 months in days
 
-    ollama_base_url: str = "http://host.docker.internal:11434"
+    ollama_base_url: str = "http://localhost:11434"  # Use localhost for local testing, override with OLLAMA_BASE_URL in Docker
     ollama_model: str = "qwen2.5:7b"
     embedding_model: str = "mxbai-embed-large"
 

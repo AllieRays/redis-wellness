@@ -163,10 +163,16 @@ export class StreamingMessageBubble {
     const safeContent = createSafeHtmlWithIcon(content, '');
     this.contentEl.innerHTML = safeContent;
 
-    // Scroll to bottom
+    // Scroll to bottom only if user is near bottom (within 100px)
     const chatArea = this.element.parentElement;
     if (chatArea) {
-      chatArea.scrollTop = chatArea.scrollHeight;
+      const isNearBottom =
+        chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 100;
+      if (isNearBottom) {
+        requestAnimationFrame(() => {
+          chatArea.scrollTop = chatArea.scrollHeight;
+        });
+      }
     }
   }
 

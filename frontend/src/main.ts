@@ -5,8 +5,20 @@ import { StatelessStatsManager, RedisStatsManager, updateStatsTable } from './st
 import { sendStatelessMessage, sendRedisMessage } from './streaming';
 import { HEALTH_CHECK_INTERVAL, SUCCESS_MESSAGE_DURATION } from './constants';
 
-// Session management
-const redisSessionId: string = `real-health-${Date.now()}`;
+// Session management - persist across page reloads
+function getOrCreateSessionId(): string {
+  const storageKey = 'redis-session-id';
+  let sessionId = localStorage.getItem(storageKey);
+
+  if (!sessionId) {
+    sessionId = `real-health-${Date.now()}`;
+    localStorage.setItem(storageKey, sessionId);
+  }
+
+  return sessionId;
+}
+
+const redisSessionId: string = getOrCreateSessionId();
 
 // Stats managers
 const statelessStatsManager = new StatelessStatsManager();
@@ -127,6 +139,9 @@ clearCacheButton.addEventListener('click', async () => {
           </div>
         </div>
       `;
+
+      // Clear localStorage session
+      localStorage.removeItem('redis-session-id');
 
       // Reset stats manager
       redisStatsManager.reset();
