@@ -1,77 +1,67 @@
 """
-Stateful RAG Agent with Redis + RedisVL memory.
+Stateless Health Agent - Demo Baseline.
 
-Provides context-aware conversations through dual memory architecture:
-- Short-term: Recent conversation history (Redis LIST)
-- Long-term: Semantic memory search (RedisVL vector index)
+Purely stateless chat with ZERO memory:
+- NO conversation history
+- NO episodic memory
+- NO procedural memory
+- NO semantic memory
+- NO short-term memory
+- NO Redis storage (except through tools)
+- Tools can access data but agent stores NOTHING
 
-Uses simple tool loop (no LangGraph) for maintainability and performance.
+Purpose: Baseline comparison to demonstrate CoALA memory value.
+Both agents have the SAME tools - only difference is memory system.
 """
 
 import logging
-from dataclasses import dataclass
 from typing import Any
 
-from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
 from ..apple_health.query_tools import create_user_bound_tools
 from ..utils.agent_helpers import (
     build_base_system_prompt,
     build_error_response,
-    build_message_history,
     create_health_llm,
 )
 from ..utils.numeric_validator import get_numeric_validator
+from ..utils.token_manager import get_token_manager
 from ..utils.verbosity_detector import VerbosityLevel, detect_verbosity
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class MemoryContext:
-    """Memory retrieval results from Redis and RedisVL."""
-
-    short_term: str | None = None
-    long_term: str | None = None
-    semantic_hits: int = 0
-
-
 class StatefulRAGAgent:
     """
-    RAG agent with Redis-backed memory and autonomous tool selection.
+    Simple stateless chat with basic tool calling but NO memory.
 
-    Architecture:
-    - Simple tool calling loop
-    - Native LLM tool selection (Qwen 2.5 chooses tools autonomously)
-    - Lightweight verbosity detection (for response style hints only)
-    - Dual memory system (Redis + RedisVL)
-    - Response validation against tool results
+    Features:
+    - Tool calling (health data retrieval)
+    - Basic system prompt
+    - Response validation
+    - Simple tool execution loop
 
-    Memory:
-    - Short-term: Conversation history (Redis LIST, 7-month TTL)
-    - Long-term: Semantic search (RedisVL HNSW, 1024-dim embeddings)
+    NO Features:
+    - NO conversation history
+    - NO semantic memory
+    - NO Redis storage
+    - NO memory context
+
+    This is the BASELINE for demonstrating memory value.
+    Both agents have SAME tools - difference is memory.
     """
 
-    def __init__(self, memory_manager):
-        """Initialize agent with memory manager."""
-        if memory_manager is None:
-            raise ValueError(
-                "StatefulRAGAgent requires memory_manager. "
-                "Use StatelessHealthAgent for no-memory mode."
-            )
-
-        self.memory_manager = memory_manager
+    def __init__(self) -> None:
+        """Initialize stateless chat."""
         self.llm = create_health_llm()
+        logger.info("StatefulRAGAgent initialized (rebuilt from stateless)")
 
-        logger.info("StatefulRAGAgent initialized with Redis memory (simple loop)")
-
-    def _build_system_prompt_with_memory(
-        self, memory_context: MemoryContext, verbosity: VerbosityLevel
-    ) -> str:
-        """Construct system prompt with memory context and verbosity instructions."""
+    def _build_system_prompt_with_verbosity(self, verbosity: VerbosityLevel) -> str:
+        """Build system prompt with verbosity instructions."""
         prompt_parts = [build_base_system_prompt(), ""]
 
-        # Add verbosity instructions
+        # Add verbosity instructions (same as stateful agent)
         if verbosity == VerbosityLevel.DETAILED:
             prompt_parts.extend(
                 [
@@ -100,155 +90,29 @@ class StatefulRAGAgent:
                 ]
             )
 
+        # Add tool-first policy (same as stateful agent for consistent behavior)
         prompt_parts.extend(
             [
                 "⚠️ TOOL-FIRST POLICY:",
                 "- For factual questions about workouts/health data → ALWAYS call tools (source of truth)",
-                "- Semantic memory is for USER CONTEXT ONLY (goals, preferences, patterns)",
-                "- NEVER answer workout/metric questions from memory alone",
-                "- If memory conflicts with tool results → trust tools",
+                "- NEVER answer workout/metric questions without tool data",
+                "- Always verify data through tools before responding",
                 "",
-                "🧠 MEMORY SCOPE:",
-                "- 'Earlier today' or 'first question' → Use current conversation",
-                "- 'My goals' or 'usually' → Use semantic memory insights",
-                "- 'What workouts' or 'how many' → IGNORE memory, CALL TOOLS",
-                "",
-                "🧠 MEMORY CONTEXT:",
             ]
         )
 
-        if memory_context.short_term:
-            prompt_parts.append("Recent conversation:")
-            prompt_parts.append(memory_context.short_term)
-            prompt_parts.append("")
-
-        if memory_context.long_term:
-            hits = memory_context.semantic_hits
-            prompt_parts.append(f"Semantic memory ({hits} insights):")
-            prompt_parts.append(memory_context.long_term)
-            prompt_parts.append("")
-
         return "\n".join(prompt_parts)
-
-    def _is_factual_data_query(self, message: str) -> bool:
-        """Detect if query is asking for factual data (should skip semantic memory)."""
-        message_lower = message.lower()
-
-        # Keywords that indicate factual data queries
-        factual_keywords = [
-            "how many",
-            "what day",
-            "which day",
-            "when do i",
-            "when did i",
-            "show me",
-            "list",
-            "total",
-            "count",
-            "average",
-            "sum",
-            "recent",
-            "last week",
-            "last month",
-            "yesterday",
-            "today",
-            "workouts",
-            "calories",
-            "heart rate",
-            "steps",
-            "distance",
-            "what were",
-            "what was",
-            "tell me about my",
-            "do i work out",
-            "consistently",
-            "pattern",
-            "frequency",
-        ]
-
-        return any(keyword in message_lower for keyword in factual_keywords)
-
-    async def _retrieve_memory_context(
-        self, user_id: str, session_id: str, message: str
-    ) -> MemoryContext:
-        """Retrieve dual memory context from Redis and RedisVL.
-
-        Implements tool-first policy: skips semantic memory for factual queries.
-        """
-        context = MemoryContext()
-
-        # Always retrieve short-term (recent conversation)
-        try:
-            context.short_term = await self.memory_manager.get_short_term_context(
-                user_id, session_id
-            )
-            if context.short_term:
-                logger.info(f"Short-term context: {len(context.short_term)} chars")
-        except Exception as e:
-            logger.warning(f"Short-term retrieval failed: {e}", exc_info=True)
-            context.short_term = None
-
-        # Skip semantic memory for factual data queries (tool-first policy)
-        if self._is_factual_data_query(message):
-            logger.info(
-                "⚠️ Factual query detected - skipping semantic memory (tool-first policy)"
-            )
-            context.long_term = None
-            context.semantic_hits = 0
-            return context
-
-        # Retrieve semantic memory only for context/preference queries
-        try:
-            result = await self.memory_manager.retrieve_semantic_memory(
-                user_id, message, top_k=3
-            )
-            context.long_term = result.get("context")
-            context.semantic_hits = result.get("hits", 0)
-            if context.semantic_hits > 0:
-                logger.info(
-                    f"Semantic memory: {context.semantic_hits} hits (context/preference query)"
-                )
-        except Exception as e:
-            logger.warning(f"Semantic retrieval failed: {e}", exc_info=True)
-            context.long_term = None
-            context.semantic_hits = 0
-
-        return context
-
-    async def _store_memory_interaction(
-        self, user_id: str, session_id: str, user_message: str, response_text: str
-    ) -> bool:
-        """Store meaningful interactions in semantic memory."""
-        if len(response_text) <= 50:
-            return False
-
-        try:
-            await self.memory_manager.store_semantic_memory(
-                user_id, session_id, user_message, response_text
-            )
-            logger.info("Stored in semantic memory")
-            return True
-        except Exception as e:
-            logger.warning(f"Memory storage failed: {e}", exc_info=True)
-            return False
 
     async def chat(
         self,
         message: str,
         user_id: str,
-        session_id: str = "default",
-        conversation_history: list[dict] | None = None,
-        max_tool_calls: int = 5,  # Balanced for speed vs capability
+        max_tool_calls: int = 5,
     ) -> dict[str, Any]:
         """Non-streaming chat (original implementation)."""
         result = None
         async for chunk in self._chat_impl(
-            message,
-            user_id,
-            session_id,
-            conversation_history,
-            max_tool_calls,
-            stream=False,
+            message, user_id, max_tool_calls, stream=False
         ):
             if chunk.get("type") in ["done", "error"]:
                 result = chunk.get("data")
@@ -258,18 +122,11 @@ class StatefulRAGAgent:
         self,
         message: str,
         user_id: str,
-        session_id: str = "default",
-        conversation_history: list[dict] | None = None,
         max_tool_calls: int = 5,
     ):
         """Streaming chat that yields tokens as they arrive."""
         async for chunk in self._chat_impl(
-            message,
-            user_id,
-            session_id,
-            conversation_history,
-            max_tool_calls,
-            stream=True,
+            message, user_id, max_tool_calls, stream=True
         ):
             yield chunk
 
@@ -277,86 +134,93 @@ class StatefulRAGAgent:
         self,
         message: str,
         user_id: str,
-        session_id: str = "default",
-        conversation_history: list[dict] | None = None,
         max_tool_calls: int = 5,
         stream: bool = False,
     ):
-        """Process message through RAG pipeline with memory retrieval and storage."""
+        """
+        Process stateless chat with basic tool calling but NO memory.
+
+        Args:
+            message: User's message
+            user_id: User identifier
+            max_tool_calls: Maximum tool calls per turn (default: 8)
+
+        Returns:
+            Dict with response and validation
+        """
         try:
-            # 1. Build message history
-            messages = build_message_history(
-                conversation_history=conversation_history,
-                current_message=message,
-                limit=10,
-            )
+            # Detect verbosity level from query (for response style only)
+            verbosity = detect_verbosity(message)
+            logger.info(f"Stateless query verbosity: {verbosity}")
 
-            # 2. Retrieve memory context (short-term + long-term)
-            memory_context = await self._retrieve_memory_context(
-                user_id, session_id, message
-            )
-
-            # 3. Create user-bound tools
+            # Create tools (same as stateful agent)
+            messages = [HumanMessage(content=message)]
             user_tools = create_user_bound_tools(user_id, conversation_history=messages)
 
-            # 4. Detect verbosity level from query (for response style only)
-            verbosity = detect_verbosity(message)
-            logger.info(f"Detected verbosity: {verbosity}")
-
-            # 5. Present ALL tools - let Qwen 2.5 natively choose
-            # This showcases true agentic behavior for the demo
-            tools_to_use = user_tools
-            logger.info(
-                f"🤖 Presenting all {len(tools_to_use)} tools to LLM for native tool selection"
-            )
-
-            # 6. Build system prompt with memory context and verbosity
-            system_content = self._build_system_prompt_with_memory(
-                memory_context, verbosity=verbosity
-            )
+            # Simple tool calling loop
+            system_content = self._build_system_prompt_with_verbosity(verbosity)
+            # DEBUG: Log system prompt
+            logger.warning(f"📝 STATELESS SYSTEM PROMPT:\n{system_content[:500]}...")
             system_msg = SystemMessage(content=system_content)
 
-            conversation = [system_msg] + messages
+            conversation = [system_msg, HumanMessage(content=message)]
             tool_calls_made = 0
             tools_used_list = []
             tool_results = []
 
-            # 7. Simple tool loop (no LangGraph - same as stateless agent)
+            # Simple tool loop (same as stateful agent, but no memory)
             for iteration in range(max_tool_calls):
                 # Bind tools and call LLM
-                llm_with_tools = self.llm.bind_tools(tools_to_use)
+                llm_with_tools = self.llm.bind_tools(user_tools)
 
-                # Always use streaming mode for the LLM call if stream=True
-                if stream:
+                # If streaming and first iteration, use astream directly
+                if stream and iteration == 0:
                     response_content = ""
                     response_has_tool_calls = False
 
                     async for chunk in llm_with_tools.astream(conversation):
-                        # Check for tool calls
                         if hasattr(chunk, "tool_calls") and chunk.tool_calls:
                             response_has_tool_calls = True
-
-                        # Stream text content
                         if hasattr(chunk, "content") and chunk.content:
                             response_content += chunk.content
-                            # Only yield tokens if this is the final response (no tool calls)
                             if not response_has_tool_calls:
                                 yield {"type": "token", "content": chunk.content}
 
-                    # Create AIMessage from streamed content
                     response = AIMessage(content=response_content)
                     if response_has_tool_calls:
-                        # Re-invoke to get tool_calls attribute properly
+                        # Need full response with tool_calls - re-invoke
                         response = await llm_with_tools.ainvoke(conversation)
                 else:
-                    # Non-streaming mode
+                    # Non-streaming or after tools - use ainvoke
                     response = await llm_with_tools.ainvoke(conversation)
 
                 conversation.append(response)
 
-                # Check if LLM wants to call tools
-                if not hasattr(response, "tool_calls") or not response.tool_calls:
+                # Check if LLM wants to call tools (fallback to additional_kwargs)
+                tool_calls_present = hasattr(response, "tool_calls") and bool(
+                    response.tool_calls
+                )
+                if not tool_calls_present:
+                    extra_calls = getattr(response, "additional_kwargs", {}).get(
+                        "tool_calls"
+                    )
+                    if extra_calls:
+                        response.tool_calls = extra_calls
+                        tool_calls_present = True
+
+                if not tool_calls_present:
                     logger.info(f"Agent finished after {iteration + 1} iteration(s)")
+
+                    # If streaming enabled, stream the final response (after tool calls)
+                    if stream and iteration > 0:
+                        streamed_content = ""
+                        async for chunk in llm_with_tools.astream(conversation[:-1]):
+                            if hasattr(chunk, "content") and chunk.content:
+                                streamed_content += chunk.content
+                                yield {"type": "token", "content": chunk.content}
+                        response.content = streamed_content
+                        conversation[-1] = response
+
                     break
 
                 # Execute tools
@@ -369,7 +233,7 @@ class StatefulRAGAgent:
 
                     # Find and execute tool
                     tool_found = False
-                    for tool in tools_to_use:
+                    for tool in user_tools:
                         if tool.name == tool_name:
                             try:
                                 result = await tool.ainvoke(tool_call["args"])
@@ -396,14 +260,14 @@ class StatefulRAGAgent:
                     if not tool_found:
                         logger.warning(f"Tool {tool_name} not found")
 
-            # 8. Extract final response
+            # Extract final response
             final_response = conversation[-1]
             if isinstance(final_response, AIMessage):
                 response_text = final_response.content
             else:
                 response_text = str(final_response)
 
-            # 9. Validate response
+            # Validate response (same as stateful agent)
             validator = get_numeric_validator()
             validation_result = validator.validate_response(
                 response_text=response_text,
@@ -411,31 +275,60 @@ class StatefulRAGAgent:
                 strict=False,
             )
 
-            # Log validation results
+            # Log validation results and handle failures
             if not validation_result["valid"]:
                 logger.warning(
                     f"Validation failed (score: {validation_result['score']:.2%})"
                 )
+                # If validation completely failed (score = 0), append correction prompt and retry once
+                if validation_result["score"] == 0.0 and tool_results:
+                    logger.warning(
+                        "⚠️ Zero validation score - retrying with correction prompt"
+                    )
+                    correction_prompt = (
+                        "\n\nYour previous response contained numbers that don't match the tool data. "
+                        "Please provide a response using ONLY the numbers from the tool results above. "
+                        "Quote the exact values from the tool output."
+                    )
+                    conversation.append(
+                        AIMessage(content=response_text)
+                    )  # Add bad response
+                    conversation.append(
+                        HumanMessage(content=correction_prompt)
+                    )  # Add correction
+
+                    # Retry once without tools
+                    llm_without_tools = self.llm
+                    retry_response = await llm_without_tools.ainvoke(conversation)
+                    response_text = retry_response.content
+                    logger.info("🔄 Retry response generated")
             else:
                 logger.info(
                     f"Validation passed (score: {validation_result['score']:.2%})"
                 )
 
-            # 10. Store semantic memory for long-term insights
-            await self._store_memory_interaction(
-                user_id, session_id, message, response_text
-            )
+            # Calculate token usage stats for conversation
+            token_manager = get_token_manager()
+            conversation_dicts = []
+            for msg in conversation:
+                if hasattr(msg, "content"):
+                    role = (
+                        "system"
+                        if isinstance(msg, SystemMessage)
+                        else "assistant"
+                        if isinstance(msg, AIMessage)
+                        else "user"
+                    )
+                    conversation_dicts.append(
+                        {"role": role, "content": str(msg.content)}
+                    )
+            token_stats = token_manager.get_usage_stats(conversation_dicts)
 
             result = {
                 "response": response_text,
                 "tools_used": list(set(tools_used_list)),
                 "tool_calls_made": tool_calls_made,
-                "session_id": session_id,
-                "memory_stats": {
-                    "short_term_available": memory_context.short_term is not None,
-                    "semantic_hits": memory_context.semantic_hits,
-                    "long_term_available": memory_context.long_term is not None,
-                },
+                "token_stats": token_stats,
                 "validation": {
                     "valid": validation_result["valid"],
                     "score": validation_result["score"],
@@ -449,11 +342,11 @@ class StatefulRAGAgent:
                         "total_numbers", 0
                     ),
                 },
-                "type": "stateful_rag_agent",
+                "type": "stateless_with_tools",
             }
 
             yield {"type": "done", "data": result}
 
         except Exception as e:
-            error_response = build_error_response(e, "stateful_rag_agent")
+            error_response = build_error_response(e, "stateless_with_tools")
             yield {"type": "error", "data": error_response}

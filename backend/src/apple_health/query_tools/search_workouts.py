@@ -283,6 +283,11 @@ def create_search_workouts_tool(user_id: str):
                 }
 
                 logger.info(f"📤 Returning: {result['summary']}")
+                # Debug: Log first workout to verify data structure
+                if recent_workouts:
+                    logger.info(f"🔍 First workout sample: {recent_workouts[0]}")
+                else:
+                    logger.warning("⚠️ recent_workouts list is empty despite count!")
                 return result
 
         except Exception as e:

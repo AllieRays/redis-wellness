@@ -13,6 +13,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
+from ..utils.redis_keys import RedisKeys
 from .redis_connection import get_redis_manager
 
 logger = logging.getLogger(__name__)
@@ -53,8 +54,8 @@ class WorkoutIndexer:
                 pipeline = client.pipeline()
 
                 # Clear old indexes
-                days_key = f"user:{user_id}:workout:days"
-                by_date_key = f"user:{user_id}:workout:by_date"
+                days_key = RedisKeys.workout_days(user_id)
+                by_date_key = RedisKeys.workout_by_date(user_id)
 
                 pipeline.delete(days_key)
                 pipeline.delete(by_date_key)
@@ -89,7 +90,7 @@ class WorkoutIndexer:
                                 continue
 
                         # 3. Store workout details (Hash)
-                        workout_key = f"user:{user_id}:workout:{workout_id}"
+                        workout_key = RedisKeys.workout_detail(user_id, workout_id)
                         workout_data = {
                             "date": workout.get("date", ""),
                             "startDate": workout.get("startDate", ""),
@@ -161,7 +162,7 @@ class WorkoutIndexer:
         """
         try:
             with self.redis_manager.get_connection() as client:
-                days_key = f"user:{user_id}:workout:days"
+                days_key = RedisKeys.workout_days(user_id)
                 day_counts = client.hgetall(days_key)
 
                 # Handle both bytes and strings (depends on Redis connection settings)
@@ -194,7 +195,7 @@ class WorkoutIndexer:
         """
         try:
             with self.redis_manager.get_connection() as client:
-                by_date_key = f"user:{user_id}:workout:by_date"
+                by_date_key = RedisKeys.workout_by_date(user_id)
                 workout_ids = client.zrangebyscore(
                     by_date_key, start_timestamp, end_timestamp
                 )

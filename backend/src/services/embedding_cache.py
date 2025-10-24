@@ -21,6 +21,7 @@ import json
 import logging
 from typing import Any
 
+from ..utils.redis_keys import RedisKeys
 from .redis_connection import get_redis_manager
 
 logger = logging.getLogger(__name__)
@@ -52,16 +53,17 @@ class EmbeddingCache:
         )
     """
 
-    def __init__(self, ttl_seconds: int = 3600, key_prefix: str = "embedding_cache"):
+    def __init__(self, ttl_seconds: int = 3600, key_prefix: str | None = None):
         """
         Initialize embedding cache.
 
         Args:
             ttl_seconds: Time-to-live for cache entries (default 1 hour)
-            key_prefix: Redis key prefix for cache entries
+            key_prefix: Redis key prefix for cache entries (deprecated, uses RedisKeys)
         """
         self.ttl_seconds = ttl_seconds
-        self.key_prefix = key_prefix
+        # Ignore key_prefix parameter - always use RedisKeys
+        self.key_prefix = RedisKeys.EMBEDDING_CACHE_PREFIX.rstrip(":")
         self.redis_manager = get_redis_manager()
 
         # Cache statistics
@@ -86,7 +88,7 @@ class EmbeddingCache:
         """
         # MD5 hash for compact, deterministic keys
         query_hash = hashlib.md5(query.encode("utf-8")).hexdigest()
-        return f"{self.key_prefix}:{query_hash}"
+        return RedisKeys.embedding_cache(query_hash)
 
     async def get(self, query: str) -> list[float] | None:
         """
@@ -187,13 +189,13 @@ class EmbeddingCache:
             logger.error(f"Embedding generation failed: {e}")
             return None
 
-    def _record_hit(self):
+    def _record_hit(self) -> None:
         """Record cache hit and update statistics."""
         self.stats["hits"] += 1
         self.stats["total_queries"] += 1
         self._update_hit_rate()
 
-    def _record_miss(self):
+    def _record_miss(self) -> None:
         """Record cache miss and update statistics."""
         self.stats["misses"] += 1
         self.stats["total_queries"] += 1

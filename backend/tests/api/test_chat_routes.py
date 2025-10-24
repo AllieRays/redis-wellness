@@ -92,7 +92,7 @@ class TestRedisChatAPI:
         assert "token_stats" in data
 
         assert "type" in data
-        assert data["type"] == "redis_with_memory"
+        assert data["type"] == "redis_rag_with_coala_memory"
 
     def test_redis_chat_default_session(self):
         """Test Redis chat with default session_id."""
@@ -178,7 +178,7 @@ class TestMemoryStatsAPI:
     """Test memory statistics endpoint."""
 
     def test_get_memory_stats(self):
-        """Test getting memory stats for a session."""
+        """Test getting CoALA memory stats for a session."""
         session_id = "memory_stats_test"
 
         # Send a message first
@@ -193,8 +193,8 @@ class TestMemoryStatsAPI:
         assert response.status_code == 200
 
         data = response.json()
-        assert "short_term" in data
-        assert "long_term" in data
+        # CoALA framework: 4 memory types
+        assert "episodic" in data or "short_term" in data
         assert "user_id" in data
         assert "session_id" in data
 

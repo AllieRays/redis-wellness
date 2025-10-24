@@ -6,6 +6,8 @@
   --color-secondary: #ff4438;
   --color-highlight: #dcff1e;
   --color-bg-dark: #091a23;
+
+  --spacing-layout: 1.5rem; /* 24px - consistent spacing for layout */
 }
 
 /* Color System */
@@ -30,26 +32,27 @@
 /* Background with noise texture */
 body {
   position: relative;
+  background-image: url('/background.png');
+  background-size: cover;
+  background-position: center 85%;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   background-color: #091a23;
 }
 
 /* Glassmorphism card */
 .glass-card {
-  background: rgba(13, 33, 44, 0.3);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  background: rgba(13, 33, 44, 0.4);
   border-radius: var(--radius);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 /* Modern accent for Redis chat */
 .redis-chat-highlight {
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(13, 33, 44, 0.5);
-  box-shadow:
-    0 12px 40px 0 rgba(0, 0, 0, 0.5),
-    inset 0 0 30px rgba(255, 68, 56, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  background: rgba(13, 33, 44, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
 }
 
 /* Ensure chat containers don't clip shadows */
@@ -67,19 +70,10 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: rgba(13, 33, 44, 0.5);
+  background: rgba(13, 33, 44, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius);
   z-index: 1;
-}
-
-@keyframes star-movement-horizontal {
-  0% {
-    left: -100px;
-  }
-  100% {
-    left: calc(100% + 100px);
-  }
 }
 
 /* Primary button */
@@ -118,8 +112,8 @@ body {
   font-weight: 600;
   /* Default light glass-card appearance */
   background: rgba(13, 33, 44, 0.3);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.7);
   transition: all 0.2s;
@@ -133,8 +127,8 @@ body {
 
 .status-badge.connected {
   background: rgba(13, 33, 44, 0.3);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.7);
 }
@@ -162,11 +156,20 @@ body {
   border-radius: var(--radius);
   font-size: 1.125rem;
   line-height: 1.625;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.streaming-content {
+  display: inline;
+  min-width: 0;
+  word-wrap: break-word;
 }
 
 .message-bubble.user {
   background-color: rgba(13, 33, 44, 0.6);
-  border: 1px solid var(--highlight);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
 }
 
@@ -178,9 +181,9 @@ body {
   color: rgb(243, 244, 246);
 }
 
-/* Redis chat messages get subtle red inner glow */
+/* Redis chat messages - no glow */
 #redis-chat-area .message-bubble.assistant {
-  box-shadow: inset 0 0 20px rgba(255, 68, 56, 0.06);
+  /* Removed inner glow */
 }
 
 /* Memory and tool badges */
@@ -198,8 +201,8 @@ body {
   border-radius: var(--radius);
   font-weight: 500;
   background: rgba(13, 33, 44, 0.3);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.7);
 }
@@ -216,8 +219,8 @@ body {
   border-radius: var(--radius);
   font-weight: 500;
   background: rgba(13, 33, 44, 0.3);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.7);
 }

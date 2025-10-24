@@ -12,10 +12,12 @@ import os
 
 import httpx
 import redis
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict
 
+from ..utils.exceptions import generate_correlation_id
 from .chat_routes import router as chat_router
+from .models.errors import internal_error, service_error
 
 logger = logging.getLogger(__name__)
 
@@ -86,14 +88,24 @@ async def health_check():
 
     Checks if Redis and Ollama are running - that's all we need.
     """
-    redis_ok = await check_redis_connection()
-    ollama_ok = await check_ollama_connection()
+    correlation_id = generate_correlation_id()
 
-    status = "healthy" if redis_ok and ollama_ok else "unhealthy"
+    try:
+        redis_ok = await check_redis_connection()
+        ollama_ok = await check_ollama_connection()
 
-    return HealthCheck(
-        status=status, redis_connected=redis_ok, ollama_connected=ollama_ok
-    )
+        status = "healthy" if redis_ok and ollama_ok else "unhealthy"
+
+        return HealthCheck(
+            status=status, redis_connected=redis_ok, ollama_connected=ollama_ok
+        )
+    except Exception as e:
+        logger.error(f"Health check failed: {e}", exc_info=True)
+        error_response = internal_error(
+            message="Health check failed",
+            correlation_id=correlation_id,
+        )
+        raise HTTPException(status_code=500, detail=error_response.dict()) from e
 
 
 # ========== Embedding Cache Stats Endpoint ==========
@@ -116,13 +128,24 @@ async def get_embedding_cache_stats():
     Returns:
         Dict with cache performance metrics
     """
-    from ..services.embedding_cache import get_embedding_cache
+    correlation_id = generate_correlation_id()
 
-    cache = get_embedding_cache()
-    stats = cache.get_stats()
+    try:
+        from ..services.embedding_cache import get_embedding_cache
 
-    return {
-        "embedding_cache": stats,
-        "description": "Embedding cache statistics (caches Ollama embedding generation)",
-        "note": "High hit rate = faster semantic memory searches",
-    }
+        cache = get_embedding_cache()
+        stats = cache.get_stats()
+
+        return {
+            "embedding_cache": stats,
+            "description": "Embedding cache statistics (caches Ollama embedding generation)",
+            "note": "High hit rate = faster semantic memory searches",
+        }
+    except Exception as e:
+        logger.error(f"Failed to get embedding cache stats: {e}", exc_info=True)
+        error_response = service_error(
+            service="embedding_cache",
+            reason=str(e),
+            correlation_id=correlation_id,
+        )
+        raise HTTPException(status_code=503, detail=error_response.dict()) from e

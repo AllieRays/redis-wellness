@@ -69,7 +69,12 @@ def create_workout_schedule_tool(user_id: str):
             # Fetch workouts using centralized utility
             recent_workouts = fetch_recent_workouts(user_id, days=days_back)
 
+            logger.info(
+                f"📊 fetch_recent_workouts returned {len(recent_workouts)} workouts"
+            )
+
             if not recent_workouts:
+                logger.warning(f"⚠️ No workouts found for last {days_back} days!")
                 return {
                     "period": f"last {days_back} days",
                     "total_workouts": 0,

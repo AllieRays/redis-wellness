@@ -260,15 +260,15 @@ def parse_health_record_date(
     """
     Parse health record date string to timezone-aware datetime.
 
-    Supports both ISO 8601 format (primary) and legacy format (backwards compatibility):
-    - ISO 8601: "2025-10-21T12:53:11+00:00" or "2025-10-21T12:53:11Z"
-    - Legacy: "2025-10-21 12:53:11" (space-separated, no timezone)
+    Expects ISO 8601 format:
+    - "2025-10-21T12:53:11+00:00" (with timezone)
+    - "2025-10-21T12:53:11Z" (UTC shorthand)
+    - "2025-10-21T12:53:11" (assumes UTC if assume_utc=True)
 
     This is the canonical way to parse dates from Redis health data.
-    Use this instead of datetime.strptime() to ensure timezone consistency.
 
     Args:
-        date_str: Date string in ISO 8601 or legacy format
+        date_str: Date string in ISO 8601 format
         assume_utc: If True, naive datetimes are assumed UTC (default: True)
         strict: If True, raises ValueError for naive datetimes when assume_utc=False
 
@@ -282,25 +282,22 @@ def parse_health_record_date(
         >>> parse_health_record_date("2025-10-21T12:53:11+00:00")
         datetime.datetime(2025, 10, 21, 12, 53, 11, tzinfo=datetime.timezone.utc)
 
-        >>> parse_health_record_date("2025-10-21 12:53:11")  # Legacy format
+        >>> parse_health_record_date("2025-10-21T12:53:11Z")
         datetime.datetime(2025, 10, 21, 12, 53, 11, tzinfo=datetime.timezone.utc)
 
     Note:
-        This function centralizes timezone handling for all health record dates.
-        ISO 8601 is now the primary format for consistency.
+        All health record dates must be in ISO 8601 format.
+        This ensures consistent timezone handling across the application.
     """
     try:
-        # Try ISO 8601 format first (primary format)
+        # Parse ISO 8601 format
         dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-    except ValueError:
-        # Fall back to legacy format for backwards compatibility
-        try:
-            dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-        except ValueError as e:
-            raise ValueError(
-                f"Invalid health record date format: '{date_str}'. "
-                f"Expected ISO 8601 ('2025-10-21T12:53:11+00:00') or legacy ('2025-10-21 12:53:11'). Error: {e}"
-            ) from e
+    except ValueError as e:
+        raise ValueError(
+            f"Invalid health record date format: '{date_str}'. "
+            f"Expected ISO 8601 format (e.g., '2025-10-21T12:53:11+00:00' or '2025-10-21T12:53:11Z'). "
+            f"Error: {e}"
+        ) from e
 
     # Handle timezone awareness
     if dt.tzinfo is None:

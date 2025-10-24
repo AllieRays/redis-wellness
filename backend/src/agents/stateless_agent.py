@@ -1,15 +1,17 @@
 """
-Stateless Health Chat - Demo Baseline.
+Stateless Health Agent - Demo Baseline.
 
-Demonstrates chat WITHOUT memory:
+Purely stateless chat with ZERO memory:
 - NO conversation history
+- NO episodic memory
+- NO procedural memory
 - NO semantic memory
-- NO Redis storage
-- NO LangGraph workflow
-- Simple tool calling (same tools as stateful, but no memory context)
+- NO short-term memory
+- NO Redis storage (except through tools)
+- Tools can access data but agent stores NOTHING
 
-Purpose: Baseline comparison to show memory value.
-Both agents have the SAME tools - only difference is memory.
+Purpose: Baseline comparison to demonstrate CoALA memory value.
+Both agents have the SAME tools - only difference is memory system.
 """
 
 import logging
@@ -24,6 +26,7 @@ from ..utils.agent_helpers import (
     create_health_llm,
 )
 from ..utils.numeric_validator import get_numeric_validator
+from ..utils.token_manager import get_token_manager
 from ..utils.verbosity_detector import VerbosityLevel, detect_verbosity
 
 logger = logging.getLogger(__name__)
@@ -49,7 +52,7 @@ class StatelessHealthAgent:
     Both agents have SAME tools - difference is memory.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize stateless chat."""
         self.llm = create_health_llm()
         logger.info("StatelessHealthAgent initialized (no memory, simple tool calling)")
@@ -156,6 +159,8 @@ class StatelessHealthAgent:
 
             # Simple tool calling loop
             system_content = self._build_system_prompt_with_verbosity(verbosity)
+            # DEBUG: Log system prompt
+            logger.warning(f"📝 STATELESS SYSTEM PROMPT:\n{system_content[:500]}...")
             system_msg = SystemMessage(content=system_content)
 
             conversation = [system_msg, HumanMessage(content=message)]
@@ -168,37 +173,54 @@ class StatelessHealthAgent:
                 # Bind tools and call LLM
                 llm_with_tools = self.llm.bind_tools(user_tools)
 
-                # Always use streaming mode for the LLM call if stream=True
-                if stream:
+                # If streaming and first iteration, use astream directly
+                if stream and iteration == 0:
                     response_content = ""
                     response_has_tool_calls = False
 
                     async for chunk in llm_with_tools.astream(conversation):
-                        # Check for tool calls
                         if hasattr(chunk, "tool_calls") and chunk.tool_calls:
                             response_has_tool_calls = True
-
-                        # Stream text content
                         if hasattr(chunk, "content") and chunk.content:
                             response_content += chunk.content
-                            # Only yield tokens if this is the final response (no tool calls)
                             if not response_has_tool_calls:
                                 yield {"type": "token", "content": chunk.content}
 
-                    # Create AIMessage from streamed content
                     response = AIMessage(content=response_content)
                     if response_has_tool_calls:
-                        # Re-invoke to get tool_calls attribute properly
+                        # Need full response with tool_calls - re-invoke
                         response = await llm_with_tools.ainvoke(conversation)
                 else:
-                    # Non-streaming mode
+                    # Non-streaming or after tools - use ainvoke
                     response = await llm_with_tools.ainvoke(conversation)
 
                 conversation.append(response)
 
-                # Check if LLM wants to call tools
-                if not hasattr(response, "tool_calls") or not response.tool_calls:
+                # Check if LLM wants to call tools (fallback to additional_kwargs)
+                tool_calls_present = hasattr(response, "tool_calls") and bool(
+                    response.tool_calls
+                )
+                if not tool_calls_present:
+                    extra_calls = getattr(response, "additional_kwargs", {}).get(
+                        "tool_calls"
+                    )
+                    if extra_calls:
+                        response.tool_calls = extra_calls
+                        tool_calls_present = True
+
+                if not tool_calls_present:
                     logger.info(f"Agent finished after {iteration + 1} iteration(s)")
+
+                    # If streaming enabled, stream the final response (after tool calls)
+                    if stream and iteration > 0:
+                        streamed_content = ""
+                        async for chunk in llm_with_tools.astream(conversation[:-1]):
+                            if hasattr(chunk, "content") and chunk.content:
+                                streamed_content += chunk.content
+                                yield {"type": "token", "content": chunk.content}
+                        response.content = streamed_content
+                        conversation[-1] = response
+
                     break
 
                 # Execute tools
@@ -253,20 +275,60 @@ class StatelessHealthAgent:
                 strict=False,
             )
 
-            # Log validation results
+            # Log validation results and handle failures
             if not validation_result["valid"]:
                 logger.warning(
                     f"Validation failed (score: {validation_result['score']:.2%})"
                 )
+                # If validation completely failed (score = 0), append correction prompt and retry once
+                if validation_result["score"] == 0.0 and tool_results:
+                    logger.warning(
+                        "⚠️ Zero validation score - retrying with correction prompt"
+                    )
+                    correction_prompt = (
+                        "\n\nYour previous response contained numbers that don't match the tool data. "
+                        "Please provide a response using ONLY the numbers from the tool results above. "
+                        "Quote the exact values from the tool output."
+                    )
+                    conversation.append(
+                        AIMessage(content=response_text)
+                    )  # Add bad response
+                    conversation.append(
+                        HumanMessage(content=correction_prompt)
+                    )  # Add correction
+
+                    # Retry once without tools
+                    llm_without_tools = self.llm
+                    retry_response = await llm_without_tools.ainvoke(conversation)
+                    response_text = retry_response.content
+                    logger.info("🔄 Retry response generated")
             else:
                 logger.info(
                     f"Validation passed (score: {validation_result['score']:.2%})"
                 )
 
+            # Calculate token usage stats for conversation
+            token_manager = get_token_manager()
+            conversation_dicts = []
+            for msg in conversation:
+                if hasattr(msg, "content"):
+                    role = (
+                        "system"
+                        if isinstance(msg, SystemMessage)
+                        else "assistant"
+                        if isinstance(msg, AIMessage)
+                        else "user"
+                    )
+                    conversation_dicts.append(
+                        {"role": role, "content": str(msg.content)}
+                    )
+            token_stats = token_manager.get_usage_stats(conversation_dicts)
+
             result = {
                 "response": response_text,
                 "tools_used": list(set(tools_used_list)),
                 "tool_calls_made": tool_calls_made,
+                "token_stats": token_stats,
                 "validation": {
                     "valid": validation_result["valid"],
                     "score": validation_result["score"],

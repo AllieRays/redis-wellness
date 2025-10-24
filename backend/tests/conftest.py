@@ -20,8 +20,9 @@ import pytest
 from redis import Redis
 
 from src.config import get_settings
-from src.services.memory_manager import get_memory_manager
+from src.services.memory_coordinator import get_memory_coordinator
 from src.services.redis_connection import get_redis_manager
+from src.services.short_term_memory_manager import get_short_term_memory_manager
 
 # ========== Pytest Configuration ==========
 
@@ -71,13 +72,19 @@ def clean_redis(redis_client):
 
 
 @pytest.fixture
-def memory_manager():
-    """Provide memory manager for tests."""
-    return get_memory_manager()
+def memory_coordinator():
+    """Provide memory coordinator for tests."""
+    return get_memory_coordinator()
 
 
 @pytest.fixture
-async def isolated_memory_session(memory_manager):
+def short_term_memory_manager():
+    """Provide short-term memory manager for tests."""
+    return get_short_term_memory_manager()
+
+
+@pytest.fixture
+async def isolated_memory_session(short_term_memory_manager):
     """Provide isolated memory session with auto-cleanup."""
     session_id = f"test_{uuid.uuid4()}"
     user_id = "test_user"
@@ -86,7 +93,7 @@ async def isolated_memory_session(memory_manager):
 
     # Cleanup
     with suppress(Exception):
-        await memory_manager.clear_session(user_id, session_id)
+        await short_term_memory_manager.clear_session(user_id, session_id)
 
 
 # ========== Health Data Fixtures ==========

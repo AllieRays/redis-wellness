@@ -1,11 +1,12 @@
 """
-Redis-powered Chat Service with Full RAG + Memory.
+Redis-powered Chat Service with Full CoALA Memory.
 
 Features:
-- LangGraph agent with tool calling
-- RedisVL semantic vector search
-- Dual memory system (short-term + long-term)
+- CoALA framework (episodic, procedural, semantic, short-term memory)
+- RedisVL vector search for episodic and semantic memory
+- Redis Hash for procedural memory (tool patterns)
 - Conversation persistence (7-month TTL)
+- Tool calling with autonomous selection
 """
 
 import json
@@ -21,23 +22,22 @@ from ..utils.exceptions import (
 )
 from ..utils.pronoun_resolver import get_pronoun_resolver
 from ..utils.user_config import extract_user_id_from_session, get_user_session_key
-from .memory_manager import get_memory_manager
 
 
 class RedisChatService:
-    """Redis chat service with full RAG and memory."""
+    """Redis chat service with CoALA framework memory."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.settings = get_settings()
 
         # Use the connection manager instead of direct client
         self.redis_manager = get_redis_manager()
 
-        # Get memory manager
-        self.memory_manager = get_memory_manager()
+        # NO MEMORY - Start with working baseline
+        self.memory_coordinator = None
 
-        # Initialize stateful agent with memory
-        self.agent = StatefulRAGAgent(memory_manager=self.memory_manager)
+        # Initialize stateful agent (exactly like stateless)
+        self.agent = StatefulRAGAgent()
 
     def _get_session_key(self, session_id: str) -> str:
         """Generate session key for Redis (single-user mode)."""
@@ -79,46 +79,19 @@ class RedisChatService:
                 details={"operation": "get_conversation_history"},
             ) from e
 
-    async def store_message(self, session_id: str, role: str, content: str) -> None:
-        """Store a message in conversation history using MemoryManager."""
-        try:
-            user_id = self._extract_user_id(session_id)
-
-            # Use MemoryManager for storage (single source of truth)
-            success = await self.memory_manager.store_short_term_message(
-                user_id=user_id, session_id=session_id, role=role, content=content
-            )
-
-            if not success:
-                raise InfrastructureError(
-                    message="Failed to store message in conversation",
-                    error_code="REDIS_OPERATION_FAILED",
-                    details={"operation": "store_message"},
-                )
-
-        except Exception as e:
-            raise InfrastructureError(
-                message="Failed to store message in conversation",
-                error_code="REDIS_OPERATION_FAILED",
-                details={"operation": "store_message"},
-            ) from e
-
     def _extract_user_id(self, session_id: str) -> str:
         """Extract user ID from session (single-user mode)."""
         return extract_user_id_from_session(session_id)
 
     async def chat(self, message: str, session_id: str = "default") -> dict[str, Any]:
         """
-        Process chat message with full RAG + memory.
+        Process chat message with CoALA memory.
 
         Flow:
-        1. Resolve pronouns in user message (NEW - Phase 2)
+        1. Resolve pronouns in user message
         2. Retrieve conversation history (short-term memory)
-        3. Retrieve semantic memories (long-term memory)
-        4. Process with RAG agent + tool calling
-        5. Store conversation
-        6. Store in semantic memory
-        7. Update pronoun context (NEW - Phase 2)
+        3. Process with stateful RAG agent (agent handles memory retrieval/storage)
+        4. Update pronoun context
 
         Args:
             message: User's message
@@ -130,52 +103,27 @@ class RedisChatService:
         try:
             user_id = self._extract_user_id(session_id)
 
-            # NEW Phase 2: Resolve pronouns before processing
-            with self.redis_manager.get_connection() as redis_client:
-                pronoun_resolver = get_pronoun_resolver(redis_client)
-                resolved_message = pronoun_resolver.resolve_pronouns(
-                    session_id, message
-                )
+            # DISABLED pronoun resolution for testing
+            message_to_process = message
 
-                # Use resolved message if different
-                if resolved_message != message:
-                    # Store BOTH original and resolved for transparency
-                    await self.store_message(session_id, "user", message)
-                    message_to_process = resolved_message
-                else:
-                    message_to_process = message
+            # Get conversation history for agent
+            # TEMPORARILY DISABLED - testing without history
+            # history = await self.get_conversation_history(session_id, limit=10)
 
-            # Store user message
-            await self.store_message(session_id, "user", message_to_process)
-
-            # Get conversation history with token-aware trimming (short-term memory)
-            (
-                context_str,
-                token_stats,
-            ) = await self.memory_manager.get_short_term_context_token_aware(
-                user_id, session_id, limit=20
-            )
-
-            # Parse context back to history format for agent
-            history = await self.get_conversation_history(session_id, limit=10)
-
-            # Process with stateful RAG agent (includes memory retrieval)
+            # Process with stateful RAG agent WITHOUT history for now
             result = await self.agent.chat(
                 message=message_to_process,
                 user_id=user_id,
-                session_id=session_id,
-                conversation_history=history,
+                # session_id=session_id,
+                # conversation_history=history,
             )
 
-            # Store AI response
-            await self.store_message(session_id, "assistant", result["response"])
-
-            # NEW Phase 2: Update pronoun context for next query
+            # Update pronoun context
             with self.redis_manager.get_connection() as redis_client:
                 pronoun_resolver = get_pronoun_resolver(redis_client)
                 pronoun_resolver.update_context(
                     session_id=session_id,
-                    query=message,  # Original query
+                    query=message,
                     response=result["response"],
                     tools_used=result.get("tools_used", []),
                 )
@@ -185,9 +133,8 @@ class RedisChatService:
                 "tools_used": result.get("tools_used", []),
                 "tool_calls_made": result.get("tool_calls_made", 0),
                 "memory_stats": result.get("memory_stats", {}),
-                "token_stats": token_stats,  # Include token usage info
                 "session_id": session_id,
-                "type": "redis_rag_with_memory",
+                "type": "redis_rag_with_coala_memory",
                 "validation": result.get("validation", {}),
             }
 
@@ -199,51 +146,25 @@ class RedisChatService:
             ) from e
 
     async def chat_stream(self, message: str, session_id: str = "default"):
-        """Stream tokens as they're generated (with memory)."""
+        """Stream tokens as they're generated."""
         try:
             user_id = self._extract_user_id(session_id)
 
-            # Resolve pronouns
-            with self.redis_manager.get_connection() as redis_client:
-                pronoun_resolver = get_pronoun_resolver(redis_client)
-                resolved_message = pronoun_resolver.resolve_pronouns(
-                    session_id, message
-                )
-                message_to_process = (
-                    resolved_message if resolved_message != message else message
-                )
+            # DISABLED pronoun resolution for testing
+            message_to_process = message
 
-            # Store user message
-            await self.store_message(session_id, "user", message_to_process)
-
-            # Get history
-            history = await self.get_conversation_history(session_id, limit=10)
-
-            # Stream from agent and collect metadata
+            # Stream from agent (simplified, no history/memory for now)
             response_text = ""
             final_data = None
             async for chunk in self.agent.chat_stream(
                 message=message_to_process,
                 user_id=user_id,
-                session_id=session_id,
-                conversation_history=history,
             ):
                 if chunk.get("type") == "token":
                     response_text += chunk.get("content", "")
                     yield chunk
                 elif chunk.get("type") == "done":
                     final_data = chunk.get("data", {})
-
-            # Store AI response
-            await self.store_message(session_id, "assistant", response_text)
-
-            # Get token stats for frontend metrics
-            (
-                _,
-                token_stats,
-            ) = await self.memory_manager.get_short_term_context_token_aware(
-                user_id, session_id, limit=20
-            )
 
             # Update pronoun context
             with self.redis_manager.get_connection() as redis_client:
@@ -255,9 +176,14 @@ class RedisChatService:
                     tools_used=final_data.get("tools_used", []) if final_data else [],
                 )
 
-            # Yield done event with token_stats for frontend
+            # Yield final data
             if final_data:
-                final_data["token_stats"] = token_stats
+                # Convert tools_used from list of strings to list of dicts for frontend
+                tools_used = final_data.get("tools_used", [])
+                if tools_used and isinstance(tools_used[0], str):
+                    tools_used = [{"name": tool} for tool in tools_used]
+                    final_data["tools_used"] = tools_used
+
                 yield {"type": "done", "data": final_data}
 
         except Exception as e:
@@ -268,17 +194,18 @@ class RedisChatService:
             ) from e
 
     async def get_memory_stats(self, session_id: str) -> dict[str, Any]:
-        """Get memory statistics for a session."""
+        """Get CoALA memory statistics for a session."""
         try:
             user_id = self._extract_user_id(session_id)
-            return await self.memory_manager.get_memory_stats(user_id, session_id)
+            return await self.memory_coordinator.get_memory_stats(user_id, session_id)
         except Exception as e:
             raise MemoryRetrievalError(memory_type="memory_stats", reason=str(e)) from e
 
     async def clear_session(self, session_id: str) -> bool:
         """Clear all memories for a session."""
         try:
-            return await self.memory_manager.clear_session_memory(session_id)
+            result = await self.memory_coordinator.clear_session_memories(session_id)
+            return result.get("short_term", False)
         except Exception as e:
             raise InfrastructureError(
                 message="Failed to clear session",

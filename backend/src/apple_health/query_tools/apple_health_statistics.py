@@ -13,7 +13,9 @@ from typing import Any
 from langchain_core.tools import tool
 
 from ...services.redis_apple_health_manager import redis_manager
-from ...utils.conversion_utils import convert_weight_to_lbs as _convert_weight_to_lbs
+from ...utils.conversion_utils import (
+    kg_to_lbs as _kg_to_lbs,
+)
 from ...utils.exceptions import HealthDataNotFoundError, ToolExecutionError
 from ...utils.metric_aggregators import aggregate_metric_values, get_aggregation_summary
 from ...utils.metric_classifier import (
@@ -66,18 +68,18 @@ def create_aggregate_metrics_tool(user_id: str):
             time_period: Natural language time ("last week", "September", "this month", "last 30 days", "recent")
             aggregations: Statistics to compute ["average", "min", "max", "sum", "count"] (defaults to all if not specified)
 
-        Example Queries and Tool Calls:
+        Example Queries and Tool Calls (illustrative):
             Query: "What was my average heart rate last week?"
             → aggregate_metrics(metric_types=["HeartRate"], time_period="last week", aggregations=["average"])
-            Returns: {"average": "72.5 bpm", "sample_size": 1250}
+            Returns: {"average": "<number> bpm", "sample_size": <count>}
 
             Query: "Give me stats on my weight in September"
             → aggregate_metrics(metric_types=["BodyMass"], time_period="September", aggregations=["average", "min", "max"])
-            Returns: {"average": "160.2 lbs", "min": "158.1 lbs", "max": "162.5 lbs"}
+            Returns: {"average": "<number> lbs", "min": "<number> lbs", "max": "<number> lbs"}
 
             Query: "How many total steps did I take this month?"
             → aggregate_metrics(metric_types=["StepCount"], time_period="this month", aggregations=["sum"])
-            Returns: {"sum": "125000", "count": 30}
+            Returns: {"sum": "<number>", "count": <days>}
 
         Returns:
             Dict with computed statistics for each metric type
@@ -162,17 +164,27 @@ def create_aggregate_metrics_tool(user_id: str):
                         else ""
                     )
 
+                    # Normalize BodyMass values to lbs for statistics
+                    values_for_stats = aggregated_values
+                    if metric_type == "BodyMass":
+                        original_unit = (
+                            all_records[0].get("unit", "kg") if all_records else "kg"
+                        ).lower()
+                        if "kg" in original_unit:
+                            values_for_stats = [
+                                _kg_to_lbs(v) for v in aggregated_values
+                            ]
+                        unit = "lbs"
+
                     if "average" in aggregations or "avg" in aggregations:
-                        avg_value = mean(aggregated_values)
+                        avg_value = mean(values_for_stats)
                         # Format based on metric type
                         if metric_type == "StepCount":
                             statistics["average"] = f"{avg_value:.0f} steps/day"
                         elif metric_type == "HeartRate":
                             statistics["average"] = f"{avg_value:.1f} bpm (daily avg)"
                         elif metric_type == "BodyMass":
-                            statistics["average"] = _convert_weight_to_lbs(
-                                str(avg_value), "lb"
-                            )
+                            statistics["average"] = f"{avg_value:.1f} lbs"
                         else:
                             statistics["average"] = (
                                 f"{avg_value:.1f} {unit}"
@@ -181,17 +193,15 @@ def create_aggregate_metrics_tool(user_id: str):
                             )
 
                     if "min" in aggregations or "minimum" in aggregations:
-                        min_value = min(aggregated_values)
+                        min_value = min(values_for_stats)
                         if metric_type == "StepCount":
                             statistics["min"] = f"{min_value:.0f} steps (lowest day)"
                         elif metric_type == "HeartRate":
-                            statistics["min"] = (
-                                f"{min_value:.1f} bpm (lowest daily avg)"
-                            )
+                            statistics[
+                                "min"
+                            ] = f"{min_value:.1f} bpm (lowest daily avg)"
                         elif metric_type == "BodyMass":
-                            statistics["min"] = _convert_weight_to_lbs(
-                                str(min_value), "lb"
-                            )
+                            statistics["min"] = f"{min_value:.1f} lbs"
                         else:
                             statistics["min"] = (
                                 f"{min_value:.1f} {unit}"
@@ -200,19 +210,17 @@ def create_aggregate_metrics_tool(user_id: str):
                             )
 
                     if "max" in aggregations or "maximum" in aggregations:
-                        max_value = max(aggregated_values)
+                        max_value = max(values_for_stats)
                         if metric_type == "StepCount":
-                            statistics["max"] = (
-                                f"{max_value:.0f} steps (most active day)"
-                            )
+                            statistics[
+                                "max"
+                            ] = f"{max_value:.0f} steps (most active day)"
                         elif metric_type == "HeartRate":
-                            statistics["max"] = (
-                                f"{max_value:.1f} bpm (highest daily avg)"
-                            )
+                            statistics[
+                                "max"
+                            ] = f"{max_value:.1f} bpm (highest daily avg)"
                         elif metric_type == "BodyMass":
-                            statistics["max"] = _convert_weight_to_lbs(
-                                str(max_value), "lb"
-                            )
+                            statistics["max"] = f"{max_value:.1f} lbs"
                         else:
                             statistics["max"] = (
                                 f"{max_value:.1f} {unit}"
@@ -223,13 +231,13 @@ def create_aggregate_metrics_tool(user_id: str):
                     if "sum" in aggregations or "total" in aggregations:
                         sum_value = sum(aggregated_values)
                         if metric_type == "StepCount":
-                            statistics["sum"] = (
-                                f"{sum_value:.0f} total steps ({len(aggregated_values)} days)"
-                            )
+                            statistics[
+                                "sum"
+                            ] = f"{sum_value:.0f} total steps ({len(aggregated_values)} days)"
                         elif metric_type == "DistanceWalkingRunning":
-                            statistics["sum"] = (
-                                f"{sum_value:.1f} total miles ({len(aggregated_values)} days)"
-                            )
+                            statistics[
+                                "sum"
+                            ] = f"{sum_value:.1f} total miles ({len(aggregated_values)} days)"
                         elif metric_type == "BodyMass":
                             # Sum of weights makes no sense - skip this aggregation
                             logger.warning(
@@ -248,9 +256,9 @@ def create_aggregate_metrics_tool(user_id: str):
                             "daily_average",
                             "latest_value",
                         ]:
-                            statistics["count"] = (
-                                f"{len(aggregated_values)} days with data"
-                            )
+                            statistics[
+                                "count"
+                            ] = f"{len(aggregated_values)} days with data"
                         else:
                             statistics["count"] = f"{len(aggregated_values)} readings"
 

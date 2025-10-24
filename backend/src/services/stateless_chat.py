@@ -12,6 +12,8 @@ Each request is completely independent:
 Purpose: Demonstrate the difference when memory is absent.
 """
 
+from typing import Any
+
 from ..agents import StatelessHealthAgent
 from ..utils.user_config import get_user_id
 
@@ -27,11 +29,11 @@ class StatelessChatService:
     - Each message processed independently
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize stateless service with dedicated agent."""
         self.agent = StatelessHealthAgent()
 
-    async def chat(self, message: str) -> dict:
+    async def chat(self, message: str) -> dict[str, Any]:
         """
         Process a completely stateless chat message.
 

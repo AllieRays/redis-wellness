@@ -254,12 +254,12 @@ memory:{user_id}:{timestamp} → {
 - Retrieves relevant past conversations
 - Powers contextual recall
 
-### Tool Calling with Query Classification
+### Tool Calling with Simple Loop
 
-1. **Query Analysis**: Classify intent (aggregation/retrieval/workout)
-2. **Tool Filtering**: Pre-select relevant tools (reduces LLM confusion)
-3. **Tool Execution**: LangGraph orchestrates multi-step workflows
-4. **Memory Update**: Store results in semantic memory
+1. **Query Analysis**: LLM understands intent autonomously
+2. **Tool Selection**: Qwen 2.5 7B chooses optimal tools natively
+3. **Tool Execution**: Simple loop (up to 8 iterations) for multi-step workflows
+4. **Memory Update**: Store results in CoALA memory (episodic, procedural, semantic, short-term)
 
 ## 🔧 Project Structure
 
@@ -282,15 +282,14 @@ memory:{user_id}:{timestamp} → {
 │   │   │   ├── redis_connection.py      # Redis connection management
 │   │   │   ├── redis_health_tool.py     # Health data operations
 │   │   │   └── health_vectorizer.py     # Embedding generation
-│   │   ├── utils/                       # Pure utilities & helpers
-│   │   │   ├── agent_helpers.py         # Shared agent utilities (NEW)
-│   │   │   ├── query_classifier.py      # Intent classification
-│   │   │   ├── numeric_validator.py     # LLM hallucination detection
-│   │   │   ├── math_tools.py            # Mathematical analysis
-│   │   │   ├── base.py                  # Base classes & decorators
-│   │   │   ├── stats_utils.py           # Statistical calculations
-│   │   │   ├── time_utils.py            # Time parsing utilities
-│   │   │   └── conversion_utils.py      # Unit conversions
+|│   │   ├── utils/                       # Pure utilities & helpers
+|│   │   │   ├── agent_helpers.py         # Shared agent utilities
+|│   │   │   ├── numeric_validator.py     # LLM hallucination detection
+|│   │   │   ├── math_tools.py            # Mathematical analysis
+|│   │   │   ├── base.py                  # Base classes & decorators
+|│   │   │   ├── stats_utils.py           # Statistical calculations
+|│   │   │   ├── time_utils.py            # Time parsing utilities
+|│   │   │   └── conversion_utils.py      # Unit conversions
 │   │   ├── tools/                       # LangChain tools for agents
 │   │   │   ├── agent_tools.py           # Creates user-bound tools
 │   │   │   ├── health_insights_tool.py  # AI-callable insights

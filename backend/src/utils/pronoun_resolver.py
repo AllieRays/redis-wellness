@@ -34,20 +34,26 @@ class PronounResolver:
 
         Returns human-readable topic name.
         """
+        import re
+
         query_lower = query.lower()
 
         # Health metrics
         if "bmi" in query_lower or "body mass index" in query_lower:
             return "BMI"
-        elif "weight" in query_lower and "body" not in query_lower:
+        elif re.search(r"\b(weigh|weighed|weighing|wt)\b", query_lower) or (
+            "weight" in query_lower and "body" not in query_lower
+        ):
             return "weight"
         elif "heart rate" in query_lower:
             return "heart rate"
         elif "workout" in query_lower or "exercise" in query_lower:
             return "workouts"
-        elif "step" in query_lower:
+        elif re.search(r"\b(step|steps|stepping|walked|walking|walk)\b", query_lower):
             return "steps"
-        elif "calor" in query_lower and "burn" in query_lower:
+        elif re.search(r"\b(calor\w*|kcal|cal)\b", query_lower) and re.search(
+            r"\b(burn|burned|burning|active)\b", query_lower
+        ):
             return "calories burned"
 
         return None
@@ -55,14 +61,25 @@ class PronounResolver:
     def extract_topic_from_response(
         self, response: str, tools_used: list
     ) -> str | None:
-        """Extract topic from response and tool usage."""
+        """
+        Extract topic from response and tool usage.
+
+        Args:
+            response: Assistant's response text
+            tools_used: List of tool names (strings) or tool dicts (for backward compatibility)
+
+        Returns:
+            Topic name or None
+        """
         # Check tool calls
         for tool in tools_used:
-            tool_name = tool.get("name", "")
+            # Handle both list[str] and list[dict] for backward compatibility
+            tool_name = tool.get("name", "") if isinstance(tool, dict) else str(tool)
+
             if "workout" in tool_name.lower():
                 return "workouts"
-            elif "metric" in tool_name.lower():
-                # Try to extract metric from args
+            elif "metric" in tool_name.lower() and isinstance(tool, dict):
+                # For dict format, try to extract metric from args
                 args = tool.get("args", {})
                 metric_types = args.get("metric_types", [])
                 if metric_types:

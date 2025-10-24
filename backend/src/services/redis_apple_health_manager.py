@@ -21,6 +21,7 @@ from ..utils.base import (
     measure_execution_time,
     performance_tracker,
 )
+from ..utils.redis_keys import RedisKeys
 from .redis_connection import get_redis_manager
 
 
@@ -54,7 +55,7 @@ class RedisHealthManager:
 
             with self.redis_manager.get_connection() as redis_client:
                 # Store main health data collection WITHOUT TTL (permanent)
-                main_key = f"health:user:{user_id}:data"
+                main_key = RedisKeys.health_data(user_id)
                 redis_client.set(main_key, json.dumps(health_data))
 
                 # Store quick lookup indices with TTL
@@ -63,7 +64,7 @@ class RedisHealthManager:
                 )
 
                 # Store conversation context WITHOUT TTL (permanent)
-                context_key = f"health:user:{user_id}:context"
+                context_key = RedisKeys.health_context(user_id)
                 conversation_context = health_data.get("conversation_context", "")
                 redis_client.set(context_key, conversation_context)
 
@@ -95,12 +96,12 @@ class RedisHealthManager:
         # Index by metric type for fast queries
         metrics_summary = health_data.get("metrics_summary", {})
         for metric_type, data in metrics_summary.items():
-            key = f"health:user:{user_id}:metric:{metric_type}"
+            key = RedisKeys.health_metric(user_id, metric_type)
             redis_client.setex(key, ttl_seconds, json.dumps(data))
             indices_count += 1
 
         # Index recent insights with TTL (key Redis advantage)
-        recent_key = f"health:user:{user_id}:recent_insights"
+        recent_key = RedisKeys.health_recent_insights(user_id)
         recent_insights = {
             "record_count": health_data.get("record_count", 0),
             "data_categories": health_data.get("data_categories", []),
@@ -121,7 +122,7 @@ class RedisHealthManager:
             cache_hits = 0
 
             for metric_type in metric_types:
-                key = f"health:user:{user_id}:metric:{metric_type}"
+                key = RedisKeys.health_metric(user_id, metric_type)
                 data = self.redis.get(key)
 
                 if data:
@@ -133,7 +134,7 @@ class RedisHealthManager:
             # Get TTL info to show memory management
             ttl_info = {}
             for metric_type in metric_types:
-                key = f"health:user:{user_id}:metric:{metric_type}"
+                key = RedisKeys.health_metric(user_id, metric_type)
                 ttl = self.redis.ttl(key)
                 ttl_info[metric_type] = {
                     "ttl_seconds": ttl,
@@ -160,7 +161,7 @@ class RedisHealthManager:
     def get_conversation_context(self, user_id: str) -> str | None:
         """Get health-aware conversation context from Redis."""
         try:
-            context_key = f"health:user:{user_id}:context"
+            context_key = RedisKeys.health_context(user_id)
             context = self.redis.get(context_key)
 
             # Also get TTL for context expiration info
@@ -183,7 +184,7 @@ class RedisHealthManager:
         """Manual cleanup demo (Redis TTL makes this unnecessary)."""
         try:
             # Find all user keys (for demo purposes)
-            pattern = f"health:user:{user_id}:*"
+            pattern = RedisKeys.health_pattern(user_id)
             keys = self.redis.keys(pattern)
 
             expired_keys = []

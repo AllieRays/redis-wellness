@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: int = 8000
 
-    redis_url: str = "redis://redis:6379"
-    redis_host: str = "redis"
+    redis_url: str = "redis://localhost:6379"
+    redis_host: str = "localhost"  # Use localhost for local testing, override with REDIS_HOST=redis in Docker
     redis_port: int = 6379
     redis_db: int = 0
 

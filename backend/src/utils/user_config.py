@@ -74,7 +74,9 @@ def get_user_redis_key_prefix() -> str:
     Returns:
         str: Redis key prefix for user data
     """
-    return f"user:{get_user_id()}"
+    from .redis_keys import RedisKeys
+
+    return RedisKeys.WORKOUT_PREFIX + get_user_id()
 
 
 def get_user_health_data_key() -> str:
@@ -84,7 +86,9 @@ def get_user_health_data_key() -> str:
     Returns:
         str: Redis key for health data storage
     """
-    return f"health:user:{get_user_id()}:data"
+    from .redis_keys import RedisKeys
+
+    return RedisKeys.health_data(get_user_id())
 
 
 def get_user_session_key(session_id: str) -> str:
@@ -107,7 +111,8 @@ def get_user_memory_key_prefix() -> str:
     Returns:
         str: Redis key prefix for memory storage
     """
-    return f"memory:{get_user_id()}"
+    # Return pattern for all memory types for this user
+    return f"memory:{get_user_id()}"  # Note: Keep as-is for backward compatibility
 
 
 # Convenience function for tools that need user-bound operations

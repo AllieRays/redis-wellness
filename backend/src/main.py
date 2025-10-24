@@ -1,13 +1,20 @@
 """Main FastAPI application with production-ready features."""
 
 import time
+from typing import Any
 
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.system_routes import router
-from src.config import get_settings
-from src.utils.api_errors import setup_exception_handlers
+from .api.system_routes import router
+from .config import get_settings
+from .logging_config import setup_logging
+from .services.redis_connection import get_redis_manager
+from .utils.api_errors import setup_exception_handlers
+
+# Setup logging with datetime stamps
+setup_logging()
 
 settings = get_settings()
 
@@ -39,12 +46,85 @@ setup_exception_handlers(app)
 app.include_router(router, prefix="/api")
 
 
-# Note: Production health checks now handled by /api/health endpoints
-# This endpoint maintained for backward compatibility
 @app.get("/health")
-async def basic_health_check():
-    """Basic health check for backward compatibility."""
-    return {"status": "healthy", "timestamp": time.time()}
+async def health_check() -> dict[str, Any]:
+    """
+    Comprehensive health check including dependencies.
+
+    Checks:
+    - API responsiveness
+    - Redis connectivity
+    - Ollama availability and required models
+
+    Returns:
+        Health status dict with overall status and dependency details
+    """
+    status: dict[str, Any] = {
+        "api": "healthy",
+        "timestamp": time.time(),
+        "dependencies": {},
+    }
+
+    # Check Redis
+    try:
+        redis_manager = get_redis_manager()
+        with redis_manager.get_connection() as client:
+            client.ping()
+            status["dependencies"]["redis"] = {
+                "status": "healthy",
+                "host": settings.redis_host,
+                "port": settings.redis_port,
+            }
+    except Exception as e:
+        status["dependencies"]["redis"] = {"status": "unhealthy", "error": str(e)}
+
+    # Check Ollama
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{settings.ollama_base_url}/api/tags")
+            response.raise_for_status()
+            models_data = response.json().get("models", [])
+            required_models = [settings.ollama_model, settings.embedding_model]
+            available = [m["name"] for m in models_data]
+
+            # Check if required models are available
+            all_models_available = all(
+                any(req in avail for avail in available) for req in required_models
+            )
+
+            status["dependencies"]["ollama"] = {
+                "status": "healthy" if all_models_available else "degraded",
+                "url": settings.ollama_base_url,
+                "models_required": required_models,
+                "models_available": available,
+                "models_missing": [
+                    req
+                    for req in required_models
+                    if not any(req in avail for avail in available)
+                ]
+                if not all_models_available
+                else [],
+            }
+    except httpx.TimeoutException:
+        status["dependencies"]["ollama"] = {
+            "status": "unhealthy",
+            "error": "Connection timeout",
+        }
+    except httpx.HTTPStatusError as e:
+        status["dependencies"]["ollama"] = {
+            "status": "unhealthy",
+            "error": f"HTTP {e.response.status_code}",
+        }
+    except Exception as e:
+        status["dependencies"]["ollama"] = {"status": "unhealthy", "error": str(e)}
+
+    # Overall status
+    all_healthy = all(
+        dep.get("status") == "healthy" for dep in status["dependencies"].values()
+    )
+    status["status"] = "healthy" if all_healthy else "degraded"
+
+    return status
 
 
 @app.get("/")

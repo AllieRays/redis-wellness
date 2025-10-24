@@ -13,6 +13,7 @@ import os
 import time
 from contextlib import contextmanager
 from enum import Enum
+from typing import Any
 
 import redis
 from redis.connection import ConnectionPool
@@ -29,7 +30,7 @@ class CircuitState(Enum):
 class RedisCircuitBreaker:
     """Circuit breaker for Redis operations."""
 
-    def __init__(self, failure_threshold: int = 5, recovery_timeout: int = 30):
+    def __init__(self, failure_threshold: int = 5, recovery_timeout: int = 30) -> None:
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.failure_count = 0
@@ -50,13 +51,13 @@ class RedisCircuitBreaker:
         # HALF_OPEN state - allow one attempt
         return True
 
-    def record_success(self):
+    def record_success(self) -> None:
         """Record successful operation."""
         self.failure_count = 0
         self.state = CircuitState.CLOSED
         logger.info("Redis circuit breaker reset to CLOSED")
 
-    def record_failure(self):
+    def record_failure(self) -> None:
         """Record failed operation."""
         self.failure_count += 1
         self.last_failure_time = time.time()
@@ -85,13 +86,13 @@ class RedisConnectionManager:
     - Automatic retry logic
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._pool: ConnectionPool | None = None
         self._client: redis.Redis | None = None
         self.circuit_breaker = RedisCircuitBreaker()
         self._initialize_connection()
 
-    def _initialize_connection(self):
+    def _initialize_connection(self) -> None:
         """Initialize Redis connection pool."""
         try:
             # Connection pool configuration
@@ -165,7 +166,7 @@ class RedisConnectionManager:
         except Exception:
             return False
 
-    def get_pool_info(self) -> dict:
+    def get_pool_info(self) -> dict[str, Any]:
         """Get connection pool information for monitoring."""
         if not self._pool:
             return {"error": "Pool not initialized"}
@@ -178,7 +179,7 @@ class RedisConnectionManager:
             "failure_count": self.circuit_breaker.failure_count,
         }
 
-    def close(self):
+    def close(self) -> None:
         """Close all connections in the pool."""
         if self._pool:
             self._pool.disconnect()

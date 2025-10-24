@@ -45,7 +45,7 @@ class ApiClient {
 
   async *streamStatelessMessage(
     data: StatelessChatRequest
-  ): AsyncGenerator<{ type: string; content?: string; data?: any }> {
+  ): AsyncGenerator<{ type: string; content?: string; data?: unknown }> {
     const response = await fetch(`${API_BASE_URL}/api/chat/stateless/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -85,7 +85,7 @@ class ApiClient {
 
   async *streamRedisMessage(
     data: RedisChatRequest
-  ): AsyncGenerator<{ type: string; content?: string; data?: any }> {
+  ): AsyncGenerator<{ type: string; content?: string; data?: unknown }> {
     const response = await fetch(`${API_BASE_URL}/api/chat/redis/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
