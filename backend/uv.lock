@@ -456,6 +456,21 @@ wheels = [
 ]
 
 [[package]]
+name = "langgraph-checkpoint-redis"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "langgraph-checkpoint" },
+    { name = "orjson" },
+    { name = "redis" },
+    { name = "redisvl" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b6/a7/d8e47a5a32b1b3e044d67c6b51b6bb05ca2f62a98fe97ad6d38886b196bc/langgraph_checkpoint_redis-0.1.0.tar.gz", hash = "sha256:982da974fc82fa21bde0d16d37c8e6d0fc236c5beddd1714fc909e92fe11a11a", size = 74520, upload-time = "2025-08-08T19:51:04.978Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/db/66/1bdce5ca496286ab5e18c7f24f57bdb9f508c25258c18aa28dd0fa87dcd5/langgraph_checkpoint_redis-0.1.0-py3-none-any.whl", hash = "sha256:c38f1539c68dccf25d7c972d96503a5e708ac828e5138db5ee7a835115b72a9e", size = 81188, upload-time = "2025-08-08T19:51:03.767Z" },
+]
+
+[[package]]
 name = "langgraph-prebuilt"
 version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1381,6 +1396,7 @@ dependencies = [
     { name = "langchain-ollama" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint" },
+    { name = "langgraph-checkpoint-redis" },
     { name = "numpy" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -1417,6 +1433,7 @@ requires-dist = [
     { name = "langchain-ollama", specifier = ">=0.2.0" },
     { name = "langgraph", specifier = ">=1.0.1" },
     { name = "langgraph-checkpoint", specifier = ">=3.0.0" },
+    { name = "langgraph-checkpoint-redis", specifier = ">=0.1.0" },
     { name = "numpy", specifier = ">=1.24.0" },
     { name = "pydantic", specifier = ">=2.4.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },

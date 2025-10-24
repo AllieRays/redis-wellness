@@ -84,12 +84,14 @@ class RedisConnectionManager:
     - Circuit breaker for resilience
     - Health monitoring
     - Automatic retry logic
+    - Redis-based LangGraph checkpointing
     """
 
     def __init__(self) -> None:
         self._pool: ConnectionPool | None = None
         self._client: redis.Redis | None = None
         self.circuit_breaker = RedisCircuitBreaker()
+        self._checkpointer = None  # Will be initialized in async context
         self._initialize_connection()
 
     def _initialize_connection(self) -> None:
@@ -180,15 +182,60 @@ class RedisConnectionManager:
         }
 
     def get_checkpointer(self):
-        """Get LangGraph checkpointer (using MemorySaver for Phase 2)."""
+        """
+        Get LangGraph checkpointer using Redis for persistence.
+
+        CRITICAL: Uses Redis-based storage for conversation history.
+        This ensures conversations persist across container restarts.
+
+        Returns a checkpointer that must be used without context manager.
+        """
+        if self._checkpointer:
+            return self._checkpointer
+
         try:
+            # Import Redis checkpointer from langgraph-checkpoint-redis package
+            from langgraph.checkpoint.redis import RedisSaver
+
+            # Get Redis connection parameters
+            redis_host = os.getenv("REDIS_HOST", "localhost")
+            redis_port = int(os.getenv("REDIS_PORT", 6379))
+            redis_db = int(os.getenv("REDIS_DB", 0))
+            redis_password = os.getenv("REDIS_PASSWORD")
+
+            # Build Redis connection URL
+            if redis_password:
+                redis_url = (
+                    f"redis://:{redis_password}@{redis_host}:{redis_port}/{redis_db}"
+                )
+            else:
+                redis_url = f"redis://{redis_host}:{redis_port}/{redis_db}"
+
+            # Create RedisSaver with connection URL
+            checkpointer = RedisSaver(redis_url)
+
+            logger.info(
+                f"Creating RedisSaver checkpointer for LangGraph (host={redis_host}:{redis_port}, db={redis_db})"
+            )
+
+            # Store for reuse
+            self._checkpointer = checkpointer
+            return checkpointer
+
+        except ImportError as e:
+            logger.error(f"langgraph Redis checkpoint import failed: {e}")
+            logger.warning(
+                "Falling back to MemorySaver (NOT RECOMMENDED for production)"
+            )
+            # Fallback to MemorySaver only if Redis checkpointer unavailable
             from langgraph.checkpoint.memory import MemorySaver
 
-            logger.info("Creating MemorySaver checkpointer for LangGraph")
-            return MemorySaver()
-        except ImportError as e:
-            logger.error(f"langgraph checkpoint import failed: {e}")
-            return None
+            checkpointer = MemorySaver()
+            self._checkpointer = checkpointer
+            return checkpointer
+        except Exception as e:
+            logger.error(f"Failed to create Redis checkpointer: {e}")
+            raise
 
     def close(self) -> None:
         """Close all connections in the pool."""
