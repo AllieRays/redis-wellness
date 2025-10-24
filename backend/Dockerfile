@@ -12,8 +12,12 @@ COPY pyproject.toml uv.lock ./
 ENV UV_HTTP_TIMEOUT=120
 RUN uv sync --frozen --no-dev
 
-# Copy application code
+# Copy application code and validation scripts
 COPY src/ ./src/
+COPY scripts/ ./scripts/
+
+# Validate critical imports at build time
+RUN python scripts/validate_imports.py || exit 1
 
 # Expose port
 EXPOSE 8000

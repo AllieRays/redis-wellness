@@ -8,6 +8,7 @@ Now includes:
 """
 
 import logging
+import time
 from typing import Annotated, Any
 
 from langchain_core.messages import (
@@ -75,43 +76,57 @@ class StatefulRAGAgent:
             logger.info("✅ StatefulRAGAgent initialized (no memory features)")
 
     def _build_graph(self):
-        """Build graph with episodic memory: Retrieve → LLM → Tools → Store → End."""
+        """Build graph with episodic AND procedural memory orchestration."""
         workflow = StateGraph(MemoryState)
 
-        # Add memory nodes if episodic memory is available
+        # Add all nodes
         if self.episodic:
-            workflow.add_node("retrieve_memory", self._retrieve_memory_node)
-            workflow.add_node("store_memory", self._store_memory_node)
+            workflow.add_node("retrieve_episodic", self._retrieve_episodic_node)
+            workflow.add_node("store_episodic", self._store_episodic_node)
+
+        if self.procedural:
+            workflow.add_node("retrieve_procedural", self._retrieve_procedural_node)
+            workflow.add_node("reflect", self._reflect_node)
+            workflow.add_node("store_procedural", self._store_procedural_node)
 
         workflow.add_node("llm", self._llm_node)
         workflow.add_node("tools", self._tool_node)
 
-        # Set entry point based on memory availability
-        if self.episodic:
-            workflow.set_entry_point("retrieve_memory")
-            workflow.add_edge("retrieve_memory", "llm")
-        else:
-            workflow.set_entry_point("llm")
-
-        # LLM → Tools (if needed) or Store Memory / End
-        if self.episodic:
+        # Build graph flow with orchestration
+        if self.episodic and self.procedural:
+            # Full orchestration: retrieve_episodic → retrieve_procedural → llm → tools → reflect → store_episodic → store_procedural → END
+            workflow.set_entry_point("retrieve_episodic")
+            workflow.add_edge("retrieve_episodic", "retrieve_procedural")
+            workflow.add_edge("retrieve_procedural", "llm")
+            workflow.add_conditional_edges(
+                "llm", self._should_continue, {"tools": "tools", "end": "reflect"}
+            )
+            workflow.add_edge("tools", "llm")
+            workflow.add_edge("reflect", "store_episodic")
+            workflow.add_edge("store_episodic", "store_procedural")
+            workflow.add_edge("store_procedural", END)
+        elif self.episodic:
+            # Episodic only (original flow)
+            workflow.set_entry_point("retrieve_episodic")
+            workflow.add_edge("retrieve_episodic", "llm")
             workflow.add_conditional_edges(
                 "llm",
                 self._should_continue,
-                {"tools": "tools", "end": "store_memory"},
+                {"tools": "tools", "end": "store_episodic"},
             )
-            workflow.add_edge("tools", "llm")  # Tools loop back to LLM
-            workflow.add_edge("store_memory", END)  # Store memory then end
+            workflow.add_edge("tools", "llm")
+            workflow.add_edge("store_episodic", END)
         else:
+            # No memory
+            workflow.set_entry_point("llm")
             workflow.add_conditional_edges(
                 "llm", self._should_continue, {"tools": "tools", "end": END}
             )
             workflow.add_edge("tools", "llm")
 
-        # Compile with checkpointer if provided
         return workflow.compile(checkpointer=self.checkpointer)
 
-    async def _retrieve_memory_node(self, state: MemoryState) -> dict:
+    async def _retrieve_episodic_node(self, state: MemoryState) -> dict:
         """Retrieve episodic memory before LLM call."""
         if not self.episodic:
             return {"episodic_context": None}
@@ -140,12 +155,90 @@ class StatefulRAGAgent:
             logger.error(f"❌ Memory retrieval failed: {e}")
             return {"episodic_context": None}
 
-    async def _store_memory_node(self, state: MemoryState) -> dict:
+    async def _retrieve_procedural_node(self, state: MemoryState) -> dict:
+        """Retrieve procedural patterns and create execution plan."""
+        if not self.procedural:
+            return {
+                "procedural_patterns": None,
+                "execution_plan": None,
+                "workflow_start_time": int(time.time() * 1000),
+            }
+
+        logger.info("🔧 Retrieving procedural patterns...")
+        user_message = state["messages"][-1].content if state["messages"] else ""
+        start_time = int(time.time() * 1000)
+
+        try:
+            result = await self.procedural.retrieve_patterns(
+                query=user_message, top_k=3
+            )
+            patterns = result.get("patterns", [])
+            plan = result.get("plan")
+
+            if patterns:
+                logger.info(f"✅ Retrieved {len(patterns)} procedural patterns")
+                if plan:
+                    logger.info(
+                        f"📋 Execution plan: {plan.get('suggested_tools')} (confidence: {plan.get('confidence'):.2%})"
+                    )
+            else:
+                logger.info("ℹ️ No procedural patterns found")
+
+            return {
+                "procedural_patterns": patterns,
+                "execution_plan": plan,
+                "workflow_start_time": start_time,
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Procedural retrieval failed: {e}")
+            return {
+                "procedural_patterns": None,
+                "execution_plan": None,
+                "workflow_start_time": start_time,
+            }
+
+    async def _reflect_node(self, state: MemoryState) -> dict:
+        """Evaluate workflow success for procedural memory storage."""
+        if not self.procedural:
+            return {}
+
+        logger.info("🤔 Reflecting on workflow success...")
+
+        # Extract execution metrics
+        tools_used = [
+            msg.name for msg in state["messages"] if isinstance(msg, ToolMessage)
+        ]
+        tool_results = [
+            {"name": msg.name, "content": msg.content}
+            for msg in state["messages"]
+            if isinstance(msg, ToolMessage)
+        ]
+        response_generated = any(
+            hasattr(msg, "content") and msg.content
+            for msg in state["messages"]
+            if not isinstance(msg, HumanMessage | ToolMessage)
+        )
+
+        start_time = state.get("workflow_start_time", 0)
+        execution_time_ms = int(time.time() * 1000) - start_time if start_time else 0
+
+        # Evaluate success
+        evaluation = self.procedural.evaluate_workflow(
+            tools_used=tools_used,
+            tool_results=tool_results,
+            response_generated=response_generated,
+            execution_time_ms=execution_time_ms,
+        )
+
+        logger.info(
+            f"✅ Workflow evaluation: success={evaluation['success']}, score={evaluation['success_score']:.2%}"
+        )
+        return {}  # Evaluation stored in state for store_procedural_node
+
+    async def _store_episodic_node(self, state: MemoryState) -> dict:
         """Extract facts and store in episodic memory after LLM response."""
-        print("=" * 80)
-        print("🔵 STORE_MEMORY_NODE CALLED")
-        print("=" * 80)
-        logger.info("🔵 STORE_MEMORY_NODE called")
+        logger.info("💾 Storing episodic memory...")
 
         if not self.episodic:
             print("⚠️ NO EPISODIC MEMORY CONFIGURED")
@@ -195,6 +288,74 @@ class StatefulRAGAgent:
 
         except Exception as e:
             logger.error(f"❌ Memory storage failed: {e}")
+            return {}
+
+    async def _store_procedural_node(self, state: MemoryState) -> dict:
+        """Store successful workflow pattern in procedural memory."""
+        if not self.procedural:
+            return {}
+
+        logger.info("💾 Storing procedural pattern...")
+
+        try:
+            # Get user query
+            user_msg = None
+            for msg in reversed(state["messages"]):
+                if isinstance(msg, HumanMessage):
+                    user_msg = msg
+                    break
+
+            if not user_msg:
+                return {}
+
+            # Extract workflow metrics
+            tools_used = [
+                msg.name for msg in state["messages"] if isinstance(msg, ToolMessage)
+            ]
+            tool_results = [
+                {"name": msg.name, "content": msg.content}
+                for msg in state["messages"]
+                if isinstance(msg, ToolMessage)
+            ]
+            response_generated = any(
+                hasattr(msg, "content") and msg.content
+                for msg in state["messages"]
+                if not isinstance(msg, HumanMessage | ToolMessage)
+            )
+
+            start_time = state.get("workflow_start_time", 0)
+            execution_time_ms = (
+                int(time.time() * 1000) - start_time if start_time else 0
+            )
+
+            # Evaluate success
+            evaluation = self.procedural.evaluate_workflow(
+                tools_used=tools_used,
+                tool_results=tool_results,
+                response_generated=response_generated,
+                execution_time_ms=execution_time_ms,
+            )
+
+            # Store if successful
+            if evaluation.get("success"):
+                await self.procedural.store_pattern(
+                    query=user_msg.content,
+                    tools_used=tools_used,
+                    success_score=evaluation.get("success_score", 0.0),
+                    execution_time_ms=execution_time_ms,
+                )
+                logger.info(
+                    f"✅ Stored procedural pattern (score: {evaluation.get('success_score'):.2%})"
+                )
+            else:
+                logger.info(
+                    f"⏭️ Skipped procedural storage (score: {evaluation.get('success_score'):.2%})"
+                )
+
+            return {}
+
+        except Exception as e:
+            logger.error(f"❌ Procedural storage failed: {e}")
             return {}
 
     async def _llm_node(self, state: MemoryState) -> dict:
@@ -292,6 +453,9 @@ class StatefulRAGAgent:
             "messages": [HumanMessage(content=message)],
             "user_id": user_id,
             "episodic_context": None,  # Will be populated by retrieve_memory node
+            "procedural_patterns": None,  # Will be populated by retrieve_procedural node
+            "execution_plan": None,  # Will be populated by retrieve_procedural node
+            "workflow_start_time": int(time.time() * 1000),  # For procedural timing
         }
 
         # Add config for checkpointing
@@ -347,9 +511,10 @@ class StatefulRAGAgent:
                 and isinstance(msg, HumanMessage)
             ]
         )
+        procedural_patterns_used = 1 if final_state.get("procedural_patterns") else 0
 
         logger.info(
-            f"💾 Memory stats: episodic_context={final_state.get('episodic_context') is not None}, semantic_hits={1 if memory_retrieved else 0}, goals_stored={goals_stored}"
+            f"💾 Memory stats: episodic_context={final_state.get('episodic_context') is not None}, semantic_hits={1 if memory_retrieved else 0}, goals_stored={goals_stored}, procedural_patterns_used={procedural_patterns_used}"
         )
 
         return {
@@ -359,6 +524,7 @@ class StatefulRAGAgent:
             "memory_stats": {
                 "semantic_hits": 1 if memory_retrieved else 0,
                 "goals_stored": goals_stored,
+                "procedural_patterns_used": procedural_patterns_used,
             },
             "validation": {
                 "valid": validation_result["valid"],

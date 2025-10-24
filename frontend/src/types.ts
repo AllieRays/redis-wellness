@@ -36,6 +36,7 @@ export interface MemoryStats {
   short_term_available: boolean;
   semantic_hits: number;
   long_term_available: boolean;
+  procedural_patterns_used: number;
 }
 
 export interface TokenStats {

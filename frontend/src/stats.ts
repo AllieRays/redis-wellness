@@ -14,6 +14,7 @@ export interface ChatStats {
 export interface RedisStats extends ChatStats {
   tokenUsagePercent: number;
   semanticMemories: number;
+  proceduralPatterns: number;
   isOverThreshold: boolean;
 }
 
@@ -71,6 +72,7 @@ export class RedisStatsManager {
     tokenCount: 0,
     tokenUsagePercent: 0,
     semanticMemories: 0,
+    proceduralPatterns: 0,
     isOverThreshold: false,
     totalResponseTime: 0,
     avgResponseTime: 0,
@@ -80,7 +82,7 @@ export class RedisStatsManager {
   updateFromResponse(data: {
     tool_calls_made?: number;
     response_time_ms?: number;
-    memory_stats?: { semantic_hits: number };
+    memory_stats?: { semantic_hits: number; procedural_patterns_used: number };
     token_stats?: {
       token_count: number;
       usage_percent: number;
@@ -90,6 +92,7 @@ export class RedisStatsManager {
     this.stats.messageCount += 2; // User + assistant message
     this.stats.toolsUsed += data.tool_calls_made || 0;
     this.stats.semanticMemories = data.memory_stats?.semantic_hits || 0;
+    this.stats.proceduralPatterns = data.memory_stats?.procedural_patterns_used || 0;
 
     if (data.token_stats) {
       this.stats.tokenCount = data.token_stats.token_count || 0;
@@ -116,6 +119,7 @@ export class RedisStatsManager {
       tokenCount: 0,
       tokenUsagePercent: 0,
       semanticMemories: 0,
+      proceduralPatterns: 0,
       isOverThreshold: false,
       totalResponseTime: 0,
       avgResponseTime: 0,
@@ -152,6 +156,7 @@ export function updateStatsTable(
   // Update Redis stats
   const redisTokensEl = document.getElementById('stat-redis-tokens');
   const redisSemanticEl = document.getElementById('stat-redis-semantic');
+  const redisProceduralEl = document.getElementById('stat-redis-procedural');
   const redisLatencyEl = document.getElementById('stat-redis-latency');
 
   if (redisTokensEl) {
@@ -159,6 +164,9 @@ export function updateStatsTable(
   }
   if (redisSemanticEl) {
     redisSemanticEl.textContent = String(redisStats.semanticMemories);
+  }
+  if (redisProceduralEl) {
+    redisProceduralEl.textContent = String(redisStats.proceduralPatterns);
   }
   if (redisLatencyEl) {
     if (redisStats.avgResponseTime > 0) {

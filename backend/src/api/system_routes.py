@@ -38,6 +38,7 @@ class HealthCheck(BaseModel):
 
     status: str
     redis_connected: bool
+    redis_stack_available: bool
     ollama_connected: bool
 
 
@@ -50,7 +51,7 @@ def get_redis_client() -> redis.Redis:
         host=os.getenv("REDIS_HOST", "localhost"),
         port=int(os.getenv("REDIS_PORT", 6379)),
         db=int(os.getenv("REDIS_DB", 0)),
-        decode_responses=True,
+        decode_responses=False,  # Keep as bytes for MODULE LIST parsing
     )
 
 
@@ -61,6 +62,37 @@ async def check_redis_connection() -> bool:
         redis_client.ping()
         return True
     except Exception:
+        return False
+
+
+async def check_redis_stack_modules() -> bool:
+    """
+    Check if Redis Stack modules are loaded (RediSearch, RedisJSON, etc.).
+
+    This is CRITICAL for episodic and procedural memory to work.
+    Without RediSearch module, vector search commands (FT.SEARCH) will fail.
+    """
+    try:
+        redis_client = get_redis_client()
+        modules = redis_client.execute_command("MODULE", "LIST")
+
+        # Check for RediSearch module (required for vector search)
+        # MODULE LIST returns: [b'name', b'search', b'ver', 21005, ...]
+        # Check if any item in the list contains 'search' (case-insensitive)
+        has_search = any(
+            b"search"
+            in (item if isinstance(item, bytes) else str(item).encode()).lower()
+            for item in modules
+        )
+
+        if not has_search:
+            logger.warning("⚠️  Redis is connected but RediSearch module is NOT loaded!")
+            logger.warning("    Episodic and procedural memory will NOT work.")
+            logger.warning("    Please use Redis Stack instead of base Redis.")
+
+        return has_search
+    except Exception as e:
+        logger.error(f"Failed to check Redis modules: {e}")
         return False
 
 
@@ -84,20 +116,30 @@ async def check_ollama_connection() -> bool:
 @router.get("/health/check", response_model=HealthCheck)
 async def health_check():
     """
-    Simple health check for the wellness app frontend.
+    System health check for the wellness app.
 
-    Checks if Redis and Ollama are running - that's all we need.
+    Checks:
+    - Redis connectivity
+    - Redis Stack modules (RediSearch for vector search)
+    - Ollama connectivity
+
+    Note: redis_stack_available must be True for episodic/procedural memory to work.
     """
     correlation_id = generate_correlation_id()
 
     try:
         redis_ok = await check_redis_connection()
+        redis_stack_ok = await check_redis_stack_modules() if redis_ok else False
         ollama_ok = await check_ollama_connection()
 
-        status = "healthy" if redis_ok and ollama_ok else "unhealthy"
+        # System is only fully healthy if Redis Stack modules are available
+        status = "healthy" if redis_ok and redis_stack_ok and ollama_ok else "unhealthy"
 
         return HealthCheck(
-            status=status, redis_connected=redis_ok, ollama_connected=ollama_ok
+            status=status,
+            redis_connected=redis_ok,
+            redis_stack_available=redis_stack_ok,
+            ollama_connected=ollama_ok,
         )
     except Exception as e:
         logger.error(f"Health check failed: {e}", exc_info=True)
