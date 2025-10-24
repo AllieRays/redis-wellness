@@ -325,10 +325,29 @@ class StatefulRAGAgent:
                 f"✅ Validation passed (score: {validation_result['score']:.2%})"
             )
 
+        # Calculate memory stats
+        memory_retrieved = final_state.get("episodic_context") is not None
+        goals_stored = len(
+            [
+                msg
+                for msg in final_state["messages"]
+                if "goal" in str(getattr(msg, "content", "")).lower()
+                and isinstance(msg, HumanMessage)
+            ]
+        )
+
+        logger.info(
+            f"💾 Memory stats: episodic_context={final_state.get('episodic_context') is not None}, semantic_hits={1 if memory_retrieved else 0}, goals_stored={goals_stored}"
+        )
+
         return {
             "response": response_text,
             "tools_used": list(set(tools_used)),  # Deduplicate
             "tool_calls_made": len(tools_used),
+            "memory_stats": {
+                "semantic_hits": 1 if memory_retrieved else 0,
+                "goals_stored": goals_stored,
+            },
             "validation": {
                 "valid": validation_result["valid"],
                 "score": validation_result["score"],
@@ -362,5 +381,6 @@ class StatefulRAGAgent:
                 "response": result["response"],
                 "tools_used": result["tools_used"],
                 "tool_calls_made": result["tool_calls_made"],
+                "memory_stats": result.get("memory_stats", {}),
             },
         }
