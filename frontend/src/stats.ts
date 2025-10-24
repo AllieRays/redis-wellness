@@ -91,10 +91,12 @@ export class RedisStatsManager {
   }): void {
     this.stats.messageCount += 2; // User + assistant message
     this.stats.toolsUsed += data.tool_calls_made || 0;
-    this.stats.semanticMemories = data.memory_stats?.semantic_hits || 0;
-    this.stats.proceduralPatterns = data.memory_stats?.procedural_patterns_used || 0;
+    // Accumulate semantic memory and procedural pattern usage across conversation
+    this.stats.semanticMemories += data.memory_stats?.semantic_hits || 0;
+    this.stats.proceduralPatterns += data.memory_stats?.procedural_patterns_used || 0;
 
     if (data.token_stats) {
+      // Token stats show the latest state (not cumulative)
       this.stats.tokenCount = data.token_stats.token_count || 0;
       this.stats.tokenUsagePercent = data.token_stats.usage_percent || 0;
       this.stats.isOverThreshold = data.token_stats.is_over_threshold || false;

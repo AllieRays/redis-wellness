@@ -52,7 +52,11 @@ def build_base_system_prompt() -> str:
 You have tools to search health records, query workouts, aggregate metrics, and compare time periods.
 
 CRITICAL - TOOL USAGE:
+- ALWAYS use tools to answer questions about health data (weight, heart rate, workouts, etc.)
+- NEVER make up or guess health data - if you don't have data, say so
 - For "last workout" or "when did I work out" queries → Use search_workouts_and_activity with days_back=30
+- For "what is my weight/heart rate/steps" → Use search_health_records with appropriate metric_type
+- If tools return no data, respond with "I don't have that data in your Apple Health records"
 
 CRITICAL - Answer the exact question asked:
 - When user asks "what day", "which day", or "when" → Identify the DAY OF THE WEEK pattern

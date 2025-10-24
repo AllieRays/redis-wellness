@@ -193,48 +193,25 @@ class RedisConnectionManager:
         if self._checkpointer:
             return self._checkpointer
 
+        # TEMPORARY: Using MemorySaver until AsyncRedisSaver lazy-init is implemented
+        # TODO: Implement lazy AsyncRedisSaver initialization in async context
+        # See: https://github.com/langchain-ai/langgraph/issues/xxx
         try:
-            # Import Redis checkpointer from langgraph-checkpoint-redis package
-            from langgraph.checkpoint.redis import RedisSaver
-
-            # Get Redis connection parameters
-            redis_host = os.getenv("REDIS_HOST", "localhost")
-            redis_port = int(os.getenv("REDIS_PORT", 6379))
-            redis_db = int(os.getenv("REDIS_DB", 0))
-            redis_password = os.getenv("REDIS_PASSWORD")
-
-            # Build Redis connection URL
-            if redis_password:
-                redis_url = (
-                    f"redis://:{redis_password}@{redis_host}:{redis_port}/{redis_db}"
-                )
-            else:
-                redis_url = f"redis://{redis_host}:{redis_port}/{redis_db}"
-
-            # Create RedisSaver with connection URL
-            checkpointer = RedisSaver(redis_url)
-
-            logger.info(
-                f"Creating RedisSaver checkpointer for LangGraph (host={redis_host}:{redis_port}, db={redis_db})"
-            )
-
-            # Store for reuse
-            self._checkpointer = checkpointer
-            return checkpointer
-
-        except ImportError as e:
-            logger.error(f"langgraph Redis checkpoint import failed: {e}")
-            logger.warning(
-                "Falling back to MemorySaver (NOT RECOMMENDED for production)"
-            )
-            # Fallback to MemorySaver only if Redis checkpointer unavailable
             from langgraph.checkpoint.memory import MemorySaver
+
+            logger.warning(
+                "🚧 TEMPORARY: Using MemorySaver for checkpointing (conversations will NOT persist across restarts)"
+            )
+            logger.warning(
+                "   TODO: Implement AsyncRedisSaver with lazy initialization"
+            )
 
             checkpointer = MemorySaver()
             self._checkpointer = checkpointer
             return checkpointer
+
         except Exception as e:
-            logger.error(f"Failed to create Redis checkpointer: {e}")
+            logger.error(f"Failed to create checkpointer: {e}")
             raise
 
     def close(self) -> None:

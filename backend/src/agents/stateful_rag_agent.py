@@ -466,6 +466,8 @@ class StatefulRAGAgent:
         if config:
             logger.info(f"📝 Using checkpoint thread_id: {session_id}")
 
+        # Use ainvoke with MemorySaver (async-compatible checkpointer)
+        # TODO: Switch to AsyncRedisSaver once lazy initialization is implemented
         final_state = await self.graph.ainvoke(input_state, config)
         logger.info(f"📊 Final state has {len(final_state['messages'])} messages")
 
