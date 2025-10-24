@@ -100,6 +100,46 @@ class TestRedisConnection:
 
 
 @pytest.mark.integration
+class TestRedisCheckpointer:
+    """Test LangGraph checkpointer uses Redis, not MemorySaver."""
+
+    def test_checkpointer_uses_redis_saver(self):
+        """
+        CRITICAL TEST: Verify we're using RedisSaver for conversation persistence.
+
+        This test ensures conversation history persists across container restarts.
+        If this test fails, we're using MemorySaver which loses all data on restart.
+        """
+        from langgraph.checkpoint.memory import MemorySaver
+        from langgraph.checkpoint.redis import RedisSaver
+
+        manager = get_redis_manager()
+        checkpointer = manager.get_checkpointer()
+
+        # CRITICAL: Must be RedisSaver, not MemorySaver
+        assert isinstance(
+            checkpointer, RedisSaver
+        ), f"Expected RedisSaver but got {type(checkpointer).__name__}. Conversation history will NOT persist!"
+
+        # Ensure it's NOT MemorySaver
+        assert not isinstance(
+            checkpointer, MemorySaver
+        ), "Using MemorySaver! Conversations will be lost on restart!"
+
+    def test_checkpointer_is_cached(self):
+        """Test that checkpointer instance is cached and reused."""
+        manager = get_redis_manager()
+
+        checkpointer1 = manager.get_checkpointer()
+        checkpointer2 = manager.get_checkpointer()
+
+        # Should return the same instance
+        assert (
+            checkpointer1 is checkpointer2
+        ), "Checkpointer should be cached, not recreated"
+
+
+@pytest.mark.integration
 class TestRedisErrorHandling:
     """Test Redis error handling."""
 

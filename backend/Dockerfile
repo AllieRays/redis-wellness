@@ -16,8 +16,8 @@ RUN uv sync --frozen --no-dev
 COPY src/ ./src/
 COPY scripts/ ./scripts/
 
-# Validate critical imports at build time
-RUN python scripts/validate_imports.py || exit 1
+# Validate critical imports and Redis checkpointer at build time
+RUN uv run python scripts/validate_imports.py || exit 1
 
 # Expose port
 EXPOSE 8000
