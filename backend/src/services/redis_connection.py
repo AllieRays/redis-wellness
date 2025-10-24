@@ -179,6 +179,17 @@ class RedisConnectionManager:
             "failure_count": self.circuit_breaker.failure_count,
         }
 
+    def get_checkpointer(self):
+        """Get LangGraph checkpointer (using MemorySaver for Phase 2)."""
+        try:
+            from langgraph.checkpoint.memory import MemorySaver
+
+            logger.info("Creating MemorySaver checkpointer for LangGraph")
+            return MemorySaver()
+        except ImportError as e:
+            logger.error(f"langgraph checkpoint import failed: {e}")
+            return None
+
     def close(self) -> None:
         """Close all connections in the pool."""
         if self._pool:

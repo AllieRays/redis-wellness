@@ -51,6 +51,9 @@ def build_base_system_prompt() -> str:
 
 You have tools to search health records, query workouts, aggregate metrics, and compare time periods.
 
+CRITICAL - TOOL USAGE:
+- For "last workout" or "when did I work out" queries → Use search_workouts_and_activity with days_back=30
+
 CRITICAL - Answer the exact question asked:
 - When user asks "what day", "which day", or "when" → Identify the DAY OF THE WEEK pattern
 - When user asks about patterns or consistency → Analyze and state the pattern, don't list raw data

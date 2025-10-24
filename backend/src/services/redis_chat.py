@@ -33,11 +33,11 @@ class RedisChatService:
         # Use the connection manager instead of direct client
         self.redis_manager = get_redis_manager()
 
-        # NO MEMORY - Start with working baseline
-        self.memory_coordinator = None
+        # Get checkpointer for conversation persistence
+        checkpointer = self.redis_manager.get_checkpointer()
 
-        # Initialize stateful agent (exactly like stateless)
-        self.agent = StatefulRAGAgent()
+        # Use stateful LangGraph agent with checkpointing only (no memory yet)
+        self.agent = StatefulRAGAgent(checkpointer=checkpointer)
 
     def _get_session_key(self, session_id: str) -> str:
         """Generate session key for Redis (single-user mode)."""
@@ -110,12 +110,11 @@ class RedisChatService:
             # TEMPORARILY DISABLED - testing without history
             # history = await self.get_conversation_history(session_id, limit=10)
 
-            # Process with stateful RAG agent WITHOUT history for now
+            # Process with stateful RAG agent (checkpointer handles history)
             result = await self.agent.chat(
                 message=message_to_process,
                 user_id=user_id,
-                # session_id=session_id,
-                # conversation_history=history,
+                session_id=session_id,  # Checkpointer uses this as thread_id
             )
 
             # Update pronoun context
@@ -153,12 +152,13 @@ class RedisChatService:
             # DISABLED pronoun resolution for testing
             message_to_process = message
 
-            # Stream from agent (simplified, no history/memory for now)
+            # Stream from agent (checkpointer handles history)
             response_text = ""
             final_data = None
             async for chunk in self.agent.chat_stream(
                 message=message_to_process,
                 user_id=user_id,
+                session_id=session_id,  # Checkpointer uses this
             ):
                 if chunk.get("type") == "token":
                     response_text += chunk.get("content", "")

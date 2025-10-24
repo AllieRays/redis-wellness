@@ -153,6 +153,15 @@ export async function sendStatelessMessage(
         responseText += chunk.content;
         streamingBubble!.updateContent(responseText);
       } else if (chunk.type === 'done' && chunk.data) {
+        // If response was corrected after validation, update the bubble
+        const data = chunk.data as { response?: string };
+        if (data.response && data.response !== responseText) {
+          responseText = data.response;
+          if (streamingBubble) {
+            streamingBubble.updateContent(responseText);
+          }
+        }
+
         // Update stats
         config.statsManager.updateFromResponse(chunk.data);
         config.onStatsUpdate();

@@ -105,7 +105,17 @@ def fetch_workouts_from_redis(
                 workouts = indexer.get_workout_details(user_id, workout_ids)
 
                 logger.debug(f"Redis indexes returned {len(workouts)} workouts")
-                return workouts
+
+                # If indexes returned 0 results, fall back to JSON to verify
+                # (indexes might be stale or not fully built)
+                if len(workouts) == 0:
+                    logger.warning(
+                        "Redis indexes returned 0 workouts. "
+                        "Falling back to JSON parsing to verify."
+                    )
+                    use_indexes = False  # Force fallback to JSON below
+                else:
+                    return workouts
 
         # Fallback: Parse JSON (slower but always works)
         logger.debug(f"Using JSON parsing for {user_id}")

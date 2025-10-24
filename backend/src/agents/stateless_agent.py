@@ -25,6 +25,7 @@ from ..utils.agent_helpers import (
     build_error_response,
     create_health_llm,
 )
+from ..utils.date_validator import get_date_validator
 from ..utils.numeric_validator import get_numeric_validator
 from ..utils.token_manager import get_token_manager
 from ..utils.verbosity_detector import VerbosityLevel, detect_verbosity
@@ -267,21 +268,56 @@ class StatelessHealthAgent:
             else:
                 response_text = str(final_response)
 
-            # Validate response (same as stateful agent)
-            validator = get_numeric_validator()
-            validation_result = validator.validate_response(
+            # Validate response (numeric + date validation)
+            numeric_validator = get_numeric_validator()
+            numeric_validation = numeric_validator.validate_response(
                 response_text=response_text,
                 tool_results=tool_results,
                 strict=False,
             )
 
+            # Validate dates to catch hallucinations like Oct 11 vs Oct 15
+            date_validator = get_date_validator()
+            date_validation = date_validator.validate_response(
+                user_query=message,
+                response_text=response_text,
+            )
+
             # Log validation results and handle failures
-            if not validation_result["valid"]:
+            if not date_validation["valid"]:
+                logger.error(f"❌ DATE MISMATCH DETECTED: {date_validation['warnings']}")
+                # Append correction prompt and retry
+                correction_prompt = (
+                    f"\n\nYour response mentions the wrong date. "
+                    f"User asked about {date_validation['query_dates'][0]['raw_match']}, "
+                    f"but you mentioned {date_validation['response_dates'][0]['raw_match']}. "
+                    f"Please correct your response to use the date the user asked about."
+                )
+                conversation.append(AIMessage(content=response_text))
+                conversation.append(HumanMessage(content=correction_prompt))
+
+                # Retry once without tools
+                llm_without_tools = self.llm
+
+                if stream:
+                    # Stream the corrected response
+                    response_text = ""
+                    async for chunk in llm_without_tools.astream(conversation):
+                        if hasattr(chunk, "content") and chunk.content:
+                            response_text += chunk.content
+                            yield {"type": "token", "content": chunk.content}
+                else:
+                    retry_response = await llm_without_tools.ainvoke(conversation)
+                    response_text = retry_response.content
+
+                logger.info("🔄 Retry response generated (date correction)")
+
+            elif not numeric_validation["valid"]:
                 logger.warning(
-                    f"Validation failed (score: {validation_result['score']:.2%})"
+                    f"Validation failed (score: {numeric_validation['score']:.2%})"
                 )
                 # If validation completely failed (score = 0), append correction prompt and retry once
-                if validation_result["score"] == 0.0 and tool_results:
+                if numeric_validation["score"] == 0.0 and tool_results:
                     logger.warning(
                         "⚠️ Zero validation score - retrying with correction prompt"
                     )
@@ -301,10 +337,10 @@ class StatelessHealthAgent:
                     llm_without_tools = self.llm
                     retry_response = await llm_without_tools.ainvoke(conversation)
                     response_text = retry_response.content
-                    logger.info("🔄 Retry response generated")
+                    logger.info("🔄 Retry response generated (numeric correction)")
             else:
                 logger.info(
-                    f"Validation passed (score: {validation_result['score']:.2%})"
+                    f"Validation passed (score: {numeric_validation['score']:.2%})"
                 )
 
             # Calculate token usage stats for conversation
@@ -330,15 +366,17 @@ class StatelessHealthAgent:
                 "tool_calls_made": tool_calls_made,
                 "token_stats": token_stats,
                 "validation": {
-                    "valid": validation_result["valid"],
-                    "score": validation_result["score"],
+                    "numeric_valid": numeric_validation["valid"],
+                    "numeric_score": numeric_validation["score"],
+                    "date_valid": date_validation["valid"],
                     "hallucinations_detected": len(
-                        validation_result.get("hallucinations", [])
+                        numeric_validation.get("hallucinations", [])
                     ),
-                    "numbers_validated": validation_result.get("stats", {}).get(
+                    "date_mismatches": len(date_validation.get("date_mismatches", [])),
+                    "numbers_validated": numeric_validation.get("stats", {}).get(
                         "matched", 0
                     ),
-                    "total_numbers": validation_result.get("stats", {}).get(
+                    "total_numbers": numeric_validation.get("stats", {}).get(
                         "total_numbers", 0
                     ),
                 },

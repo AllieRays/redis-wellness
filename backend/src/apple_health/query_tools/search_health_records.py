@@ -51,6 +51,8 @@ def create_search_health_records_tool(user_id: str):
             metric_types: List of metric types (e.g., ["BodyMassIndex", "BodyMass"])
             time_period: Natural language time description (default: "recent")
                 Examples:
+                - "October 15th" → single day (October 15)
+                - "Oct 15, 2024" → specific date with year
                 - "September" → all of September in current year
                 - "September 2024" → all of September 2024
                 - "early September" → first 10 days of September
@@ -60,6 +62,7 @@ def create_search_health_records_tool(user_id: str):
                 - "recent" → last 30 days (default)
 
         Examples:
+            - "What was my heart rate on October 15th?" → time_period="October 15th"
             - "What was my weight in September?" → time_period="September"
             - "What's my current weight?" → time_period="recent"
             - "Show my BMI in early August" → time_period="early August"

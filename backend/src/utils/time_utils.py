@@ -106,7 +106,27 @@ def parse_time_period(time_period: str) -> tuple[datetime, datetime, str]:
         "dec": 12,
     }
 
-    # Pattern 1: "September" or "September 2025"
+    # Pattern 0: Specific date - "October 15th", "Oct 15", "October 15, 2024"
+    # This must come BEFORE month-only pattern to avoid matching just the month
+    specific_date_pattern = r"(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?"
+    match = re.search(specific_date_pattern, time_period_lower)
+
+    if match:
+        month_name = match.group(1)
+        day = int(match.group(2))
+        year_str = match.group(3)
+
+        month_num = months[month_name]
+        year = int(year_str) if year_str else now_utc.year
+
+        # Single day range (start of day to end of day in UTC)
+        start_date = datetime(year, month_num, day, 0, 0, 0, tzinfo=UTC)
+        end_date = datetime(year, month_num, day, 23, 59, 59, tzinfo=UTC)
+        desc = f"{month_name.capitalize()} {day}, {year}"
+
+        return start_date, end_date, desc
+
+    # Pattern 1: "September" or "September 2025" (month only, no day)
     month_year_pattern = r"(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)\s*(\d{4})?"
     match = re.search(month_year_pattern, time_period_lower)
 

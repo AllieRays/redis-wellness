@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 
 # Constants for heart rate zone calculations
 CONSERVATIVE_MAX_HR = 190  # Age-independent maximum heart rate estimate
-DEFAULT_WORKOUT_SEARCH_DAYS = 7  # Default days to search for workouts
+DEFAULT_WORKOUT_SEARCH_DAYS = (
+    30  # Default days to search for workouts (enough to find recent activity)
+)
 EXTENDED_WORKOUT_SEARCH_DAYS = 30  # Extended search for "last workout" queries
 
 
@@ -158,10 +160,8 @@ def create_search_workouts_tool(user_id: str):
         - "What was my heart rate during my workout?"
         - "Which day of the week do I work out?"
 
-        IMPORTANT: For "last workout" queries, use days_back=30 to ensure finding it!
-
         Args:
-            days_back: How many days back to search (default 7, recommend 30 for 'last workout')
+            days_back: How many days back to search (default 30)
 
         Returns:
             Dict with workout data including day_of_week field for each workout
