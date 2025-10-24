@@ -97,13 +97,15 @@ async def health_check() -> dict[str, Any]:
                 "url": settings.ollama_base_url,
                 "models_required": required_models,
                 "models_available": available,
-                "models_missing": [
-                    req
-                    for req in required_models
-                    if not any(req in avail for avail in available)
-                ]
-                if not all_models_available
-                else [],
+                "models_missing": (
+                    [
+                        req
+                        for req in required_models
+                        if not any(req in avail for avail in available)
+                    ]
+                    if not all_models_available
+                    else []
+                ),
             }
     except httpx.TimeoutException:
         status["dependencies"]["ollama"] = {

@@ -22,7 +22,7 @@ from typing import Any
 
 from ..utils.exceptions import MemoryRetrievalError
 from ..utils.user_config import get_user_id
-from .episodic_memory_manager import get_episodic_memory_manager
+from .episodic_memory_manager import get_episodic_memory
 from .procedural_memory_manager import get_procedural_memory_manager
 from .semantic_memory_manager import get_semantic_memory_manager
 from .short_term_memory_manager import get_short_term_memory_manager
@@ -85,7 +85,7 @@ class MemoryCoordinator:
 
         # Initialize all memory managers
         self.short_term = get_short_term_memory_manager()
-        self.episodic = get_episodic_memory_manager()
+        self.episodic = get_episodic_memory()
         self.procedural = get_procedural_memory_manager()
         self.semantic = get_semantic_memory_manager()
 
