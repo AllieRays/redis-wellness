@@ -159,26 +159,28 @@ async def stateful_agent(clean_redis: Redis):
     """
     Provide REAL stateful RAG agent with Ollama/Qwen + Redis memory.
 
+    Mimics production initialization from RedisChatService.
+
     Requires:
     - Ollama running with qwen2.5:7b model
     - Redis running
     Tests using this fixture should be marked with @pytest.mark.llm
     """
-    from langgraph.checkpoint.redis.aio import AsyncRedisSaver
-
     from src.agents.stateful_rag_agent import StatefulRAGAgent
-    from src.services.episodic_memory_manager import EpisodicMemoryManager
-    from src.services.procedural_memory_manager import ProceduralMemoryManager
+    from src.services.episodic_memory_manager import get_episodic_memory
+    from src.services.procedural_memory_manager import get_procedural_memory
+    from src.services.redis_connection import get_redis_manager
 
-    # Initialize memory components
-    checkpointer = AsyncRedisSaver(client=clean_redis)
-    episodic = EpisodicMemoryManager(user_id="wellness_user")
-    procedural = ProceduralMemoryManager(user_id="wellness_user")
+    # Initialize memory components using same pattern as RedisChatService
+    redis_manager = get_redis_manager()
+    checkpointer = await redis_manager.get_checkpointer()
+    episodic_memory = get_episodic_memory()
+    procedural_memory = get_procedural_memory()
 
     agent = StatefulRAGAgent(
         checkpointer=checkpointer,
-        episodic_memory=episodic,
-        procedural_memory=procedural,
+        episodic_memory=episodic_memory,
+        procedural_memory=procedural_memory,
     )
     return agent
 
