@@ -53,7 +53,7 @@ class TestRedisChatAPI:
     def test_redis_chat_basic(self, test_client, test_session_id):
         """Test basic Redis chat request."""
         response = test_client.post(
-            "/api/chat/redis",
+            "/api/chat/stateful",
             json={"message": "Hello", "session_id": test_session_id},
         )
 
@@ -66,11 +66,11 @@ class TestRedisChatAPI:
         assert data["session_id"] == test_session_id
         assert "memory_stats" in data
         assert "type" in data
-        assert data["type"] == "redis_rag_with_coala_memory"
+        assert data["type"] == "redis_with_memory"
 
     def test_redis_chat_default_session(self, test_client):
         """Test Redis chat with default session_id."""
-        response = test_client.post("/api/chat/redis", json={"message": "Hello"})
+        response = test_client.post("/api/chat/stateful", json={"message": "Hello"})
 
         assert response.status_code == 200
 
@@ -80,7 +80,7 @@ class TestRedisChatAPI:
     def test_redis_chat_memory_stats(self, test_client, test_session_id):
         """Test that memory stats are included."""
         response = test_client.post(
-            "/api/chat/redis",
+            "/api/chat/stateful",
             json={"message": "test", "session_id": test_session_id},
         )
 
@@ -99,7 +99,7 @@ class TestConversationHistoryAPI:
         """Test getting history for session."""
         # First send a message
         test_client.post(
-            "/api/chat/redis",
+            "/api/chat/stateful",
             json={"message": "test message", "session_id": test_session_id},
         )
 

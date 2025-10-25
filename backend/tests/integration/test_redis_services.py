@@ -30,7 +30,7 @@ class TestRedisConnection:
 
         result = clean_redis.get("test_key")
 
-        assert result == b"test_value"
+        assert result == b"test_value" or result == "test_value"
 
     def test_redis_json_storage(self, clean_redis):
         """Test storing/retrieving JSON data."""

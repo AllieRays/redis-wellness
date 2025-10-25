@@ -161,32 +161,20 @@ async def memory_coordinator(clean_redis: Redis):
 
 
 @pytest.fixture
-@pytest.mark.llm
 async def stateless_agent():
     """
     Provide REAL stateless agent with Ollama/Qwen.
 
     Requires: Ollama running with qwen2.5:7b model
-    Test marked with @pytest.mark.llm (expensive)
+    Tests using this fixture should be marked with @pytest.mark.llm
     """
-    from src.agents.stateless_agent import StatelessAgent
+    from src.agents.stateless_agent import StatelessHealthAgent
 
-    agent = StatelessAgent()
-
-    # Verify Ollama is accessible
-    try:
-        # Quick test call
-        await agent.chat("test", user_id="test_user", session_id="test_session")
-    except Exception as e:
-        pytest.skip(
-            f"Ollama not available. Is ollama running?\nRun: ollama serve\nError: {e}"
-        )
-
+    agent = StatelessHealthAgent()
     return agent
 
 
 @pytest.fixture
-@pytest.mark.llm
 async def stateful_agent(memory_coordinator):
     """
     Provide REAL stateful RAG agent with Ollama/Qwen + Redis memory.
@@ -194,21 +182,11 @@ async def stateful_agent(memory_coordinator):
     Requires:
     - Ollama running with qwen2.5:7b model
     - Redis running
-    Test marked with @pytest.mark.llm (expensive)
+    Tests using this fixture should be marked with @pytest.mark.llm
     """
     from src.agents.stateful_rag_agent import StatefulRAGAgent
 
     agent = StatefulRAGAgent(memory_coordinator=memory_coordinator)
-
-    # Verify Ollama is accessible
-    try:
-        # Quick test call
-        await agent.chat("test", user_id="test_user", session_id="test_session")
-    except Exception as e:
-        pytest.skip(
-            f"Ollama not available. Is ollama running?\nRun: ollama serve\nError: {e}"
-        )
-
     return agent
 
 
