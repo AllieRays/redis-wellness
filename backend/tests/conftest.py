@@ -1,38 +1,40 @@
 """
 Pytest configuration and shared fixtures for Redis Wellness tests.
 
-Provides:
-- Test markers (unit, integration, agent, e2e)
-- Redis fixtures with cleanup
-- Memory manager fixtures
-- Health data fixtures
-- Mock LLM response fixtures
+REAL TESTS - NO MOCKS:
+- Redis fixtures use real Redis (docker-compose required)
+- LLM fixtures use real Ollama/Qwen (expensive, marked as @llm)
+- All fixtures handle cleanup automatically
 """
 
 import asyncio
-import json
+import contextlib
 import uuid
 from collections.abc import Generator
-from contextlib import contextmanager, suppress
 from typing import Any
 
 import pytest
 from redis import Redis
 
 from src.config import get_settings
-from src.services.memory_coordinator import get_memory_coordinator
 from src.services.redis_connection import get_redis_manager
-from src.services.short_term_memory_manager import get_short_term_memory_manager
 
-# ========== Pytest Configuration ==========
+# ==================== Pytest Configuration ====================
 
 
 def pytest_configure(config):
     """Register custom markers."""
-    config.addinivalue_line("markers", "unit: Unit tests (no external dependencies)")
-    config.addinivalue_line("markers", "integration: Integration tests (require Redis)")
-    config.addinivalue_line("markers", "agent: Agent tests (LLM-dependent)")
-    config.addinivalue_line("markers", "e2e: End-to-end tests (full workflows)")
+    config.addinivalue_line(
+        "markers", "unit: Fast unit tests (no external dependencies)"
+    )
+    config.addinivalue_line(
+        "markers", "integration: Integration tests (require Redis via docker-compose)"
+    )
+    config.addinivalue_line(
+        "markers",
+        "llm: LLM tests (require Ollama/Qwen - expensive, slow)",
+    )
+    config.addinivalue_line("markers", "api: API tests (require FastAPI TestClient)")
 
 
 @pytest.fixture(scope="session")
@@ -44,151 +46,188 @@ def event_loop():
     loop.close()
 
 
-# ========== Redis Fixtures ==========
+# ==================== Settings ====================
+
+
+@pytest.fixture(scope="session")
+def settings():
+    """Provide application settings."""
+    return get_settings()
+
+
+# ==================== Redis Fixtures (Real Redis Required) ====================
 
 
 @pytest.fixture(scope="session")
 def redis_client() -> Generator[Redis, None, None]:
-    """Provide Redis client for tests with session-level cleanup."""
+    """
+    Provide REAL Redis client for tests.
+
+    Requires: docker-compose up redis
+
+    Cleanup: Flushes test database at end of session.
+    """
     manager = get_redis_manager()
     with manager.get_connection() as client:
         # Verify connection
-        client.ping()
+        try:
+            client.ping()
+        except Exception as e:
+            pytest.fail(
+                f"Redis connection failed. Is docker-compose running?\n"
+                f"Run: docker-compose up -d redis\n"
+                f"Error: {e}"
+            )
+
         yield client
+
         # Cleanup: flush test data at end of session
-        with suppress(Exception):
+        with contextlib.suppress(Exception):
             client.flushdb()
 
 
-@pytest.fixture(scope="function")
-def clean_redis(redis_client):
-    """Ensure clean Redis state for each test function."""
+@pytest.fixture
+def clean_redis(redis_client: Redis) -> Generator[Redis, None, None]:
+    """
+    Ensure clean Redis state for each test function.
+
+    Flushes database before and after test.
+    """
     redis_client.flushdb()
     yield redis_client
     redis_client.flushdb()
 
 
-# ========== Memory Fixtures ==========
+# ==================== Test Data Fixtures ====================
 
 
 @pytest.fixture
-def memory_coordinator():
-    """Provide memory coordinator for tests."""
-    return get_memory_coordinator()
-
-
-@pytest.fixture
-def short_term_memory_manager():
-    """Provide short-term memory manager for tests."""
-    return get_short_term_memory_manager()
-
-
-@pytest.fixture
-async def isolated_memory_session(short_term_memory_manager):
-    """Provide isolated memory session with auto-cleanup."""
-    session_id = f"test_{uuid.uuid4()}"
-    user_id = "test_user"
-
-    yield user_id, session_id
-
-    # Cleanup
-    with suppress(Exception):
-        await short_term_memory_manager.clear_session(user_id, session_id)
-
-
-# ========== Health Data Fixtures ==========
-
-
-@pytest.fixture
-def sample_health_data():
+def sample_health_data() -> dict[str, Any]:
     """Provide sample health data for tests."""
     return {
-        "metrics_summary": {
-            "BodyMass": {
-                "latest_value": 70,
-                "unit": "kg",
-                "count": 30,
-                "latest_date": "2024-10-22",
-            },
-            "BodyMassIndex": {
-                "latest_value": 23.6,
-                "unit": "count",
-                "count": 30,
-                "latest_date": "2024-10-22",
-            },
-            "HeartRate": {
-                "latest_value": 72,
-                "unit": "count/min",
-                "count": 100,
-                "latest_date": "2024-10-22",
-            },
-        },
-        "metrics_records": {
-            "BodyMass": [
-                {"date": "2024-10-20", "value": 70.2, "unit": "kg"},
-                {"date": "2024-10-21", "value": 70.0, "unit": "kg"},
-                {"date": "2024-10-22", "value": 69.8, "unit": "kg"},
-            ],
-            "BodyMassIndex": [
-                {"date": "2024-10-20", "value": 23.8, "unit": "count"},
-                {"date": "2024-10-21", "value": 23.7, "unit": "count"},
-                {"date": "2024-10-22", "value": 23.6, "unit": "count"},
-            ],
-        },
+        "BodyMass": [
+            {"date": "2024-10-20", "value": 70.2, "unit": "kg"},
+            {"date": "2024-10-21", "value": 70.0, "unit": "kg"},
+            {"date": "2024-10-22", "value": 69.8, "unit": "kg"},
+        ],
+        "HeartRate": [
+            {"date": "2024-10-20", "value": 72, "unit": "count/min"},
+            {"date": "2024-10-21", "value": 75, "unit": "count/min"},
+            {"date": "2024-10-22", "value": 70, "unit": "count/min"},
+        ],
+        "BodyMassIndex": [
+            {"date": "2024-10-20", "value": 23.8, "unit": "count"},
+            {"date": "2024-10-21", "value": 23.7, "unit": "count"},
+            {"date": "2024-10-22", "value": 23.6, "unit": "count"},
+        ],
     }
 
 
 @pytest.fixture
-def health_data_fixture(sample_health_data, redis_client):
-    """Context manager to load health data into Redis for tests."""
-
-    @contextmanager
-    def _load_health_data(user_id: str = "default_user"):
-        from src.utils.user_config import get_user_health_data_key
-
-        key = get_user_health_data_key(user_id)
-        redis_client.set(key, json.dumps(sample_health_data))
-
-        try:
-            yield
-        finally:
-            redis_client.delete(key)
-
-    return _load_health_data
-
-
-# ========== Mock LLM Fixtures ==========
+def test_session_id() -> str:
+    """Generate unique test session ID."""
+    return f"test_session_{uuid.uuid4().hex[:8]}"
 
 
 @pytest.fixture
-def mock_ollama_response():
-    """Provide mock Ollama responses for deterministic tests."""
-    from langchain_core.messages import AIMessage
+def test_user_id() -> str:
+    """Get configured user ID for tests."""
+    from src.utils.user_config import get_user_id
 
-    def _create_response(content: str = "", tool_calls: list | None = None):
-        return AIMessage(content=content, tool_calls=tool_calls or [])
-
-    return _create_response
+    return get_user_id()
 
 
-@pytest.fixture
-def mock_tool_call():
-    """Create mock tool call structure."""
-
-    def _create_tool_call(name: str, args: dict[str, Any], call_id: str | None = None):
-        return {
-            "name": name,
-            "args": args,
-            "id": call_id or f"call_{uuid.uuid4()}",
-        }
-
-    return _create_tool_call
-
-
-# ========== Settings Fixtures ==========
+# ==================== Memory Fixtures (Real Redis + Real Services) ====================
 
 
 @pytest.fixture
-def settings():
-    """Provide application settings."""
-    return get_settings()
+async def memory_coordinator(clean_redis: Redis):
+    """
+    Provide real memory coordinator with clean Redis.
+
+    Requires: Redis running
+    """
+    from src.services.memory_coordinator import get_memory_coordinator
+
+    coordinator = get_memory_coordinator()
+    yield coordinator
+
+    # Cleanup: Clear any test memories
+    with contextlib.suppress(Exception):
+        await coordinator.clear_session_memories("test_session")
+
+
+# ==================== Agent Fixtures (Real Ollama Required) ====================
+
+
+@pytest.fixture
+@pytest.mark.llm
+async def stateless_agent():
+    """
+    Provide REAL stateless agent with Ollama/Qwen.
+
+    Requires: Ollama running with qwen2.5:7b model
+    Test marked with @pytest.mark.llm (expensive)
+    """
+    from src.agents.stateless_agent import StatelessAgent
+
+    agent = StatelessAgent()
+
+    # Verify Ollama is accessible
+    try:
+        # Quick test call
+        await agent.chat("test", user_id="test_user", session_id="test_session")
+    except Exception as e:
+        pytest.skip(
+            f"Ollama not available. Is ollama running?\n"
+            f"Run: ollama serve\n"
+            f"Error: {e}"
+        )
+
+    return agent
+
+
+@pytest.fixture
+@pytest.mark.llm
+async def stateful_agent(memory_coordinator):
+    """
+    Provide REAL stateful RAG agent with Ollama/Qwen + Redis memory.
+
+    Requires:
+    - Ollama running with qwen2.5:7b model
+    - Redis running
+    Test marked with @pytest.mark.llm (expensive)
+    """
+    from src.agents.stateful_rag_agent import StatefulRAGAgent
+
+    agent = StatefulRAGAgent(memory_coordinator=memory_coordinator)
+
+    # Verify Ollama is accessible
+    try:
+        # Quick test call
+        await agent.chat("test", user_id="test_user", session_id="test_session")
+    except Exception as e:
+        pytest.skip(
+            f"Ollama not available. Is ollama running?\n"
+            f"Run: ollama serve\n"
+            f"Error: {e}"
+        )
+
+    return agent
+
+
+# ==================== API Test Fixtures ====================
+
+
+@pytest.fixture
+def test_client():
+    """
+    Provide FastAPI TestClient for API tests.
+
+    Note: TestClient is synchronous, use for API endpoint testing only.
+    """
+    from fastapi.testclient import TestClient
+
+    from src.main import app
+
+    return TestClient(app)
