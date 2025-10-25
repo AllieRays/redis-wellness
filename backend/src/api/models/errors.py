@@ -8,7 +8,7 @@ Provides consistent error formatting across all API endpoints with:
 - Structured error details
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, Field
@@ -36,7 +36,7 @@ class APIError(BaseModel):
     )
     correlation_id: str = Field(..., description="Request correlation ID for tracing")
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow, description="When error occurred"
+        default_factory=lambda: datetime.now(UTC), description="When error occurred"
     )
 
     class Config:

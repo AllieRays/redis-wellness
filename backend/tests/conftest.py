@@ -7,7 +7,6 @@ REAL TESTS - NO MOCKS:
 - All fixtures handle cleanup automatically
 """
 
-import asyncio
 import contextlib
 import uuid
 from collections.abc import Generator
@@ -35,15 +34,6 @@ def pytest_configure(config):
         "llm: LLM tests (require Ollama/Qwen - expensive, slow)",
     )
     config.addinivalue_line("markers", "api: API tests (require FastAPI TestClient)")
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create event loop for async tests."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    yield loop
-    loop.close()
 
 
 # ==================== Settings ====================
@@ -92,8 +82,23 @@ def clean_redis(redis_client: Redis) -> Generator[Redis, None, None]:
     Ensure clean Redis state for each test function.
 
     Flushes database before and after test.
+    Also ensures vector search indexes are recreated after flush.
     """
     redis_client.flushdb()
+
+    # Recreate vector search indexes that were deleted by flushdb
+    # These are needed for episodic and procedural memory
+    from src.services.episodic_memory_manager import get_episodic_memory
+    from src.services.procedural_memory_manager import get_procedural_memory
+
+    try:
+        # Initialize memory managers to create indexes
+        get_episodic_memory()
+        get_procedural_memory()
+    except Exception:
+        # Ignore errors during index creation in tests
+        pass
+
     yield redis_client
     redis_client.flushdb()
 

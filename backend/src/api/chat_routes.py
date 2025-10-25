@@ -174,7 +174,9 @@ async def stateless_chat(request: StatelessChatRequest, http_request: Request):
                 value=request.message,
                 correlation_id=correlation_id,
             )
-            raise HTTPException(status_code=400, detail=error_response.dict())
+            raise HTTPException(
+                status_code=400, detail=error_response.model_dump(mode="json")
+            )
 
         start_time = time.time()
         result = await stateless_service.chat(message=request.message)
@@ -204,14 +206,18 @@ async def stateless_chat(request: StatelessChatRequest, http_request: Request):
             reason=str(e),
             correlation_id=correlation_id,
         )
-        raise HTTPException(status_code=503, detail=error_response.dict()) from e
+        raise HTTPException(
+            status_code=503, detail=error_response.model_dump(mode="json")
+        ) from e
     except Exception as e:
         logger.error(f"Unexpected error in stateless chat: {e}", exc_info=True)
         error_response = internal_error(
             message="Failed to process stateless chat request",
             correlation_id=correlation_id,
         )
-        raise HTTPException(status_code=500, detail=error_response.dict()) from e
+        raise HTTPException(
+            status_code=500, detail=error_response.model_dump(mode="json")
+        ) from e
 
 
 @router.post("/stateful/stream")
@@ -268,7 +274,9 @@ async def redis_chat(request: RedisChatRequest, http_request: Request):
                 value=request.message,
                 correlation_id=correlation_id,
             )
-            raise HTTPException(status_code=400, detail=error_response.dict())
+            raise HTTPException(
+                status_code=400, detail=error_response.model_dump(mode="json")
+            )
 
         if not request.session_id or not request.session_id.strip():
             error_response = validation_error(
@@ -277,7 +285,9 @@ async def redis_chat(request: RedisChatRequest, http_request: Request):
                 value=request.session_id,
                 correlation_id=correlation_id,
             )
-            raise HTTPException(status_code=400, detail=error_response.dict())
+            raise HTTPException(
+                status_code=400, detail=error_response.model_dump(mode="json")
+            )
 
         start_time = time.time()
 
@@ -317,7 +327,9 @@ async def redis_chat(request: RedisChatRequest, http_request: Request):
             reason=str(e),
             correlation_id=correlation_id,
         )
-        raise HTTPException(status_code=503, detail=error_response.dict()) from e
+        raise HTTPException(
+            status_code=503, detail=error_response.model_dump(mode="json")
+        ) from e
     except InfrastructureError as e:
         logger.error(f"Infrastructure error in redis chat: {e}", exc_info=True)
         error_response = service_error(
@@ -325,14 +337,18 @@ async def redis_chat(request: RedisChatRequest, http_request: Request):
             reason=str(e),
             correlation_id=correlation_id,
         )
-        raise HTTPException(status_code=503, detail=error_response.dict()) from e
+        raise HTTPException(
+            status_code=503, detail=error_response.model_dump(mode="json")
+        ) from e
     except Exception as e:
         logger.error(f"Unexpected error in redis chat: {e}", exc_info=True)
         error_response = internal_error(
             message="Failed to process redis chat request",
             correlation_id=correlation_id,
         )
-        raise HTTPException(status_code=500, detail=error_response.dict()) from e
+        raise HTTPException(
+            status_code=500, detail=error_response.model_dump(mode="json")
+        ) from e
 
 
 # ========== Memory Management Endpoints ==========
@@ -357,7 +373,9 @@ async def get_conversation_history(session_id: str, limit: int = 10):
                 value=session_id,
                 correlation_id=correlation_id,
             )
-            raise HTTPException(status_code=400, detail=error_response.dict())
+            raise HTTPException(
+                status_code=400, detail=error_response.model_dump(mode="json")
+            )
 
         if limit <= 0:
             error_response = validation_error(
@@ -366,7 +384,9 @@ async def get_conversation_history(session_id: str, limit: int = 10):
                 value=limit,
                 correlation_id=correlation_id,
             )
-            raise HTTPException(status_code=400, detail=error_response.dict())
+            raise HTTPException(
+                status_code=400, detail=error_response.model_dump(mode="json")
+            )
 
         # Get conversation history from Redis service
         messages = await get_redis_chat_service().get_conversation_history(
@@ -397,14 +417,18 @@ async def get_conversation_history(session_id: str, limit: int = 10):
             reason=str(e),
             correlation_id=correlation_id,
         )
-        raise HTTPException(status_code=503, detail=error_response.dict()) from e
+        raise HTTPException(
+            status_code=503, detail=error_response.model_dump(mode="json")
+        ) from e
     except Exception as e:
         logger.error(f"Unexpected error getting history: {e}", exc_info=True)
         error_response = internal_error(
             message="Failed to retrieve conversation history",
             correlation_id=correlation_id,
         )
-        raise HTTPException(status_code=500, detail=error_response.dict()) from e
+        raise HTTPException(
+            status_code=500, detail=error_response.model_dump(mode="json")
+        ) from e
 
 
 @router.get("/memory/{session_id}", response_model=MemoryStatsResponse)
@@ -427,7 +451,9 @@ async def get_memory_stats(session_id: str):
                 value=session_id,
                 correlation_id=correlation_id,
             )
-            raise HTTPException(status_code=400, detail=error_response.dict())
+            raise HTTPException(
+                status_code=400, detail=error_response.model_dump(mode="json")
+            )
 
         stats = await get_redis_chat_service().get_memory_stats(session_id)
 
@@ -447,14 +473,18 @@ async def get_memory_stats(session_id: str):
             reason=str(e),
             correlation_id=correlation_id,
         )
-        raise HTTPException(status_code=503, detail=error_response.dict()) from e
+        raise HTTPException(
+            status_code=503, detail=error_response.model_dump(mode="json")
+        ) from e
     except Exception as e:
         logger.error(f"Unexpected error getting memory stats: {e}", exc_info=True)
         error_response = internal_error(
             message="Failed to retrieve memory statistics",
             correlation_id=correlation_id,
         )
-        raise HTTPException(status_code=500, detail=error_response.dict()) from e
+        raise HTTPException(
+            status_code=500, detail=error_response.model_dump(mode="json")
+        ) from e
 
 
 @router.get("/tokens/{session_id}")
@@ -512,7 +542,9 @@ async def clear_session(session_id: str):
                 value=session_id,
                 correlation_id=correlation_id,
             )
-            raise HTTPException(status_code=400, detail=error_response.dict())
+            raise HTTPException(
+                status_code=400, detail=error_response.model_dump(mode="json")
+            )
 
         success = await get_redis_chat_service().clear_session(session_id)
 
@@ -533,14 +565,18 @@ async def clear_session(session_id: str):
             reason=str(e),
             correlation_id=correlation_id,
         )
-        raise HTTPException(status_code=503, detail=error_response.dict()) from e
+        raise HTTPException(
+            status_code=503, detail=error_response.model_dump(mode="json")
+        ) from e
     except Exception as e:
         logger.error(f"Unexpected error clearing session: {e}", exc_info=True)
         error_response = internal_error(
             message="Failed to clear session",
             correlation_id=correlation_id,
         )
-        raise HTTPException(status_code=500, detail=error_response.dict()) from e
+        raise HTTPException(
+            status_code=500, detail=error_response.model_dump(mode="json")
+        ) from e
 
 
 # ========== Demo Information Endpoint ==========

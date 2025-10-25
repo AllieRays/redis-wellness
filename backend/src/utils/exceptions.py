@@ -6,7 +6,7 @@ for all layers of the wellness application.
 """
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -36,7 +36,7 @@ class WellnessError(Exception):
         self.message = message
         self.error_code = error_code
         self.details = details or {}
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(UTC)
         self.correlation_id = correlation_id or generate_correlation_id()
 
     def to_dict(self) -> dict[str, Any]:
