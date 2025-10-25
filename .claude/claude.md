@@ -19,15 +19,17 @@ docker compose up -d
 # View logs
 docker compose logs backend -f
 
-# Access Redis
+# Access Redis (from host)
 docker compose exec redis redis-cli
 
-# Run import script (from host)
+# Run import script (runs on HOST, connects to Docker Redis)
 uv run python import_health_data.py
 
 # Access backend container
 docker compose exec backend bash
 ```
+
+**IMPORTANT**: The import script runs on your HOST machine (not inside Docker), but connects to Redis inside the Docker container via port 6379.
 
 ## ⚠️ CRITICAL: Data Import Script
 

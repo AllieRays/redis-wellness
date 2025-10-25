@@ -114,35 +114,26 @@ def import_from_json(json_file: Path | None, user_id: str, redis_client, data_di
                 redis_client.setex(index_key, 210 * 24 * 60 * 60, json.dumps(summary))
             print(f"✅ Created {len(data['metrics_summary'])} metric indices")
 
-        # Workout indexes - Call rebuild_workout_indexes.py for proper indexing
+        # Workout indexes - Create Redis hash sets for fast queries and deduplication
         if "workouts" in data and data["workouts"]:
             print(f"\n📊 Indexing {len(data['workouts'])} workouts...")
-            print("   (Using rebuild_workout_indexes.py for proper Redis structure)")
-
-            import subprocess
-            rebuild_script = Path(__file__).parent / "rebuild_workout_indexes.py"
+            print("   (Creating Redis hashes for O(1) lookups + deduplication)")
 
             try:
-                result = subprocess.run(
-                    ["python3", str(rebuild_script)],
-                    capture_output=True,
-                    text=True,
-                    timeout=30
-                )
+                from src.services.redis_workout_indexer import WorkoutIndexer
+                indexer = WorkoutIndexer()
 
-                if result.returncode == 0:
-                    # Parse the output for index stats
-                    print("✅ Workout indexes created successfully")
-                    # Show relevant output from rebuild script
-                    for line in result.stdout.splitlines():
-                        if "indexed" in line.lower() or "✅" in line:
-                            print(f"   {line}")
-                else:
-                    print(f"⚠️  Indexing had issues: {result.stderr}")
+                stats = indexer.index_workouts(user_id, data["workouts"])
+
+                if "error" in stats:
+                    print(f"⚠️  Indexing had issues: {stats['error']}")
                     print("   Workouts are still in JSON, queries will work (just slower)")
+                else:
+                    print(f"✅ Created {stats['workouts_indexed']} workout hashes ({stats['keys_created']} Redis keys)")
+                    print(f"   TTL: {stats['ttl_days']} days")
 
             except Exception as e:
-                print(f"⚠️  Warning: Could not run rebuild_workout_indexes.py: {e}")
+                print(f"⚠️  Warning: Could not create workout indexes: {e}")
                 print("   Workouts are in JSON, queries will work (just slower)")
 
         return True
