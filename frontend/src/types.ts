@@ -37,7 +37,7 @@ export interface MemoryStats {
   semantic_hits: number;
   long_term_available: boolean;
   procedural_patterns_used: number;
-  memory_type?: 'episodic' | 'procedural' | 'semantic' | 'none'; // NEW: Which memory type was actually used
+  memory_types?: Array<'episodic' | 'procedural' | 'semantic' | 'none'>; // NEW: Which memory types were actually used
 }
 
 export interface TokenStats {

@@ -88,7 +88,7 @@ function createMetadataHtml(metadata: StreamMetadata): string {
     const memoryIndicators: string[] = [];
 
     // Show ALL memory types used (NEW: supports multiple memory types)
-    const memoryTypes = stats.memory_types || [stats.memory_type || 'none'];
+    const memoryTypes = stats.memory_types || ['none'];
 
     memoryTypes.forEach((memoryType: string) => {
       if (memoryType === 'episodic') {

@@ -126,9 +126,13 @@ export function addMessage(
   // Use raw HTML for error messages, otherwise render with sanitization
   const renderedContent = isRawHtml ? content : renderMarkdown(content);
 
-  // Build the message structure with metadata outside the bubble
-  const bubbleHtml = `<div class="message-bubble ${role}">${iconPrefix}${renderedContent}</div>`;
-  messageDiv.innerHTML = bubbleHtml + metadataHtml;
+  // Build the message structure with metadata inside the bubble
+  messageDiv.innerHTML = `
+    <div class="message-bubble ${role}">
+      <div class="message-content">${iconPrefix}${renderedContent}</div>
+      ${metadataHtml}
+    </div>
+  `;
 
   chatArea.appendChild(messageDiv);
   chatArea.scrollTop = chatArea.scrollHeight;
@@ -151,7 +155,11 @@ export class StreamingMessageBubble {
       ? `<img src="${REDIS_ICON}" alt="Redis" class="inline-block w-4 h-4 mr-1 align-text-bottom" />`
       : '<i class="fas fa-comment-dots" style="margin-right: 0.25rem;"></i>';
 
-    this.element.innerHTML = `<div class="message-bubble assistant">${this.iconHtml}<span class="streaming-content"></span></div>`;
+    this.element.innerHTML = `
+      <div class="message-bubble assistant">
+        <div class="message-content">${this.iconHtml}<span class="streaming-content"></span></div>
+      </div>
+    `;
     this.bubbleEl = this.element.querySelector('.message-bubble') as HTMLElement;
     this.contentEl = this.bubbleEl.querySelector('.streaming-content') as HTMLElement;
 
@@ -177,14 +185,9 @@ export class StreamingMessageBubble {
   }
 
   addMetadata(metadataHtml: string): void {
-    // Insert metadata after the bubble, not inside it
+    // Insert metadata inside the bubble at the bottom
     if (metadataHtml) {
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = metadataHtml;
-      // Append each metadata element after the bubble
-      while (tempDiv.firstChild) {
-        this.element.appendChild(tempDiv.firstChild);
-      }
+      this.bubbleEl.innerHTML += metadataHtml;
     }
   }
 

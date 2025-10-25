@@ -34,9 +34,19 @@ export class StatelessStatsManager {
   updateFromResponse(data: {
     tool_calls_made?: number;
     response_time_ms?: number;
+    token_stats?: {
+      token_count: number;
+      usage_percent: number;
+      is_over_threshold: boolean;
+    };
   }): void {
     this.stats.messageCount += 2; // User + assistant message
     this.stats.toolsUsed += data.tool_calls_made || 0;
+
+    // Update token count from token_stats
+    if (data.token_stats) {
+      this.stats.tokenCount = data.token_stats.token_count || 0;
+    }
 
     if (data.response_time_ms !== undefined) {
       this.stats.lastResponseTime = data.response_time_ms;

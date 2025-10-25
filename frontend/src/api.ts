@@ -8,7 +8,11 @@ import type {
   HealthCheckResponse,
 } from './types';
 
-const API_BASE_URL = import.meta.env.DEV ? 'http://localhost:8000' : '';
+// In development: use explicit localhost URL
+// In production: use relative URLs (same origin, proxied by nginx)
+const API_BASE_URL = import.meta.env.DEV
+  ? 'http://localhost:8000'
+  : import.meta.env.VITE_API_BASE_URL || '';
 
 class ApiClient {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -43,9 +47,11 @@ class ApiClient {
     });
   }
 
-  async *streamStatelessMessage(
-    data: StatelessChatRequest
-  ): AsyncGenerator<{ type: string; content?: string; data?: unknown }> {
+  async *streamStatelessMessage(data: StatelessChatRequest): AsyncGenerator<{
+    type: string;
+    content?: string;
+    data?: Partial<StatelessChatResponse>;
+  }> {
     const response = await fetch(`${API_BASE_URL}/api/chat/stateless/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -83,9 +89,11 @@ class ApiClient {
     });
   }
 
-  async *streamRedisMessage(
-    data: RedisChatRequest
-  ): AsyncGenerator<{ type: string; content?: string; data?: unknown }> {
+  async *streamRedisMessage(data: RedisChatRequest): AsyncGenerator<{
+    type: string;
+    content?: string;
+    data?: Partial<RedisChatResponse>;
+  }> {
     const response = await fetch(`${API_BASE_URL}/api/chat/redis/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

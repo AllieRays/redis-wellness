@@ -182,6 +182,18 @@ if (toggleControlsButton && controlButtonsContainer) {
   });
 }
 
+// Global error handler for unhandled promise rejections
+window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+  console.error('Unhandled promise rejection:', event.reason);
+  // Optionally show user-facing error notification
+  event.preventDefault(); // Prevent default browser behavior
+});
+
 // Initialize application
 checkHealth();
-setInterval(checkHealth, HEALTH_CHECK_INTERVAL);
+const healthCheckInterval = setInterval(checkHealth, HEALTH_CHECK_INTERVAL);
+
+// Cleanup on page unload (though browser typically handles this)
+window.addEventListener('beforeunload', () => {
+  clearInterval(healthCheckInterval);
+});

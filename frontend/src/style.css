@@ -158,6 +158,10 @@ body {
   border-radius: var(--radius);
   font-size: 1.125rem;
   line-height: 1.625;
+  display: inline-block;
+}
+
+.message-content {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -190,21 +194,24 @@ body {
 
 /* Memory and tool badges */
 .message-metadata {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   font-size: 0.75rem;
-  max-width: 80%;
 }
 
 .message-metadata.tools-used {
   margin-top: 0.5rem;
+  border-top: none;
 }
 
 .memory-badge {
   display: inline-block;
   padding: 0.25rem 0.5rem;
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
   border-radius: var(--radius);
   font-weight: 500;
   background: rgba(13, 33, 44, 0.3);
@@ -238,6 +245,8 @@ body {
 .tool-badge {
   display: inline-block;
   padding: 0.25rem 0.5rem;
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
   border-radius: var(--radius);
   font-weight: 500;
   background: rgba(13, 33, 44, 0.3);

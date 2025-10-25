@@ -19,10 +19,10 @@
               Can AI Agents Be Intelligent Without Memory?
             </h1>
             <p class="text-gray-300 text-lg mb-2 max-w-4xl">
-              A side-by-side demo that makes "stateless vs. stateful" make sense.
+              Stateful vs Stateless Agentic RAG. Same agent, with and without memory.
             </p>
             <p class="text-gray-400 text-sm mb-4 max-w-4xl">
-              Agentic RAG Agents built with Redis, LangGraph, RedisVL, Ollama, and Apple Health data.
+              Agentic RAG with Redis, RedisVL, Ollama (Qwen 2.5 7B), and Apple Health data.
             </p>
             <div id="control-buttons" class="flex items-center gap-3" style="display: none;">
               <span class="status-badge" id="redis-status">Redis: Checking...</span>
@@ -102,7 +102,7 @@
             </div>
           </div>
 
-          <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4" id="stateless-chat-area">
+          <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4" id="stateless-chat-area" role="log" aria-live="polite" aria-label="Stateless chat messages">
             <div class="message-assistant">
               <div class="message-bubble assistant">
                 <i class="fas fa-comment-dots"></i> Hi! I'm a Stateless AI Agent.
@@ -117,6 +117,7 @@
                 id="stateless-message-input"
                 placeholder="Ask me anything (no memory)..."
                 autocomplete="off"
+                aria-label="Stateless chat message input"
                 class="flex-1 bg-white/5 border border-white/10 rounded-[5px] px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 transition-all"
               />
               <button type="submit" id="stateless-send-button" class="primary-button">
@@ -139,7 +140,7 @@
             </div>
           </div>
 
-          <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4" id="redis-chat-area">
+          <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4" id="redis-chat-area" role="log" aria-live="polite" aria-label="Redis chat messages">
             <div class="message-assistant">
               <div class="message-bubble assistant">
                 <img src="/redis-chat-icon.svg" alt="Redis" class="inline-block w-4 h-4 mr-1 align-text-bottom" /> Hi! I'm a Stateful AI Agent Powered by Redis.
@@ -154,6 +155,7 @@
                 id="redis-message-input"
                 placeholder="Ask me anything (I remember)..."
                 autocomplete="off"
+                aria-label="Redis chat message input with memory"
                 class="flex-1 bg-white/5 border border-white/10 rounded-[5px] px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 transition-all"
               />
               <button type="submit" id="redis-send-button" class="primary-button">
