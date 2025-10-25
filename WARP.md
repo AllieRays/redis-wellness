@@ -208,6 +208,11 @@ npm run format
 
 # Pre-commit hooks (run automatically on commit)
 git commit -m "your message"  # Triggers all quality checks
+
+# Pre-push hooks (run automatically on push - prevents CI failures)
+# Runs: backend ruff/tests, frontend typecheck/lint/ts-prune, Docker build
+git push  # Triggers comprehensive checks
+# To bypass (NOT RECOMMENDED): git push --no-verify
 ```
 
 ### Health Data Integration
