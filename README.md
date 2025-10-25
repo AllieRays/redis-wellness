@@ -15,12 +15,20 @@ A side-by-side demo comparing stateless chat vs. agentic RAG chat powered by **R
 
 ## 🎯 The Demo
 
-| Stateless Chat | Redis RAG Chat |
-|----------------|----------------|
-| ❌ Forgets context immediately | ✅ Remembers conversation history |
-| ❌ Can't answer "Is that good?" | ✅ Understands pronouns & references |
-| ❌ No memory between messages | ✅ Dual memory (short + long-term) |
-| ❌ Repeats same questions | ✅ Semantic search with RedisVL |
+| Component | Stateless Chat | Stateful Chat |
+|-----------|----------------|---------------|
+| **Architecture** | Simple tool loop | LangGraph orchestration |
+| **Conversation History** | ❌ None | ✅ Redis LIST (checkpointing) |
+| **Short-term Memory** | ❌ None | ✅ Redis conversation storage |
+| **Long-term Memory** | ❌ None | ✅ RedisVL vector search (episodic) |
+| **Semantic Search** | ❌ None | ✅ 1024-dim embeddings (mxbai-embed-large) |
+| **Procedural Memory** | ❌ None | ✅ Learned tool-calling patterns |
+| **Memory Persistence** | ❌ Forgets everything | ✅ 7-month TTL |
+| **Context Awareness** | ❌ Can't answer "Is that good?" | ✅ Understands pronouns & references |
+| **Health Data Access** | ✅ Redis read-only via tools | ✅ Redis read-only via tools |
+| **Tool Calling** | ✅ 9 specialized health tools | ✅ 9 specialized health tools |
+| **LLM** | ✅ Qwen 2.5 7B (Ollama) | ✅ Qwen 2.5 7B (Ollama) |
+| **Response Quality** | Basic answers only | Context-rich, personalized |
 
 **Try it yourself:**
 ```bash
@@ -34,13 +42,55 @@ You: "Is that good?"
 
 ## 🏭 Architecture
 
-```
-User → Frontend (TypeScript) → Backend (FastAPI) → Redis + RedisVL
-                                      ↓
-                                   Ollama (Local LLM)
+### Side-by-Side Agent Comparison
+
+```mermaid
+flowchart TB
+    subgraph stateless["🔴 Stateless RAG Agent"]
+        direction TB
+        A1["📨 User Query"]:::input
+        B1["🤖 Qwen 2.5 7B\n(Ollama)"]:::llm
+        C1["🔧 Tool Calling\n9 Health Tools"]:::tools
+        D1["📊 Redis Health Data\n(read-only)"]:::dataonly
+        E1["❌ NO MEMORY\nForgets Everything"]:::nomem
+        F1["💬 Response"]:::output
+
+        A1 --> B1
+        B1 --> C1
+        C1 --> D1
+        D1 --> F1
+        E1 -."No persistence".-> B1
+    end
+
+    subgraph stateful["✅ Stateful RAG Agent"]
+        direction TB
+        A2["📨 User Query"]:::input
+        B2["🤖 Qwen 2.5 7B\n(Ollama)"]:::llm
+        C2["🔧 Tool Calling\n9 Health Tools"]:::tools
+        D2["📊 Redis Health Data"]:::dataonly
+        E2["🧠 Redis Memory\nConversation History"]:::redismem
+        F2["🔍 RedisVL\nSemantic Search"]:::redisvl
+        G2["💬 Response + Context"]:::output
+
+        A2 --> B2
+        B2 <-->|"Short-term"| E2
+        B2 <-->|"Long-term"| F2
+        B2 --> C2
+        C2 --> D2
+        D2 --> G2
+    end
+
+    classDef input fill:#091a23,stroke:#dcff1e,stroke-width:2px,color:#fff
+    classDef llm fill:#091a23,stroke:#fff,stroke-width:2px,color:#fff
+    classDef tools fill:#091a23,stroke:#fff,stroke-width:1px,color:#fff
+    classDef dataonly fill:#091a23,stroke:#fff,stroke-width:1px,color:#fff
+    classDef nomem fill:#ff4438,stroke:#ff4438,stroke-width:2px,color:#fff
+    classDef redismem fill:#dcff1e,stroke:#091a23,stroke-width:2px,color:#091a23
+    classDef redisvl fill:#dcff1e,stroke:#091a23,stroke-width:2px,color:#091a23
+    classDef output fill:#091a23,stroke:#dcff1e,stroke-width:2px,color:#fff
 ```
 
-**The key difference:** Redis RAG agent stores conversation in Redis (short-term) and uses RedisVL vector search (long-term semantic memory). Stateless agent has no memory at all.
+**The Key Difference:** Both agents retrieve health data from Redis, but only the stateful agent stores conversation memory. The stateless agent has zero persistence - every query is like meeting for the first time.
 
 **Tech Stack:** FastAPI • Redis • RedisVL • Ollama (Qwen 2.5 7B) • TypeScript • Docker
 
@@ -130,18 +180,28 @@ Open http://localhost:3000 and try the side-by-side comparison. The UI shows mem
 
 **Load your Apple Health data:**
 ```bash
-python import_health_data.py export.xml
+python import_health_data.py apple_health_export/export.xml
 ```
 
-> **Learn more:** See [RAG_IMPLEMENTATION.md](./docs/RAG_IMPLEMENTATION.md) for memory architecture details
+See [docs/07_APPLE_HEALTH_DATA.md](./docs/07_APPLE_HEALTH_DATA.md) for detailed import instructions.
 
 ## 📚 Documentation
 
-- **[WARP.md](./WARP.md)** - Complete development guide
-- **[RAG_IMPLEMENTATION.md](./docs/RAG_IMPLEMENTATION.md)** - Memory architecture deep dive
-- **[LANGGRAPH_REMOVAL_PLAN.md](./docs/LANGGRAPH_REMOVAL_PLAN.md)** - Why simple loop > LangGraph
-- **[HEALTH_DATA_PIPELINE.md](./docs/HEALTH_DATA_PIPELINE.md)** - Apple Health data processing
+### Getting Started
+- **[01_QUICKSTART.md](./docs/01_QUICKSTART.md)** - Get running in 5 minutes
+- **[02_THE_DEMO.md](./docs/02_THE_DEMO.md)** - Understand what you're seeing
+
+### Learning Redis + AI Patterns
+- **[03_MEMORY_ARCHITECTURE.md](./docs/03_MEMORY_ARCHITECTURE.md)** - How Redis powers agent memory
+- **[04_AUTONOMOUS_AGENTS.md](./docs/04_AUTONOMOUS_AGENTS.md)** - Autonomous tool calling patterns
+- **[05_REDIS_PATTERNS.md](./docs/05_REDIS_PATTERNS.md)** - Redis data structures for AI workloads
+- **[06_ARCHITECTURE_DECISIONS.md](./docs/06_ARCHITECTURE_DECISIONS.md)** - Why we made each choice
+
+### Advanced Topics
+- **[07_APPLE_HEALTH_DATA.md](./docs/07_APPLE_HEALTH_DATA.md)** - Using your own health data
+- **[08_EXTENDING.md](./docs/08_EXTENDING.md)** - Build on this demo
 - **[TEST_PLAN.md](./backend/TEST_PLAN.md)** - Testing strategy
+- **[WARP.md](./WARP.md)** - Development guide
 
 ## 🔧 Development
 
@@ -193,5 +253,5 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 <p align="center">
   <strong>Redis + RedisVL • Demonstrating why memory matters in AI</strong><br>
-  Built with ❤️ by <a href="https://github.com/AllieRays">@AllieRays</a>
+  Built with ❤️ by <a href="https://www.linkedin.com/in/allierays/">@AllieRays</a>
 </p>
