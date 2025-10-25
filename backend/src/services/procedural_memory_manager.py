@@ -515,3 +515,7 @@ def get_procedural_memory() -> ProceduralMemoryManager | None:
             logger.error(f"❌ Failed to initialize procedural memory: {e}")
             return None
     return _procedural_memory
+
+
+# Alias for compatibility
+get_procedural_memory_manager = get_procedural_memory
