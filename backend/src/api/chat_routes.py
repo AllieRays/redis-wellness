@@ -61,6 +61,9 @@ class StatelessChatResponse(BaseModel):
     response: str
     tools_used: list[dict[str, Any]] = Field(default_factory=list)
     tool_calls_made: int = 0
+    token_stats: dict[str, Any] = Field(
+        default_factory=dict
+    )  # Context window usage tracking
     validation: dict[str, Any] = Field(default_factory=dict)
     type: str = "stateless"
     response_time_ms: float = Field(default=0.0)  # Response latency in milliseconds
@@ -186,6 +189,7 @@ async def stateless_chat(request: StatelessChatRequest, http_request: Request):
             response=result["response"],
             tools_used=tools_used,
             tool_calls_made=result.get("tool_calls_made", 0),
+            token_stats=result.get("token_stats", {}),
             validation=result.get("validation", {}),
             type="stateless",
             response_time_ms=response_time_ms,
@@ -210,10 +214,10 @@ async def stateless_chat(request: StatelessChatRequest, http_request: Request):
         raise HTTPException(status_code=500, detail=error_response.dict()) from e
 
 
-@router.post("/redis/stream")
+@router.post("/stateful/stream")
 async def redis_chat_stream(request: RedisChatRequest, http_request: Request):
     """
-    Redis chat with streaming - tokens appear as they're generated.
+    Stateful chat with streaming - tokens appear as they're generated.
 
     Returns Server-Sent Events (SSE) stream with:
     - {"type": "token", "content": "..."} for each token
@@ -238,10 +242,10 @@ async def redis_chat_stream(request: RedisChatRequest, http_request: Request):
     return StreamingResponse(generate(), media_type="text/event-stream")
 
 
-@router.post("/redis")
+@router.post("/stateful")
 async def redis_chat(request: RedisChatRequest, http_request: Request):
     """
-    Redis chat endpoint - Uses RedisChatService with FULL memory.
+    Stateful chat endpoint - Uses RedisChatService with FULL memory.
 
     Features:
     - Simple tool-calling loop with memory

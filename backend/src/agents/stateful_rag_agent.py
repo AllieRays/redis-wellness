@@ -560,7 +560,7 @@ class StatefulRAGAgent:
         # Calculate token stats from LangGraph state messages
         token_stats = {}
         try:
-            from ..services.token_manager import get_token_manager
+            from ..utils.token_manager import get_token_manager
 
             token_manager = get_token_manager()
 

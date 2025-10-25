@@ -13,7 +13,6 @@ export interface ChatStats {
 
 export interface RedisStats extends ChatStats {
   tokenUsagePercent: number;
-  semanticMemories: number;
   proceduralPatterns: number;
   isOverThreshold: boolean;
 }
@@ -81,7 +80,6 @@ export class RedisStatsManager {
     toolsUsed: 0,
     tokenCount: 0,
     tokenUsagePercent: 0,
-    semanticMemories: 0,
     proceduralPatterns: 0,
     isOverThreshold: false,
     totalResponseTime: 0,
@@ -101,8 +99,7 @@ export class RedisStatsManager {
   }): void {
     this.stats.messageCount += 2; // User + assistant message
     this.stats.toolsUsed += data.tool_calls_made || 0;
-    // Accumulate semantic memory and procedural pattern usage across conversation
-    this.stats.semanticMemories += data.memory_stats?.semantic_hits || 0;
+    // Accumulate procedural pattern usage across conversation
     this.stats.proceduralPatterns += data.memory_stats?.procedural_patterns_used || 0;
 
     if (data.token_stats) {
@@ -130,7 +127,6 @@ export class RedisStatsManager {
       toolsUsed: 0,
       tokenCount: 0,
       tokenUsagePercent: 0,
-      semanticMemories: 0,
       proceduralPatterns: 0,
       isOverThreshold: false,
       totalResponseTime: 0,
@@ -167,18 +163,10 @@ export function updateStatsTable(
 
   // Update Redis stats
   const redisTokensEl = document.getElementById('stat-redis-tokens');
-  const redisSemanticEl = document.getElementById('stat-redis-semantic');
-  const redisProceduralEl = document.getElementById('stat-redis-procedural');
   const redisLatencyEl = document.getElementById('stat-redis-latency');
 
   if (redisTokensEl) {
     redisTokensEl.textContent = String(redisStats.tokenCount);
-  }
-  if (redisSemanticEl) {
-    redisSemanticEl.textContent = String(redisStats.semanticMemories);
-  }
-  if (redisProceduralEl) {
-    redisProceduralEl.textContent = String(redisStats.proceduralPatterns);
   }
   if (redisLatencyEl) {
     if (redisStats.avgResponseTime > 0) {

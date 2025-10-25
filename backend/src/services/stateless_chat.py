@@ -54,6 +54,7 @@ class StatelessChatService:
             "response": result["response"],
             "tools_used": result.get("tools_used", []),
             "tool_calls_made": result.get("tool_calls_made", 0),
+            "token_stats": result.get("token_stats", {}),
             "validation": result.get("validation", {}),
         }
 

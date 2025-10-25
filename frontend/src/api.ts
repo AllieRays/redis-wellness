@@ -83,7 +83,7 @@ class ApiClient {
   }
 
   async sendRedisMessage(data: RedisChatRequest): Promise<RedisChatResponse> {
-    return this.request<RedisChatResponse>('/api/chat/redis', {
+    return this.request<RedisChatResponse>('/api/chat/stateful', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -94,7 +94,7 @@ class ApiClient {
     content?: string;
     data?: Partial<RedisChatResponse>;
   }> {
-    const response = await fetch(`${API_BASE_URL}/api/chat/redis/stream`, {
+    const response = await fetch(`${API_BASE_URL}/api/chat/stateful/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
