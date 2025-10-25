@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-Apple Health Data Importer - Single Script
+Apple Health Data Importer - Backend Script
 
 Handles both:
 1. XML import from Apple Health export
 2. JSON import from pre-parsed data
 
-Usage:
+Usage (from backend directory):
     # From XML (slow, full parse)
-    uv run python import_health_data.py apple_health_export/export.xml
+    uv run python scripts/import_health_data.py ../../apple_health_export/export.xml
 
     # From pre-parsed JSON (fast)
-    uv run python import_health_data.py parsed_health_data.json
+    uv run python scripts/import_health_data.py ../../parsed_health_data.json
 
     # Auto-detect
-    uv run python import_health_data.py
+    uv run python scripts/import_health_data.py
 """
 
 import argparse
@@ -23,18 +23,21 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# Add backend/src to path
-backend_src = str(Path(__file__).parent / "backend" / "src")
-if backend_src not in sys.path:
-    sys.path.insert(0, backend_src)
+# Add src to path
+src_dir = str(Path(__file__).parent.parent / "src")
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
 
 import redis
 
+from apple_health.parser import AppleHealthParser
+from utils.redis_keys import RedisKeys
 
-def import_from_json(json_file: Path | None, user_id: str, redis_client, data_dict: dict | None = None) -> bool:
+
+def import_from_json(
+    json_file: Path | None, user_id: str, redis_client, data_dict: dict | None = None
+) -> bool:
     """Import from pre-parsed JSON (fast path)."""
-    from utils.redis_keys import RedisKeys
-
     # If data_dict provided (from XML parsing), use it directly
     if data_dict is not None:
         data = data_dict
@@ -44,10 +47,12 @@ def import_from_json(json_file: Path | None, user_id: str, redis_client, data_di
             print("❌ No JSON file or data provided")
             return False
 
-        print(f"\n📄 Loading JSON: {json_file.name} ({json_file.stat().st_size / 1024 / 1024:.1f} MB)")
+        print(
+            f"\n📄 Loading JSON: {json_file.name} ({json_file.stat().st_size / 1024 / 1024:.1f} MB)"
+        )
 
         try:
-            with open(json_file, 'r') as f:
+            with open(json_file) as f:
                 data = json.load(f)
         except Exception as e:
             print(f"❌ Failed to read JSON: {e}")
@@ -57,40 +62,40 @@ def import_from_json(json_file: Path | None, user_id: str, redis_client, data_di
     enriched_count = 0
     failed_count = 0
 
-    for workout in data.get('workouts', []):
+    for workout in data.get("workouts", []):
         # REQUIRED: day_of_week field (used by workout analysis tools)
-        start_date_str = workout.get('startDate', '')
+        start_date_str = workout.get("startDate", "")
         if not start_date_str:
             print(f"⚠️  Workout missing startDate: {workout.get('type', 'unknown')}")
             failed_count += 1
             continue
 
         try:
-            dt = datetime.fromisoformat(start_date_str.replace('Z', '+00:00'))
+            dt = datetime.fromisoformat(start_date_str.replace("Z", "+00:00"))
 
             # GUARANTEE these fields exist
-            if 'day_of_week' not in workout:
-                workout['day_of_week'] = dt.strftime('%A')
+            if "day_of_week" not in workout:
+                workout["day_of_week"] = dt.strftime("%A")
                 enriched_count += 1
 
-            if 'date' not in workout:
-                workout['date'] = dt.strftime('%Y-%m-%d')
+            if "date" not in workout:
+                workout["date"] = dt.strftime("%Y-%m-%d")
 
         except Exception as e:
             print(f"⚠️  Failed to parse date '{start_date_str}': {e}")
             # Fallback to prevent "Unknown"
-            workout['day_of_week'] = workout.get('day_of_week', 'Monday')
-            workout['date'] = workout.get('date', '2020-01-01')
+            workout["day_of_week"] = workout.get("day_of_week", "Monday")
+            workout["date"] = workout.get("date", "2020-01-01")
             failed_count += 1
 
         # REQUIRED: type_cleaned field (used by workout search)
-        if 'type_cleaned' not in workout:
-            workout_type = workout.get('type', '')
-            workout['type_cleaned'] = workout_type.replace('HKWorkoutActivityType', '')
+        if "type_cleaned" not in workout:
+            workout_type = workout.get("type", "")
+            workout["type_cleaned"] = workout_type.replace("HKWorkoutActivityType", "")
 
         # REQUIRED: calories field (used by energy analysis)
-        if 'totalEnergyBurned' in workout and 'calories' not in workout:
-            workout['calories'] = workout['totalEnergyBurned']
+        if "totalEnergyBurned" in workout and "calories" not in workout:
+            workout["calories"] = workout["totalEnergyBurned"]
 
     if enriched_count > 0:
         print(f"✅ Enriched {enriched_count} workouts with computed fields")
@@ -129,7 +134,9 @@ def import_from_json(json_file: Path | None, user_id: str, redis_client, data_di
                 # VALIDATION: Ensure required field exists
                 day = workout.get("day_of_week")
                 if not day or day == "Unknown":
-                    print(f"⚠️  Skipping workout with invalid day_of_week: {workout.get('date', 'unknown')}")
+                    print(
+                        f"⚠️  Skipping workout with invalid day_of_week: {workout.get('date', 'unknown')}"
+                    )
                     continue
 
                 redis_client.hincrby(days_key, day, 1)
@@ -153,30 +160,27 @@ def import_from_json(json_file: Path | None, user_id: str, redis_client, data_di
             print(f"✅ Indexed by date: {indexed_by_date}")
 
             # VALIDATION: Warn if indexes are incomplete
-            if indexed_by_day < len(data['workouts']) * 0.9:  # <90% indexed
-                print(f"⚠️  WARNING: Only {indexed_by_day}/{len(data['workouts'])} workouts indexed by day")
-                print(f"   Check that workouts have valid 'day_of_week' fields")
+            if indexed_by_day < len(data["workouts"]) * 0.9:  # <90% indexed
+                print(
+                    f"⚠️  WARNING: Only {indexed_by_day}/{len(data['workouts'])} workouts indexed by day"
+                )
+                print("   Check that workouts have valid 'day_of_week' fields")
 
         return True
 
     except Exception as e:
         print(f"❌ Storage failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def import_from_xml(xml_file: Path, user_id: str, redis_client) -> bool:
     """Import from Apple Health XML export (slow path)."""
-    try:
-        from apple_health.parser import AppleHealthParser
-        from utils.redis_keys import RedisKeys
-    except ImportError as e:
-        print(f"❌ Import error: {e}")
-        print("   Make sure you're running from the project root with backend/src in PYTHONPATH")
-        return False
-
-    print(f"\n📱 Parsing XML: {xml_file.name} ({xml_file.stat().st_size / 1024 / 1024:.1f} MB)")
+    print(
+        f"\n📱 Parsing XML: {xml_file.name} ({xml_file.stat().st_size / 1024 / 1024:.1f} MB)"
+    )
     print("⏳ This may take several minutes for large files...")
 
     try:
@@ -197,6 +201,7 @@ def import_from_xml(xml_file: Path, user_id: str, redis_client) -> bool:
     except Exception as e:
         print(f"❌ Parsing failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -215,38 +220,54 @@ def import_from_xml(xml_file: Path, user_id: str, redis_client) -> bool:
 
         if metric_type not in data["metrics_records"]:
             data["metrics_records"][metric_type] = []
-            data["metrics_summary"][metric_type] = {"count": 0, "latest_value": None, "latest_date": None}
+            data["metrics_summary"][metric_type] = {
+                "count": 0,
+                "latest_value": None,
+                "latest_date": None,
+                "unit": None,
+            }
 
-        data["metrics_records"][metric_type].append({
-            "date": record.start_date.isoformat(),
-            "value": str(record.value),
-            "unit": record.unit,
-            "source": record.source_name,
-        })
+        data["metrics_records"][metric_type].append(
+            {
+                "date": record.start_date.isoformat(),
+                "value": str(record.value),
+                "unit": record.unit,
+                "source": record.source_name,
+            }
+        )
 
         data["metrics_summary"][metric_type]["count"] += 1
         if record.value:
-            data["metrics_summary"][metric_type]["latest_value"] = f"{record.value} {record.unit}"
-            data["metrics_summary"][metric_type]["latest_date"] = record.start_date.isoformat()
+            data["metrics_summary"][metric_type]["latest_value"] = str(record.value)
+            data["metrics_summary"][metric_type]["latest_date"] = (
+                record.start_date.isoformat()
+            )
+            data["metrics_summary"][metric_type]["unit"] = record.unit
 
     for workout in health_data.workouts:
-        workout_type = workout.workout_activity_type.replace("HKWorkoutActivityType", "")
+        workout_type = workout.workout_activity_type.replace(
+            "HKWorkoutActivityType", ""
+        )
 
-        data["workouts"].append({
-            "type": workout.workout_activity_type,
-            "workoutActivityType": workout.workout_activity_type,
-            "startDate": workout.start_date.isoformat(),
-            "endDate": workout.end_date.isoformat() if workout.end_date else None,
-            "date": workout.start_date.strftime("%Y-%m-%d"),
-            "day_of_week": workout.start_date.strftime("%A"),
-            "type_cleaned": workout_type,
-            "duration": workout.duration,
-            "duration_minutes": round(workout.duration / 60, 1) if workout.duration else None,
-            "calories": workout.total_energy_burned,
-            "totalEnergyBurned": workout.total_energy_burned,
-            "totalDistance": workout.total_distance,
-            "source": workout.source_name,
-        })
+        data["workouts"].append(
+            {
+                "type": workout.workout_activity_type,
+                "workoutActivityType": workout.workout_activity_type,
+                "startDate": workout.start_date.isoformat(),
+                "endDate": workout.end_date.isoformat() if workout.end_date else None,
+                "date": workout.start_date.strftime("%Y-%m-%d"),
+                "day_of_week": workout.start_date.strftime("%A"),
+                "type_cleaned": workout_type,
+                "duration": workout.duration,
+                "duration_minutes": round(workout.duration / 60, 1)
+                if workout.duration
+                else None,
+                "calories": workout.total_energy_burned,
+                "totalEnergyBurned": workout.total_energy_burned,
+                "totalDistance": workout.total_distance,
+                "source": workout.source_name,
+            }
+        )
 
     print("✅ Conversion complete")
 
@@ -260,21 +281,19 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # From XML export (slow, full parse)
-  uv run python import_health_data.py apple_health_export/export.xml
+  # From backend directory with XML export (slow, full parse)
+  uv run python scripts/import_health_data.py ../../apple_health_export/export.xml
 
   # From pre-parsed JSON (fast)
-  uv run python import_health_data.py parsed_health_data.json
+  uv run python scripts/import_health_data.py ../../parsed_health_data.json
 
   # Auto-detect best source
-  uv run python import_health_data.py
-        """
+  uv run python scripts/import_health_data.py
+        """,
     )
 
     parser.add_argument(
-        "file",
-        nargs="?",
-        help="Path to export.xml or parsed_health_data.json"
+        "file", nargs="?", help="Path to export.xml or parsed_health_data.json"
     )
     parser.add_argument("--user-id", default="wellness_user", help="User ID")
     parser.add_argument("--redis-host", default="localhost", help="Redis host")
@@ -289,16 +308,19 @@ Examples:
     print(f"🔌 Redis: {args.redis_host}:{args.redis_port}")
 
     # Auto-detect file if not provided
+    project_root = Path(__file__).parent.parent.parent
     if not args.file:
-        if Path("parsed_health_data.json").exists():
-            args.file = "parsed_health_data.json"
-            print("📄 Auto-detected: parsed_health_data.json")
-        elif Path("apple_health_export/export.xml").exists():
-            args.file = "apple_health_export/export.xml"
-            print("📱 Auto-detected: apple_health_export/export.xml")
+        if (project_root / "parsed_health_data.json").exists():
+            args.file = str(project_root / "parsed_health_data.json")
+            print(f"📄 Auto-detected: {args.file}")
+        elif (project_root / "apple_health_export" / "export.xml").exists():
+            args.file = str(project_root / "apple_health_export" / "export.xml")
+            print(f"📱 Auto-detected: {args.file}")
         else:
             print("\n❌ No health data file found")
-            print("   Looked for: parsed_health_data.json or apple_health_export/export.xml")
+            print(
+                "   Looked for: parsed_health_data.json or apple_health_export/export.xml"
+            )
             sys.exit(1)
 
     file_path = Path(args.file).resolve()
@@ -311,16 +333,13 @@ Examples:
     print("\n🔌 Connecting to Redis...")
     try:
         client = redis.Redis(
-            host=args.redis_host,
-            port=args.redis_port,
-            db=0,
-            decode_responses=False
+            host=args.redis_host, port=args.redis_port, db=0, decode_responses=False
         )
         client.ping()
         print("✅ Connected")
     except redis.ConnectionError as e:
         print(f"❌ Cannot connect: {e}")
-        print("\nMake sure Redis is running: docker-compose ps")
+        print("\nMake sure Redis is running: docker compose ps")
         sys.exit(1)
 
     # Import based on file type

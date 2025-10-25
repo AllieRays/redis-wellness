@@ -26,6 +26,9 @@ services:
     container_name: redis-wellness-backend
     ports:
       - "8000:8000"
+    volumes:
+      # Mount health data for auto-import on startup
+      - ./apple_health_export:/apple_health_export:ro
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379

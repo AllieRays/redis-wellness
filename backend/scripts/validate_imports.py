@@ -77,25 +77,37 @@ def verify_redis_checkpointer_code() -> bool:
 
         for node in ast.walk(tree):
             # Check imports
-            if (
-                isinstance(node, ast.ImportFrom)
-                and node.module == "langgraph.checkpoint.redis"
-            ):
-                for alias in node.names:
-                    if alias.name == "RedisSaver":
-                        has_redis_saver_import = True
-                    elif alias.name == "AsyncRedisSaver":
-                        has_async_redis_saver_import = True
+            if isinstance(node, ast.ImportFrom):
+                # RedisSaver from langgraph.checkpoint.redis
+                if node.module == "langgraph.checkpoint.redis":
+                    for alias in node.names:
+                        if alias.name == "RedisSaver":
+                            has_redis_saver_import = True
+                # AsyncRedisSaver from langgraph.checkpoint.redis.aio
+                elif node.module == "langgraph.checkpoint.redis.aio":
+                    for alias in node.names:
+                        if alias.name == "AsyncRedisSaver":
+                            has_async_redis_saver_import = True
 
-        # Check that get_checkpointer method uses RedisSaver
+        # Check that get_checkpointer method uses RedisSaver (can be async or sync)
         for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef) and node.name == "get_checkpointer":
+            if (
+                isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name == "get_checkpointer"
+            ):
                 # Convert function body to string for analysis
                 func_source = ast.unparse(node)
 
                 # Check that RedisSaver or AsyncRedisSaver is used before MemorySaver
-                redis_saver_pos = func_source.find("RedisSaver(")
-                async_redis_saver_pos = func_source.find("AsyncRedisSaver")
+                # Allow both RedisSaver( and RedisSaver.from_conn_string
+                redis_saver_pos = max(
+                    func_source.find("RedisSaver("),
+                    func_source.find("RedisSaver.from_conn_string"),
+                )
+                async_redis_saver_pos = max(
+                    func_source.find("AsyncRedisSaver("),
+                    func_source.find("AsyncRedisSaver.from_conn_string"),
+                )
                 memory_saver_pos = func_source.find("MemorySaver(")
 
                 if redis_saver_pos != -1 or async_redis_saver_pos != -1:
@@ -151,7 +163,13 @@ def verify_redis_checkpointer_code() -> bool:
             print("   TODO: Implement AsyncRedisSaver lazy initialization")
             return True
 
-        saver_type = "AsyncRedisSaver" if has_async_redis_saver_import else "RedisSaver"
+        if has_async_redis_saver_import:
+            saver_type = "AsyncRedisSaver"
+        elif has_redis_saver_import:
+            saver_type = "RedisSaver"
+        else:
+            saver_type = "Unknown"
+
         print(f"✅ Code uses {saver_type} for conversation persistence")
         print(f"   ✓ {saver_type} imported")
         print(f"   ✓ {saver_type} is primary checkpointer")

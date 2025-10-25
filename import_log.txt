@@ -1,0 +1,27 @@
+================================================================================
+  Apple Health Data Import
+================================================================================
+
+👤 User ID: wellness_user
+🔌 Redis: localhost:6379
+
+🔌 Connecting to Redis...
+✅ Connected
+
+--------------------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/allierays/Sites/redis-wellness/import_health_data.py", line 354, in <module>
+    main()
+    ~~~~^^
+  File "/Users/allierays/Sites/redis-wellness/import_health_data.py", line 335, in main
+    success = import_from_xml(file_path, args.user_id, client)
+  File "/Users/allierays/Sites/redis-wellness/import_health_data.py", line 178, in import_from_xml
+    spec.loader.exec_module(parser_module)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/Users/allierays/Sites/redis-wellness/backend/src/apple_health/parser.py", line 22, in <module>
+    from .models import (
+    ...<5 lines>...
+    )
+ImportError: attempted relative import with no known parent package

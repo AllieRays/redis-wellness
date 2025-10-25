@@ -374,6 +374,9 @@ class StatefulRAGAgent:
         # Build system prompt
         system_prompt = build_base_system_prompt()
 
+        # DEBUG: Log system prompt to verify TOOL-FIRST POLICY is included
+        logger.warning(f"📝 STATEFUL SYSTEM PROMPT:\n{system_prompt[:500]}...")
+
         # Inject episodic memory context
         if state.get("episodic_context"):
             system_prompt += (
@@ -504,7 +507,8 @@ class StatefulRAGAgent:
             )
 
         # Calculate memory stats
-        memory_retrieved = final_state.get("episodic_context") is not None
+        episodic_retrieved = final_state.get("episodic_context") is not None
+        procedural_retrieved = final_state.get("procedural_patterns") is not None
         goals_stored = len(
             [
                 msg
@@ -513,21 +517,94 @@ class StatefulRAGAgent:
                 and isinstance(msg, HumanMessage)
             ]
         )
-        procedural_patterns_used = 1 if final_state.get("procedural_patterns") else 0
+        procedural_patterns_used = 1 if procedural_retrieved else 0
+
+        # Determine ALL memory types actually used (can be multiple)
+        memory_types_used = []
+
+        # Check for episodic memory (past conversations from Redis)
+        if episodic_retrieved:
+            memory_types_used.append("episodic")
+
+        # Check for procedural memory (learned tool-calling patterns)
+        if procedural_retrieved:
+            memory_types_used.append("procedural")
+
+        # Check for semantic memory (health data accessed via tools)
+        health_tools = [
+            "search_health_records",
+            "search_workouts",
+            "search_health_records_by_metric",
+        ]
+        semantic_used = any(tool in health_tools for tool in tools_used)
+        if semantic_used:
+            memory_types_used.append("semantic")
+
+        # Check for short-term memory (conversation history in LangGraph state)
+        # Short-term is the immediate conversation context (current session)
+        conversation_history_available = (
+            len(final_state["messages"]) > 2
+        )  # More than just user question + AI response
+        if conversation_history_available:
+            memory_types_used.append("short-term")
+
+        # For backwards compatibility, keep single memory_type (primary one)
+        memory_type = memory_types_used[0] if memory_types_used else "none"
 
         logger.info(
-            f"💾 Memory stats: episodic_context={final_state.get('episodic_context') is not None}, semantic_hits={1 if memory_retrieved else 0}, goals_stored={goals_stored}, procedural_patterns_used={procedural_patterns_used}"
+            f"💾 Memory stats: episodic={episodic_retrieved}, procedural={procedural_retrieved}, "
+            f"semantic={semantic_used}, short_term={conversation_history_available}, "
+            f"memory_types={memory_types_used}, primary={memory_type}, procedural_patterns_used={procedural_patterns_used}"
         )
+
+        # Calculate token stats from LangGraph state messages
+        token_stats = {}
+        try:
+            from ..services.token_manager import get_token_manager
+
+            token_manager = get_token_manager()
+
+            # Convert LangGraph messages to format expected by token manager
+            messages_for_counting = []
+            for msg in final_state["messages"]:
+                if isinstance(msg, HumanMessage):
+                    messages_for_counting.append(
+                        {"role": "user", "content": msg.content}
+                    )
+                elif isinstance(msg, SystemMessage):
+                    messages_for_counting.append(
+                        {"role": "system", "content": msg.content}
+                    )
+                elif hasattr(msg, "content") and not isinstance(msg, ToolMessage):
+                    messages_for_counting.append(
+                        {"role": "assistant", "content": msg.content}
+                    )
+
+            # Get token stats using token manager
+            token_stats = token_manager.get_usage_stats(messages_for_counting)
+            logger.info(
+                f"📊 Token stats: {token_stats.get('token_count', 0)} tokens ({token_stats.get('usage_percent', 0):.1f}%)"
+            )
+        except Exception as e:
+            logger.warning(f"Could not calculate token stats: {e}")
+            token_stats = {}
 
         return {
             "response": response_text,
             "tools_used": list(set(tools_used)),  # Deduplicate
             "tool_calls_made": len(tools_used),
             "memory_stats": {
-                "semantic_hits": 1 if memory_retrieved else 0,
+                "semantic_hits": 1
+                if episodic_retrieved
+                else 0,  # Keep for backwards compatibility
                 "goals_stored": goals_stored,
                 "procedural_patterns_used": procedural_patterns_used,
+                "memory_type": memory_type,  # Primary memory type (backwards compatibility)
+                "memory_types": memory_types_used,  # NEW: All memory types actually used
+                "short_term_available": len(final_state["messages"])
+                > 1,  # Conversation history exists
             },
+            "token_stats": token_stats,  # NEW: Token usage stats
             "validation": {
                 "valid": validation_result["valid"],
                 "score": validation_result["score"],
@@ -562,5 +639,8 @@ class StatefulRAGAgent:
                 "tools_used": result["tools_used"],
                 "tool_calls_made": result["tool_calls_made"],
                 "memory_stats": result.get("memory_stats", {}),
+                "token_stats": result.get(
+                    "token_stats", {}
+                ),  # NEW: Include token stats in stream
             },
         }

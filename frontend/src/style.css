@@ -142,12 +142,14 @@ body {
 /* Message bubbles */
 .message-user {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .message-assistant {
   display: flex;
-  justify-content: flex-start;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .message-bubble {
@@ -188,10 +190,12 @@ body {
 
 /* Memory and tool badges */
 .message-metadata {
-  display: block;
-  width: 100%;
-  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
   font-size: 0.75rem;
+  max-width: 80%;
 }
 
 .message-metadata.tools-used {
@@ -201,8 +205,6 @@ body {
 .memory-badge {
   display: inline-block;
   padding: 0.25rem 0.5rem;
-  margin-right: 0.5rem;
-  margin-bottom: 0.5rem;
   border-radius: var(--radius);
   font-weight: 500;
   background: rgba(13, 33, 44, 0.3);
@@ -212,17 +214,30 @@ body {
   color: rgba(255, 255, 255, 0.7);
 }
 
+/* Episodic memory badge - calendar/personal events */
+.memory-badge.episodic {
+  background: rgba(99, 102, 241, 0.15); /* indigo tint */
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: rgba(165, 180, 252, 0.9); /* lighter indigo */
+}
+
+/* Procedural memory badge - learned patterns */
+.memory-badge.procedural {
+  background: rgba(168, 85, 247, 0.15); /* purple tint */
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  color: rgba(216, 180, 254, 0.9); /* lighter purple */
+}
+
+/* Semantic memory badge - general knowledge */
 .memory-badge.semantic {
-  background: rgba(13, 33, 44, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.7);
+  background: rgba(59, 130, 246, 0.15); /* blue tint */
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: rgba(147, 197, 253, 0.9); /* lighter blue */
 }
 
 .tool-badge {
   display: inline-block;
   padding: 0.25rem 0.5rem;
-  margin-right: 0.5rem;
-  margin-bottom: 0.5rem;
   border-radius: var(--radius);
   font-weight: 500;
   background: rgba(13, 33, 44, 0.3);

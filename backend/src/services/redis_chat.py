@@ -35,21 +35,39 @@ class RedisChatService:
         # Use the connection manager instead of direct client
         self.redis_manager = get_redis_manager()
 
-        # Get checkpointer for conversation persistence
-        checkpointer = self.redis_manager.get_checkpointer()
+        # Get episodic memory for goal storage/retrieval (sync init OK)
+        self.episodic_memory = get_episodic_memory()
 
-        # Get episodic memory for goal storage/retrieval
-        episodic_memory = get_episodic_memory()
+        # Get procedural memory for workflow pattern learning (sync init OK)
+        self.procedural_memory = get_procedural_memory()
 
-        # Get procedural memory for workflow pattern learning
-        procedural_memory = get_procedural_memory()
+        # Agent will be lazily initialized on first async use
+        # (checkpointer requires async initialization)
+        self._agent = None
 
-        # Use stateful LangGraph agent with full CoALA memory
-        self.agent = StatefulRAGAgent(
+    async def _ensure_agent_initialized(self) -> None:
+        """Lazy async initialization of agent with AsyncRedisSaver checkpointer."""
+        if self._agent is not None:
+            return
+
+        # Get checkpointer asynchronously
+        checkpointer = await self.redis_manager.get_checkpointer()
+
+        # Create agent with all CoALA memory components
+        self._agent = StatefulRAGAgent(
             checkpointer=checkpointer,
-            episodic_memory=episodic_memory,
-            procedural_memory=procedural_memory,
+            episodic_memory=self.episodic_memory,
+            procedural_memory=self.procedural_memory,
         )
+
+    @property
+    def agent(self) -> StatefulRAGAgent:
+        """Get the agent instance (must call _ensure_agent_initialized first)."""
+        if self._agent is None:
+            raise RuntimeError(
+                "Agent not initialized. Call await _ensure_agent_initialized() first."
+            )
+        return self._agent
 
     def _get_session_key(self, session_id: str) -> str:
         """Generate session key for Redis (single-user mode)."""
@@ -113,6 +131,9 @@ class RedisChatService:
             Dict with response and metadata
         """
         try:
+            # Ensure agent is initialized with async checkpointer
+            await self._ensure_agent_initialized()
+
             user_id = self._extract_user_id(session_id)
 
             # DISABLED pronoun resolution for testing
@@ -159,6 +180,9 @@ class RedisChatService:
     async def chat_stream(self, message: str, session_id: str = "default"):
         """Stream tokens as they're generated."""
         try:
+            # Ensure agent is initialized with async checkpointer
+            await self._ensure_agent_initialized()
+
             user_id = self._extract_user_id(session_id)
 
             # DISABLED pronoun resolution for testing
@@ -226,5 +250,13 @@ class RedisChatService:
             ) from e
 
 
-# Global service instance
-redis_chat_service = RedisChatService()
+# Global service instance (lazy initialization)
+_redis_chat_service: RedisChatService | None = None
+
+
+def get_redis_chat_service() -> RedisChatService:
+    """Get the global Redis chat service instance."""
+    global _redis_chat_service
+    if _redis_chat_service is None:
+        _redis_chat_service = RedisChatService()
+    return _redis_chat_service

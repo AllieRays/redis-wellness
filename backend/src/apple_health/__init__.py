@@ -16,7 +16,14 @@ from .models import (
     WorkoutSummary,
 )
 from .parser import AppleHealthParser, ParsingError
-from .query_tools import create_user_bound_tools
+
+
+# Lazy import to avoid circular dependency issues
+def create_user_bound_tools(user_id: str):
+    from .query_tools import create_user_bound_tools as _create
+
+    return _create(user_id)
+
 
 __all__ = [
     # Models

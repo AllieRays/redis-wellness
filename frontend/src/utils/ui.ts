@@ -126,9 +126,9 @@ export function addMessage(
   // Use raw HTML for error messages, otherwise render with sanitization
   const renderedContent = isRawHtml ? content : renderMarkdown(content);
 
-  messageDiv.innerHTML = `
-    <div class="message-bubble ${role}">${iconPrefix}${renderedContent}${metadataHtml}</div>
-  `;
+  // Build the message structure with metadata outside the bubble
+  const bubbleHtml = `<div class="message-bubble ${role}">${iconPrefix}${renderedContent}</div>`;
+  messageDiv.innerHTML = bubbleHtml + metadataHtml;
 
   chatArea.appendChild(messageDiv);
   chatArea.scrollTop = chatArea.scrollHeight;
@@ -177,7 +177,15 @@ export class StreamingMessageBubble {
   }
 
   addMetadata(metadataHtml: string): void {
-    this.bubbleEl.innerHTML += metadataHtml;
+    // Insert metadata after the bubble, not inside it
+    if (metadataHtml) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = metadataHtml;
+      // Append each metadata element after the bubble
+      while (tempDiv.firstChild) {
+        this.element.appendChild(tempDiv.firstChild);
+      }
+    }
   }
 
   remove(): void {

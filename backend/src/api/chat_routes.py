@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..services.redis_chat import RedisChatService
+from ..services.redis_chat import get_redis_chat_service
 from ..services.stateless_chat import StatelessChatService
 from ..utils.exceptions import (
     InfrastructureError,
@@ -36,7 +36,7 @@ router = APIRouter(prefix="/chat", tags=["Health Chat Demo"])
 
 # Initialize services (services manage agents internally)
 stateless_service = StatelessChatService()
-redis_service = RedisChatService()
+# Redis service will be lazily initialized on first use (no module-level instantiation)
 
 
 # ========== Request/Response Models ==========
@@ -223,7 +223,7 @@ async def redis_chat_stream(request: RedisChatRequest, http_request: Request):
     async def generate():
         start_time = time.time()
         try:
-            async for chunk in redis_service.chat_stream(
+            async for chunk in get_redis_chat_service().chat_stream(
                 message=request.message, session_id=request.session_id
             ):
                 # Add response_time_ms to done event
@@ -278,7 +278,7 @@ async def redis_chat(request: RedisChatRequest, http_request: Request):
         start_time = time.time()
 
         # Use RedisChatService which handles conversation storage
-        result = await redis_service.chat(
+        result = await get_redis_chat_service().chat(
             message=request.message, session_id=request.session_id
         )
 
@@ -365,7 +365,9 @@ async def get_conversation_history(session_id: str, limit: int = 10):
             raise HTTPException(status_code=400, detail=error_response.dict())
 
         # Get conversation history from Redis service
-        messages = await redis_service.get_conversation_history(session_id, limit=limit)
+        messages = await get_redis_chat_service().get_conversation_history(
+            session_id, limit=limit
+        )
 
         conversation_messages = [
             ConversationMessage(
@@ -423,7 +425,7 @@ async def get_memory_stats(session_id: str):
             )
             raise HTTPException(status_code=400, detail=error_response.dict())
 
-        stats = await redis_service.get_memory_stats(session_id)
+        stats = await get_redis_chat_service().get_memory_stats(session_id)
 
         return MemoryStatsResponse(
             short_term=stats.get("short_term", {}),
@@ -508,7 +510,7 @@ async def clear_session(session_id: str):
             )
             raise HTTPException(status_code=400, detail=error_response.dict())
 
-        success = await redis_service.clear_session(session_id)
+        success = await get_redis_chat_service().clear_session(session_id)
 
         return ClearSessionResponse(
             success=success,

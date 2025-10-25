@@ -444,30 +444,26 @@ wheels = [
 
 [[package]]
 name = "langgraph-checkpoint"
-version = "3.0.0"
+version = "2.1.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "langchain-core" },
     { name = "ormsgpack" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b7/cb/2a6dad2f0a14317580cc122e2a60e7f0ecabb50aaa6dc5b7a6a2c94cead7/langgraph_checkpoint-3.0.0.tar.gz", hash = "sha256:f738695ad938878d8f4775d907d9629e9fcd345b1950196effb08f088c52369e", size = 132132, upload-time = "2025-10-20T18:35:49.132Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/29/83/6404f6ed23a91d7bc63d7df902d144548434237d017820ceaa8d014035f2/langgraph_checkpoint-2.1.2.tar.gz", hash = "sha256:112e9d067a6eff8937caf198421b1ffba8d9207193f14ac6f89930c1260c06f9", size = 142420, upload-time = "2025-10-07T17:45:17.129Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/85/2a/2efe0b5a72c41e3a936c81c5f5d8693987a1b260287ff1bbebaae1b7b888/langgraph_checkpoint-3.0.0-py3-none-any.whl", hash = "sha256:560beb83e629784ab689212a3d60834fb3196b4bbe1d6ac18e5cad5d85d46010", size = 46060, upload-time = "2025-10-20T18:35:48.255Z" },
+    { url = "https://files.pythonhosted.org/packages/c4/f2/06bf5addf8ee664291e1b9ffa1f28fc9d97e59806dc7de5aea9844cbf335/langgraph_checkpoint-2.1.2-py3-none-any.whl", hash = "sha256:911ebffb069fd01775d4b5184c04aaafc2962fcdf50cf49d524cd4367c4d0c60", size = 45763, upload-time = "2025-10-07T17:45:16.19Z" },
 ]
 
 [[package]]
 name = "langgraph-checkpoint-redis"
-version = "0.1.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.1.2"
+source = { git = "https://github.com/AllieRays/langgraph-redis.git?rev=fix-jsonplus-serializer-dumps#06f6c6965b776535a192aaf5f85b2522b09b5153" }
 dependencies = [
     { name = "langgraph-checkpoint" },
     { name = "orjson" },
     { name = "redis" },
     { name = "redisvl" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/b6/a7/d8e47a5a32b1b3e044d67c6b51b6bb05ca2f62a98fe97ad6d38886b196bc/langgraph_checkpoint_redis-0.1.0.tar.gz", hash = "sha256:982da974fc82fa21bde0d16d37c8e6d0fc236c5beddd1714fc909e92fe11a11a", size = 74520, upload-time = "2025-08-08T19:51:04.978Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/db/66/1bdce5ca496286ab5e18c7f24f57bdb9f508c25258c18aa28dd0fa87dcd5/langgraph_checkpoint_redis-0.1.0-py3-none-any.whl", hash = "sha256:c38f1539c68dccf25d7c972d96503a5e708ac828e5138db5ee7a835115b72a9e", size = 81188, upload-time = "2025-08-08T19:51:03.767Z" },
 ]
 
 [[package]]
@@ -1394,8 +1390,6 @@ dependencies = [
     { name = "langchain" },
     { name = "langchain-core" },
     { name = "langchain-ollama" },
-    { name = "langgraph" },
-    { name = "langgraph-checkpoint" },
     { name = "langgraph-checkpoint-redis" },
     { name = "numpy" },
     { name = "pydantic" },
@@ -1431,9 +1425,7 @@ requires-dist = [
     { name = "langchain", specifier = ">=0.3.0" },
     { name = "langchain-core", specifier = ">=0.3.0" },
     { name = "langchain-ollama", specifier = ">=0.2.0" },
-    { name = "langgraph", specifier = ">=1.0.1" },
-    { name = "langgraph-checkpoint", specifier = ">=3.0.0" },
-    { name = "langgraph-checkpoint-redis", specifier = ">=0.1.0" },
+    { name = "langgraph-checkpoint-redis", git = "https://github.com/AllieRays/langgraph-redis.git?rev=fix-jsonplus-serializer-dumps" },
     { name = "numpy", specifier = ">=1.24.0" },
     { name = "pydantic", specifier = ">=2.4.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },

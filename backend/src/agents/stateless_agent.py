@@ -91,16 +91,7 @@ class StatelessHealthAgent:
                 ]
             )
 
-        # Add tool-first policy (same as stateful agent for consistent behavior)
-        prompt_parts.extend(
-            [
-                "⚠️ TOOL-FIRST POLICY:",
-                "- For factual questions about workouts/health data → ALWAYS call tools (source of truth)",
-                "- NEVER answer workout/metric questions without tool data",
-                "- Always verify data through tools before responding",
-                "",
-            ]
-        )
+        # Note: TOOL-FIRST POLICY now in build_base_system_prompt() for consistency across agents
 
         return "\n".join(prompt_parts)
 
@@ -285,7 +276,9 @@ class StatelessHealthAgent:
 
             # Log validation results and handle failures
             if not date_validation["valid"]:
-                logger.error(f"❌ DATE MISMATCH DETECTED: {date_validation['warnings']}")
+                logger.error(
+                    f"❌ DATE MISMATCH DETECTED: {date_validation['warnings']}"
+                )
                 # Append correction prompt and retry
                 correction_prompt = (
                     f"\n\nYour response mentions the wrong date. "

@@ -23,9 +23,7 @@ dependencies = [
     "numpy>=1.24.0",
     # Token counting for context management
     "tiktoken>=0.5.0",
-    "langgraph>=1.0.1",
-    "langgraph-checkpoint>=3.0.0",
-    "langgraph-checkpoint-redis>=0.1.0",  # Redis persistence for conversation history
+    "langgraph-checkpoint-redis",
 ]
 
 [project.optional-dependencies]
@@ -41,6 +39,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [dependency-groups]
 dev = [
@@ -87,3 +88,6 @@ known-first-party = ["src"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E501"]
+
+[tool.uv.sources]
+langgraph-checkpoint-redis = { git = "https://github.com/AllieRays/langgraph-redis.git", rev = "fix-jsonplus-serializer-dumps" }

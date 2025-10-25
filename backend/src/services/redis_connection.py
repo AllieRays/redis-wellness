@@ -91,7 +91,8 @@ class RedisConnectionManager:
         self._pool: ConnectionPool | None = None
         self._client: redis.Redis | None = None
         self.circuit_breaker = RedisCircuitBreaker()
-        self._checkpointer = None  # Will be initialized in async context
+        self._checkpointer = None  # Will be initialized lazily
+        self._checkpointer_lock = None  # For thread-safe async init
         self._initialize_connection()
 
     def _initialize_connection(self) -> None:
@@ -181,37 +182,51 @@ class RedisConnectionManager:
             "failure_count": self.circuit_breaker.failure_count,
         }
 
-    def get_checkpointer(self):
+    async def get_checkpointer(self):
         """
         Get LangGraph checkpointer using Redis for persistence.
 
         CRITICAL: Uses Redis-based storage for conversation history.
         This ensures conversations persist across container restarts.
 
-        Returns a checkpointer that must be used without context manager.
+        Returns a checkpointer that stays open for the agent's lifetime.
+        Uses direct initialization (not context manager) to avoid auto-close.
         """
         if self._checkpointer:
             return self._checkpointer
 
-        # TEMPORARY: Using MemorySaver until AsyncRedisSaver lazy-init is implemented
-        # TODO: Implement lazy AsyncRedisSaver initialization in async context
-        # See: https://github.com/langchain-ai/langgraph/issues/xxx
         try:
-            from langgraph.checkpoint.memory import MemorySaver
+            # Use AsyncRedisSaver with direct initialization
+            from langgraph.checkpoint.redis.aio import AsyncRedisSaver
 
-            logger.warning(
-                "🚧 TEMPORARY: Using MemorySaver for checkpointing (conversations will NOT persist across restarts)"
-            )
-            logger.warning(
-                "   TODO: Implement AsyncRedisSaver with lazy initialization"
-            )
+            # Build Redis connection URL
+            redis_host = os.getenv("REDIS_HOST", "localhost")
+            redis_port = int(os.getenv("REDIS_PORT", 6379))
+            redis_db = int(os.getenv("REDIS_DB", 0))
+            redis_password = os.getenv("REDIS_PASSWORD")
 
-            checkpointer = MemorySaver()
-            self._checkpointer = checkpointer
-            return checkpointer
+            # Build connection URL with optional password
+            if redis_password:
+                redis_url = (
+                    f"redis://:{redis_password}@{redis_host}:{redis_port}/{redis_db}"
+                )
+            else:
+                redis_url = f"redis://{redis_host}:{redis_port}/{redis_db}"
 
+            # ✅ Direct initialization (connection stays open for agent lifetime)
+            # AsyncRedisSaver uses its own built-in serializer
+            self._checkpointer = AsyncRedisSaver(redis_url=redis_url)
+            await self._checkpointer.asetup()
+
+            logger.info("✅ AsyncRedisSaver initialized (conversations WILL persist)")
+            return self._checkpointer
+
+        except ImportError as e:
+            logger.error(f"Failed to import AsyncRedisSaver: {e}")
+            logger.error("   Install with: pip install langgraph-checkpoint-redis")
+            raise
         except Exception as e:
-            logger.error(f"Failed to create checkpointer: {e}")
+            logger.error(f"Failed to create Redis checkpointer: {e}")
             raise
 
     def close(self) -> None:

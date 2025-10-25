@@ -87,16 +87,28 @@ function createMetadataHtml(metadata: StreamMetadata): string {
     const stats = metadata.memory_stats;
     const memoryIndicators: string[] = [];
 
-    if (stats.short_term_available) {
-      memoryIndicators.push(
-        '<span class="memory-badge"><i class="fas fa-file-lines"></i> Short-term memory</span>'
-      );
-    }
-    if (stats.semantic_hits > 0) {
-      memoryIndicators.push(
-        `<span class="memory-badge semantic"><i class="fas fa-brain"></i> ${stats.semantic_hits} semantic memories</span>`
-      );
-    }
+    // Show ALL memory types used (NEW: supports multiple memory types)
+    const memoryTypes = stats.memory_types || [stats.memory_type || 'none'];
+
+    memoryTypes.forEach((memoryType: string) => {
+      if (memoryType === 'episodic') {
+        memoryIndicators.push(
+          '<span class="memory-badge episodic"><i class="fas fa-calendar-check"></i> Episodic memory</span>'
+        );
+      } else if (memoryType === 'procedural') {
+        memoryIndicators.push(
+          '<span class="memory-badge procedural"><i class="fas fa-list-check"></i> Procedural memory</span>'
+        );
+      } else if (memoryType === 'semantic') {
+        memoryIndicators.push(
+          '<span class="memory-badge semantic"><i class="fas fa-brain"></i> Semantic memory</span>'
+        );
+      } else if (memoryType === 'short-term') {
+        memoryIndicators.push(
+          '<span class="memory-badge"><i class="fas fa-file-lines"></i> Short-term memory</span>'
+        );
+      }
+    });
 
     if (memoryIndicators.length > 0) {
       metadataHtml = `<div class="message-metadata">${memoryIndicators.join(
