@@ -137,26 +137,6 @@ def test_user_id() -> str:
     return get_user_id()
 
 
-# ==================== Memory Fixtures (Real Redis + Real Services) ====================
-
-
-@pytest.fixture
-async def memory_coordinator(clean_redis: Redis):
-    """
-    Provide real memory coordinator with clean Redis.
-
-    Requires: Redis running
-    """
-    from src.services.memory_coordinator import get_memory_coordinator
-
-    coordinator = get_memory_coordinator()
-    yield coordinator
-
-    # Cleanup: Clear any test memories
-    with contextlib.suppress(Exception):
-        await coordinator.clear_session_memories("test_session")
-
-
 # ==================== Agent Fixtures (Real Ollama Required) ====================
 
 
@@ -175,7 +155,7 @@ async def stateless_agent():
 
 
 @pytest.fixture
-async def stateful_agent(memory_coordinator):
+async def stateful_agent(clean_redis: Redis):
     """
     Provide REAL stateful RAG agent with Ollama/Qwen + Redis memory.
 
@@ -184,9 +164,22 @@ async def stateful_agent(memory_coordinator):
     - Redis running
     Tests using this fixture should be marked with @pytest.mark.llm
     """
-    from src.agents.stateful_rag_agent import StatefulRAGAgent
+    from langgraph.checkpoint.redis.aio import AsyncRedisSaver
 
-    agent = StatefulRAGAgent(memory_coordinator=memory_coordinator)
+    from src.agents.stateful_rag_agent import StatefulRAGAgent
+    from src.services.episodic_memory_manager import EpisodicMemoryManager
+    from src.services.procedural_memory_manager import ProceduralMemoryManager
+
+    # Initialize memory components
+    checkpointer = AsyncRedisSaver(client=clean_redis)
+    episodic = EpisodicMemoryManager(user_id="wellness_user")
+    procedural = ProceduralMemoryManager(user_id="wellness_user")
+
+    agent = StatefulRAGAgent(
+        checkpointer=checkpointer,
+        episodic_memory=episodic,
+        procedural_memory=procedural,
+    )
     return agent
 
 
