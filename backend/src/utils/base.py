@@ -1,9 +1,4 @@
-"""
-Base classes and utilities for AI agent tools.
-
-Provides standardized interfaces, validation, and error handling
-for all tools used by AI agents in the Redis wellness application.
-"""
+"""Base classes, decorators, and error handling for AI agent tools."""
 
 import functools
 import logging
@@ -17,11 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class ToolResult(BaseModel):
-    """
-    Standardized result format for all AI agent tools.
-
-    Ensures consistent response structure for AI agents.
-    """
+    """Standardized result format for AI agent tools."""
 
     success: bool
     data: dict[str, Any] | None = None
@@ -41,11 +32,7 @@ class ToolResult(BaseModel):
 
 
 class ToolError(Exception):
-    """
-    Standardized error for AI agent tools.
-
-    Provides structured error information without exposing sensitive data.
-    """
+    """Structured error for AI agent tools without sensitive data exposure."""
 
     def __init__(
         self, message: str, error_code: str = "TOOL_ERROR", details: dict | None = None
@@ -67,12 +54,7 @@ class ToolError(Exception):
 
 
 def validate_tool_input(input_schema: dict[str, Any]):
-    """
-    Decorator to validate tool input parameters.
-
-    Args:
-        input_schema: JSON schema for parameter validation
-    """
+    """Decorator to validate tool input parameters against schema."""
 
     def decorator(func):
         @functools.wraps(func)
@@ -104,11 +86,7 @@ def validate_tool_input(input_schema: dict[str, Any]):
 
 
 def measure_execution_time(func):
-    """
-    Decorator to measure and log tool execution time.
-
-    Useful for performance comparison between Redis and stateless approaches.
-    """
+    """Decorator to measure and log tool execution time."""
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -140,16 +118,7 @@ def measure_execution_time(func):
 def create_success_result(
     data: Any, message: str = "Operation completed successfully"
 ) -> ToolResult:
-    """
-    Helper function to create successful ToolResult.
-
-    Args:
-        data: Result data to return to AI agent
-        message: Success message
-
-    Returns:
-        ToolResult indicating success
-    """
+    """Create successful ToolResult with data and message."""
     return ToolResult(
         success=True,
         data=data if isinstance(data, dict) else {"result": data},
@@ -160,17 +129,7 @@ def create_success_result(
 def create_error_result(
     message: str, error_code: str = "TOOL_ERROR", details: dict | None = None
 ) -> ToolResult:
-    """
-    Helper function to create error ToolResult.
-
-    Args:
-        message: Error message for AI agent
-        error_code: Structured error code
-        details: Additional error details (non-sensitive)
-
-    Returns:
-        ToolResult indicating failure
-    """
+    """Create error ToolResult with message and code."""
     return ToolResult(
         success=False,
         message=f"[{error_code}] {message}",
@@ -181,16 +140,7 @@ def create_error_result(
 def sanitize_for_ai(
     data: dict[str, Any], privacy_level: str = "safe"
 ) -> dict[str, Any]:
-    """
-    Sanitize data for AI agent consumption based on privacy level.
-
-    Args:
-        data: Raw data to sanitize
-        privacy_level: Level of sanitization ("safe", "anonymous", "minimal")
-
-    Returns:
-        Sanitized data safe for AI processing
-    """
+    """Sanitize data for AI consumption based on privacy level."""
     if privacy_level == "anonymous":
         # Remove all personal identifiers
         sensitive_keys = ["device", "source_name", "creation_date", "user_id"]
@@ -208,11 +158,7 @@ def sanitize_for_ai(
 
 
 class HealthDataValidator:
-    """
-    Validator for health data to ensure quality and consistency.
-
-    Prevents AI agents from processing invalid or potentially harmful data.
-    """
+    """Validator for health data quality and consistency."""
 
     @staticmethod
     def validate_user_id(user_id: str) -> bool:
@@ -255,9 +201,7 @@ class HealthDataValidator:
 
 # Performance tracking for Redis vs stateless comparison
 class PerformanceTracker:
-    """
-    Track performance metrics for demonstrating Redis advantages.
-    """
+    """Track performance metrics for Redis vs stateless comparison."""
 
     def __init__(self):
         self.metrics = {}

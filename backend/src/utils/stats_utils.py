@@ -1,9 +1,4 @@
-"""
-Statistical utilities for health data analysis.
-
-SHARED MODULE - Used by both stateless and stateful chats.
-Pure functions with no side effects - all math done in Python, no LLM hallucination.
-"""
+"""Statistical utilities for health data analysis (pure functions with NumPy/SciPy)."""
 
 from datetime import datetime
 from typing import Any

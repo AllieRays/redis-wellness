@@ -1,13 +1,4 @@
-"""
-Workout Data Fetching Utilities.
-
-Pure functions for fetching and filtering workout data from Redis.
-These eliminate duplication across query tools by providing a centralized
-workout fetching interface.
-
-Similar to metric_aggregators.py for health records, this module provides
-workout-specific data fetching with flexible filtering options.
-"""
+"""Centralized workout data fetching from Redis with flexible filtering."""
 
 import json
 import logging

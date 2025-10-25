@@ -179,9 +179,7 @@ async def stateless_agent():
         await agent.chat("test", user_id="test_user", session_id="test_session")
     except Exception as e:
         pytest.skip(
-            f"Ollama not available. Is ollama running?\n"
-            f"Run: ollama serve\n"
-            f"Error: {e}"
+            f"Ollama not available. Is ollama running?\nRun: ollama serve\nError: {e}"
         )
 
     return agent
@@ -208,9 +206,7 @@ async def stateful_agent(memory_coordinator):
         await agent.chat("test", user_id="test_user", session_id="test_session")
     except Exception as e:
         pytest.skip(
-            f"Ollama not available. Is ollama running?\n"
-            f"Run: ollama serve\n"
-            f"Error: {e}"
+            f"Ollama not available. Is ollama running?\nRun: ollama serve\nError: {e}"
         )
 
     return agent

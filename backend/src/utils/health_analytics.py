@@ -1,12 +1,4 @@
-"""
-Advanced Mathematical Analysis Tools for Health Data.
-
-SHARED MODULE - Used by both stateless and stateful chats.
-PURE FUNCTIONS - No state, no Redis access, no side effects.
-
-All calculations done in Python using NumPy/SciPy.
-No LLM hallucination for mathematical results.
-"""
+"""Mathematical analysis for health data using NumPy/SciPy (pure functions)."""
 
 from typing import Any
 

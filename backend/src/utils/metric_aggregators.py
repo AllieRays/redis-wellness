@@ -1,9 +1,4 @@
-"""
-Health Metric Aggregation Utilities.
-
-Pure functions for aggregating health data by day according to metric-specific strategies.
-These functions handle the daily pre-aggregation before statistical calculations.
-"""
+"""Daily aggregation strategies for health metrics before statistical analysis."""
 
 from collections import defaultdict
 from datetime import date, datetime

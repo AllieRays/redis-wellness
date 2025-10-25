@@ -1,25 +1,8 @@
-"""
-Redis Key Generation Utility.
-
-Centralizes all Redis key patterns for consistent naming and maintainability.
-All services should use this utility to generate Redis keys.
-
-Benefits:
-- Single source of truth for key patterns
-- Easy to update key formats across the codebase
-- Self-documenting key structure
-- Prevents typos in key names
-- Easy to grep for key usage
-
-Architecture:
-- Static methods for zero-overhead key generation
-- Organized by domain (health, memory, cache, workout)
-- Pattern methods for wildcard operations (scanning/deletion)
-"""
+"""Centralized Redis key generation for consistent naming across services."""
 
 
 class RedisKeys:
-    """Centralized Redis key generation."""
+    """Redis key generation organized by domain (health, workout, memory, cache)."""
 
     # ========== HEALTH DATA KEYS ==========
 

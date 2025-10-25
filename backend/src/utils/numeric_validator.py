@@ -1,14 +1,4 @@
-"""
-Numeric Validator for Health Data Responses.
-
-Prevents LLM hallucinations by:
-1. Extracting numeric values from tool outputs (ground truth)
-2. Extracting numeric values from LLM responses
-3. Comparing and flagging mismatches
-4. Optionally correcting or rejecting hallucinated responses
-
-Handles health metrics with units (e.g., "136.8 lb", "70 bpm", "23.6 BMI").
-"""
+"""Numeric validation to detect and prevent LLM hallucinations in health data."""
 
 import logging
 import re
@@ -18,15 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class NumericValidator:
-    """
-    Validator to detect hallucinated numbers in LLM responses.
-
-    Strategy:
-    - Extract all numbers + units from tool results (source of truth)
-    - Extract all numbers + units from LLM response
-    - Flag numbers in response that don't exist in tool results
-    - Support fuzzy matching for rounding (e.g., 70.2 → 70)
-    """
+    """Detect hallucinated numbers by comparing LLM responses against tool outputs."""
 
     def __init__(self, tolerance: float = 0.1):
         """

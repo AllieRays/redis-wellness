@@ -28,7 +28,20 @@ class CircuitState(Enum):
 
 
 class RedisCircuitBreaker:
-    """Circuit breaker for Redis operations."""
+    """
+    Circuit breaker pattern implementation for Redis operations.
+
+    Prevents cascading failures by temporarily blocking operations when Redis
+    becomes unreachable. Uses three states: CLOSED (normal), OPEN (blocking),
+    and HALF_OPEN (testing recovery).
+
+    Attributes:
+        failure_threshold: Number of failures before opening circuit (default: 5).
+        recovery_timeout: Seconds to wait before testing recovery (default: 30).
+        failure_count: Current count of consecutive failures.
+        last_failure_time: Timestamp of most recent failure.
+        state: Current circuit state (CLOSED, OPEN, or HALF_OPEN).
+    """
 
     def __init__(self, failure_threshold: int = 5, recovery_timeout: int = 30) -> None:
         self.failure_threshold = failure_threshold
@@ -38,7 +51,24 @@ class RedisCircuitBreaker:
         self.state = CircuitState.CLOSED
 
     def can_execute(self) -> bool:
-        """Check if operation can be executed."""
+        """
+        Check if Redis operation can be executed based on circuit state.
+
+        State transitions:
+        - CLOSED: Allow all operations (normal state)
+        - OPEN: Block operations until recovery_timeout expires
+        - HALF_OPEN: Allow one operation to test if service recovered
+
+        Returns:
+            True if operation should be attempted, False if blocked.
+
+        Example:
+            if circuit_breaker.can_execute():
+                result = redis_client.get(key)
+                circuit_breaker.record_success()
+            else:
+                raise CircuitBreakerError("Redis unavailable")
+        """
         if self.state == CircuitState.CLOSED:
             return True
 
@@ -52,13 +82,43 @@ class RedisCircuitBreaker:
         return True
 
     def record_success(self) -> None:
-        """Record successful operation."""
+        """
+        Record a successful Redis operation.
+
+        Resets the failure counter and transitions circuit to CLOSED state,
+        indicating Redis is healthy and all operations should proceed normally.
+
+        Side Effects:
+            - Sets failure_count to 0
+            - Transitions state to CLOSED
+            - Logs info message about circuit reset
+        """
         self.failure_count = 0
         self.state = CircuitState.CLOSED
         logger.info("Redis circuit breaker reset to CLOSED")
 
     def record_failure(self) -> None:
-        """Record failed operation."""
+        """
+        Record a failed Redis operation.
+
+        Increments the failure counter. When failures reach the threshold,
+        transitions the circuit to OPEN state to prevent cascading failures
+        and give Redis time to recover.
+
+        Side Effects:
+            - Increments failure_count
+            - Updates last_failure_time to current timestamp
+            - May transition state from CLOSED to OPEN when threshold reached
+            - Logs warning when circuit opens
+
+        Example:
+            try:
+                result = redis_client.get(key)
+                circuit_breaker.record_success()
+            except redis.ConnectionError:
+                circuit_breaker.record_failure()
+                raise
+        """
         self.failure_count += 1
         self.last_failure_time = time.time()
 
@@ -69,7 +129,17 @@ class RedisCircuitBreaker:
             )
 
     def _should_attempt_reset(self) -> bool:
-        """Check if enough time has passed to attempt reset."""
+        """
+        Check if sufficient time has elapsed to attempt circuit reset.
+
+        Used when circuit is OPEN to determine if enough time has passed
+        (recovery_timeout) to test if Redis has recovered by transitioning
+        to HALF_OPEN state.
+
+        Returns:
+            True if recovery_timeout seconds have passed since last failure,
+            or if no failures recorded yet. False otherwise.
+        """
         if not self.last_failure_time:
             return True
         return time.time() - self.last_failure_time >= self.recovery_timeout

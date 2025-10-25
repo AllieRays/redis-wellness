@@ -1,9 +1,4 @@
-"""
-Shared utilities for health agents.
-
-Used by both StatelessHealthAgent and StatefulRAGAgent
-to avoid code duplication while maintaining clean separation.
-"""
+"""Shared utilities for health agents (stateless and stateful)."""
 
 import logging
 from typing import Any
@@ -17,14 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_health_llm() -> ChatOllama:
-    """
-    Create standardized LLM for health agents.
-
-    Used by both stateless and stateful agents.
-
-    Returns:
-        ChatOllama: Configured LLM instance
-    """
+    """Create configured LLM instance for health agents."""
     settings = get_settings()
     return ChatOllama(
         model=settings.ollama_model,
@@ -36,15 +24,7 @@ def create_health_llm() -> ChatOllama:
 
 
 def build_base_system_prompt() -> str:
-    """
-    Build base system prompt shared by all agents.
-
-    Includes user health context from .env if configured.
-    Agents can extend this with mode-specific additions (e.g., memory context).
-
-    Returns:
-        str: Base system prompt with optional user health context
-    """
+    """Build base system prompt with optional user health context from settings."""
     settings = get_settings()
 
     base_prompt = """You are a health AI assistant with access to the user's Apple Health data.
@@ -105,17 +85,7 @@ Reference injury dates, recovery timelines, and goals when relevant to the user'
 
 
 def should_continue_tool_loop(state: dict) -> str:
-    """
-    Determine if agent should continue calling tools.
-
-    Shared logic for both agent types.
-
-    Args:
-        state: Agent state with messages and tool call tracking
-
-    Returns:
-        "continue" if tools should be called, "end" if response is ready
-    """
+    """Determine if agent should continue calling tools based on state."""
     messages = state.get("messages", [])
     if not messages:
         return "end"
@@ -139,19 +109,7 @@ def should_continue_tool_loop(state: dict) -> str:
 def build_message_history(
     conversation_history: list[dict] | None, current_message: str, limit: int = 10
 ) -> list[HumanMessage | AIMessage]:
-    """
-    Build LangChain message history from conversation dict.
-
-    Shared by both agents for consistent message formatting.
-
-    Args:
-        conversation_history: Previous messages as dicts with role/content
-        current_message: Current user message to add
-        limit: Maximum history messages to include
-
-    Returns:
-        List of LangChain messages
-    """
+    """Convert conversation history to LangChain messages with current message."""
     messages = []
 
     # Add conversation history (short-term memory)
@@ -172,17 +130,7 @@ def build_message_history(
 
 
 def extract_tool_usage(messages: list) -> tuple[list[dict], int]:
-    """
-    Extract tools used from message history.
-
-    Shared utility for response formatting.
-
-    Args:
-        messages: List of LangChain messages
-
-    Returns:
-        Tuple of (tools_used list, tool_calls_count)
-    """
+    """Extract tool calls from message history for response formatting."""
     tools_used = []
 
     for msg in messages:
@@ -199,15 +147,7 @@ def extract_tool_usage(messages: list) -> tuple[list[dict], int]:
 
 
 def extract_final_response(messages: list) -> str:
-    """
-    Extract final response text from message history.
-
-    Args:
-        messages: List of LangChain messages
-
-    Returns:
-        Final response text
-    """
+    """Extract final response text from message history."""
     if not messages:
         return "No response generated."
 
@@ -220,16 +160,7 @@ def extract_final_response(messages: list) -> str:
 
 
 def build_error_response(error: Exception, agent_type: str) -> dict[str, Any]:
-    """
-    Build standardized error response for agents.
-
-    Args:
-        error: Exception that occurred
-        agent_type: Type of agent for logging
-
-    Returns:
-        Error response dict
-    """
+    """Build standardized error response dict for agents."""
     logger.error(f"{agent_type} chat failed: {error}", exc_info=True)
     return {
         "response": "I encountered an error processing your request. Please try again.",
@@ -241,16 +172,7 @@ def build_error_response(error: Exception, agent_type: str) -> dict[str, Any]:
 
 
 def build_tool_error_response(error: Exception, tool_name: str) -> dict[str, Any]:
-    """
-    Build standardized error response for tools.
-
-    Args:
-        error: Exception that occurred
-        tool_name: Name of the tool that failed
-
-    Returns:
-        Standardized tool error response
-    """
+    """Build standardized error response dict for tools."""
     logger.error(f"Tool {tool_name} failed: {error}", exc_info=True)
     return {
         "error": f"Failed to {tool_name.replace('_', ' ')}: {str(error)}",

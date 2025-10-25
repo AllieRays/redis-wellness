@@ -1,9 +1,4 @@
-"""
-Metric Classification for Health Data Aggregation.
-
-Determines the appropriate aggregation strategy for each health metric type
-based on data patterns and user expectations.
-"""
+"""Metric classification for health data aggregation strategies."""
 
 from enum import Enum
 

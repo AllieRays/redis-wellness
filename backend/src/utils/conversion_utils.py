@@ -1,9 +1,4 @@
-"""
-Unit conversion utilities for health data.
-
-SHARED MODULE - Used by both stateless and stateful chats.
-Pure functions with no side effects.
-"""
+"""Unit conversion utilities for health data (pure functions)."""
 
 
 def convert_weight_to_lbs(value_str: str, unit: str = None) -> str:

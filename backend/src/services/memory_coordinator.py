@@ -1,6 +1,20 @@
 """
 Memory Coordinator - Orchestrates all memory systems for AI agents.
 
+⚠️ IMPORTANT: This service is currently NOT USED in production.
+
+The StatefulRAGAgent (src/agents/stateful_rag_agent.py) uses episodic_memory_manager
+and procedural_memory_manager DIRECTLY, bypassing this coordinator. This code is
+preserved for potential future refactoring but does not affect current agent behavior.
+
+Current production flow:
+  redis_chat.py → StatefulRAGAgent → episodic/procedural managers (direct)
+
+This coordinator was designed to provide a unified interface for all memory types,
+but the agent architecture evolved to use managers directly for better control.
+
+---
+
 Coordinates 4 types of memory based on CoALA framework:
 1. Short-term: Conversation history (working memory)
 2. Episodic: User-specific events (preferences, goals)

@@ -197,9 +197,9 @@ def create_aggregate_metrics_tool(user_id: str):
                         if metric_type == "StepCount":
                             statistics["min"] = f"{min_value:.0f} steps (lowest day)"
                         elif metric_type == "HeartRate":
-                            statistics[
-                                "min"
-                            ] = f"{min_value:.1f} bpm (lowest daily avg)"
+                            statistics["min"] = (
+                                f"{min_value:.1f} bpm (lowest daily avg)"
+                            )
                         elif metric_type == "BodyMass":
                             statistics["min"] = f"{min_value:.1f} lbs"
                         else:
@@ -212,13 +212,13 @@ def create_aggregate_metrics_tool(user_id: str):
                     if "max" in aggregations or "maximum" in aggregations:
                         max_value = max(values_for_stats)
                         if metric_type == "StepCount":
-                            statistics[
-                                "max"
-                            ] = f"{max_value:.0f} steps (most active day)"
+                            statistics["max"] = (
+                                f"{max_value:.0f} steps (most active day)"
+                            )
                         elif metric_type == "HeartRate":
-                            statistics[
-                                "max"
-                            ] = f"{max_value:.1f} bpm (highest daily avg)"
+                            statistics["max"] = (
+                                f"{max_value:.1f} bpm (highest daily avg)"
+                            )
                         elif metric_type == "BodyMass":
                             statistics["max"] = f"{max_value:.1f} lbs"
                         else:
@@ -231,13 +231,13 @@ def create_aggregate_metrics_tool(user_id: str):
                     if "sum" in aggregations or "total" in aggregations:
                         sum_value = sum(aggregated_values)
                         if metric_type == "StepCount":
-                            statistics[
-                                "sum"
-                            ] = f"{sum_value:.0f} total steps ({len(aggregated_values)} days)"
+                            statistics["sum"] = (
+                                f"{sum_value:.0f} total steps ({len(aggregated_values)} days)"
+                            )
                         elif metric_type == "DistanceWalkingRunning":
-                            statistics[
-                                "sum"
-                            ] = f"{sum_value:.1f} total miles ({len(aggregated_values)} days)"
+                            statistics["sum"] = (
+                                f"{sum_value:.1f} total miles ({len(aggregated_values)} days)"
+                            )
                         elif metric_type == "BodyMass":
                             # Sum of weights makes no sense - skip this aggregation
                             logger.warning(
@@ -256,9 +256,9 @@ def create_aggregate_metrics_tool(user_id: str):
                             "daily_average",
                             "latest_value",
                         ]:
-                            statistics[
-                                "count"
-                            ] = f"{len(aggregated_values)} days with data"
+                            statistics["count"] = (
+                                f"{len(aggregated_values)} days with data"
+                            )
                         else:
                             statistics["count"] = f"{len(aggregated_values)} readings"
 
