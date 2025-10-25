@@ -89,5 +89,14 @@ known-first-party = ["src"]
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E501"]
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = [
+    "unit: Fast unit tests (no external dependencies)",
+    "integration: Integration tests (require Redis)",
+    "llm: LLM tests (require Ollama/Qwen - expensive)",
+    "api: API tests (require FastAPI TestClient)",
+]
+
 [tool.uv.sources]
 langgraph-checkpoint-redis = { git = "https://github.com/AllieRays/langgraph-redis.git", rev = "fix-jsonplus-serializer-dumps" }
