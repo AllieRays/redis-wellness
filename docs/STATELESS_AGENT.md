@@ -13,7 +13,42 @@ This document explains the **internal architecture of the stateless agent**: how
 
 ---
 
-## 2. Key Technologies
+## 2. What is Stateless?
+
+**Stateless** means the agent has **no memory** between requests. Each query is processed independently with no awareness of previous interactions.
+
+### Key Characteristics
+
+- **No conversation history**: Each request starts fresh
+- **No context retention**: Previous queries and responses are not stored
+- **No learning**: Agent doesn't improve or adapt over time
+- **No user preferences**: Goals and patterns are not remembered
+
+### How It Works
+
+Every request to a stateless agent:
+1. Receives only the current user message
+2. Processes it in isolation
+3. Returns a response
+4. Forgets everything
+
+The next request has zero knowledge of what came before.
+
+### Example
+
+```
+Request 1: "What was my heart rate yesterday?"
+Response: "Your average heart rate yesterday was 72 bpm."
+
+Request 2: "Is that good?"
+Response: "I need more information. What value are you referring to?"
+```
+
+The agent doesn't remember "that" refers to "72 bpm" from the previous exchange.
+
+---
+
+## 3. Key Technologies
 
 **What's Included:**
 - **Qwen 2.5 7B**: Function-calling LLM (via Ollama) that reads tool docstrings and autonomously decides which tools to call
@@ -44,18 +79,21 @@ flowchart TB
     SimpleLoop["Simple Tool Loop<br/>• Qwen 2.5 7B LLM<br/>• Tool calling<br/>• Response synthesis"]
 
     Tools["Health Tools<br/>(3 tools)"]
+    RedisData["Redis Health Data Store"]
 
     UI --> Router
     Router -->|"Fast path"| FastPath
     Router -->|"Complex path"| SimpleLoop
 
     SimpleLoop --> Tools
+    Tools --> RedisData
 
     style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
     style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
     style FastPath fill:#fff,stroke:#333,stroke-width:2px,color:#000
     style SimpleLoop fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
     style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style RedisData fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
 ```
 
 ### Layer Responsibilities
@@ -84,7 +122,7 @@ flowchart TB
     LLM["Qwen 2.5 7B<br/>(Ollama LLM)"]
     Decision{"Which tool?"}
     HealthTools["Health Data Tools<br/>get_health_metrics<br/>get_sleep_analysis<br/>get_workout_data"]
-    DataSource["Redis Health Data<br/>(Read-Only)"]
+    DataSource["Redis Health Data Store"]
     Loop{"More data?"}
     Response["&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Response&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"]
 
