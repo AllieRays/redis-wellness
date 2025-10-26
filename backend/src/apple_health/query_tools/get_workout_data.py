@@ -19,153 +19,15 @@ from typing import Any
 from langchain_core.tools import tool
 
 from ...services.redis_apple_health_manager import redis_manager
-from ...utils.time_utils import parse_health_record_date
+from ...utils.workout_helpers import (
+    calculate_max_hr,
+    parse_workout_safe,
+)
 
 logger = logging.getLogger(__name__)
 
 # Constants
-CONSERVATIVE_MAX_HR = 190
 DEFAULT_DAYS_BACK = 30
-
-
-def _calculate_max_hr(date_of_birth: str | None) -> int:
-    """Calculate age-based maximum heart rate."""
-    if date_of_birth:
-        try:
-            from datetime import date
-
-            dob = date.fromisoformat(date_of_birth)
-            today = date.today()
-            age = (
-                today.year
-                - dob.year
-                - ((today.month, today.day) < (dob.month, dob.day))
-            )
-            if 18 <= age <= 100:
-                return 220 - age
-        except (ValueError, TypeError):
-            pass
-    return CONSERVATIVE_MAX_HR
-
-
-def _get_heart_rate_during_workout(
-    health_data: dict, workout_start_str: str, duration_minutes: float, user_max_hr: int
-) -> dict[str, Any] | None:
-    """Get heart rate statistics during a workout."""
-    try:
-        workout_start = datetime.fromisoformat(workout_start_str.replace("Z", "+00:00"))
-        workout_end = workout_start + timedelta(minutes=duration_minutes)
-
-        hr_records = health_data.get("metrics_records", {}).get("HeartRate", [])
-        if not hr_records:
-            return None
-
-        workout_hrs = []
-        for record in hr_records:
-            try:
-                record_time = parse_health_record_date(record["date"])
-                if workout_start <= record_time <= workout_end:
-                    workout_hrs.append(float(record["value"]))
-            except (ValueError, KeyError):
-                continue
-
-        if not workout_hrs:
-            return None
-
-        avg_hr = sum(workout_hrs) / len(workout_hrs)
-        min_hr = min(workout_hrs)
-        max_hr = max(workout_hrs)
-
-        # Calculate heart rate zones
-        zones = {
-            "zone1_easy": 0,
-            "zone2_moderate": 0,
-            "zone3_tempo": 0,
-            "zone4_threshold": 0,
-            "zone5_maximum": 0,
-        }
-
-        for hr in workout_hrs:
-            hr_percent = (hr / user_max_hr) * 100
-            if hr_percent < 60:
-                zones["zone1_easy"] += 1
-            elif hr_percent < 70:
-                zones["zone2_moderate"] += 1
-            elif hr_percent < 80:
-                zones["zone3_tempo"] += 1
-            elif hr_percent < 90:
-                zones["zone4_threshold"] += 1
-            else:
-                zones["zone5_maximum"] += 1
-
-        dominant_zone = max(zones.items(), key=lambda x: x[1])[0]
-        zone_names = {
-            "zone1_easy": "Easy (50-60% max HR)",
-            "zone2_moderate": "Moderate (60-70% max HR)",
-            "zone3_tempo": "Tempo (70-80% max HR)",
-            "zone4_threshold": "Threshold (80-90% max HR)",
-            "zone5_maximum": "Maximum (90-100% max HR)",
-        }
-
-        return {
-            "heart_rate_avg": f"{round(avg_hr)} bpm",
-            "heart_rate_min": f"{round(min_hr)} bpm",
-            "heart_rate_max": f"{round(max_hr)} bpm",
-            "heart_rate_samples": len(workout_hrs),
-            "heart_rate_zone": zone_names[dominant_zone],
-        }
-    except Exception as e:
-        logger.debug(f"Failed to get heart rate data: {type(e).__name__}: {e}")
-        return None
-
-
-def _parse_workout(
-    workout: dict, cutoff_date: datetime, health_data: dict, user_max_hr: int
-) -> dict[str, Any] | None:
-    """Parse a single workout entry."""
-    start_date_str = workout.get("startDate", "")
-    if not start_date_str:
-        return None
-
-    try:
-        workout_date = datetime.fromisoformat(start_date_str.replace("Z", "+00:00"))
-        if workout_date.tzinfo is None:
-            workout_date = workout_date.replace(tzinfo=UTC)
-
-        if workout_date < cutoff_date:
-            return None
-
-        workout_type = workout.get("type", "Unknown").replace(
-            "HKWorkoutActivityType", ""
-        )
-        duration_min = workout.get("duration_minutes") or workout.get("duration", 0)
-
-        hr_data = None
-        if duration_min and isinstance(duration_min, int | float) and duration_min > 0:
-            hr_data = _get_heart_rate_during_workout(
-                health_data, start_date_str, duration_min, user_max_hr
-            )
-
-        day_of_week = workout_date.strftime("%A")
-
-        workout_info = {
-            "date": workout_date.date().isoformat(),
-            "datetime": workout_date.isoformat(),
-            "day_of_week": day_of_week,
-            "type": workout_type,
-            "duration_minutes": round(float(duration_min), 1) if duration_min else 0,
-            "energy_burned": workout.get("calories")
-            or workout.get("totalEnergyBurned", 0),
-        }
-
-        if hr_data:
-            workout_info.update(hr_data)
-
-        return workout_info
-
-    except Exception as e:
-        logger.debug(f"Skipping workout due to parsing error: {type(e).__name__}: {e}")
-        return None
 
 
 def _analyze_patterns(workouts: list[dict]) -> dict[str, Any]:
@@ -324,7 +186,7 @@ def create_get_workout_data_tool(user_id: str):
                 # Get user max HR
                 user_profile = health_data.get("user_profile", {})
                 date_of_birth = user_profile.get("date_of_birth")
-                user_max_hr = _calculate_max_hr(date_of_birth)
+                user_max_hr = calculate_max_hr(date_of_birth)
 
                 # Get workouts
                 all_workouts = health_data.get("workouts", [])
@@ -335,7 +197,7 @@ def create_get_workout_data_tool(user_id: str):
                 recent_workouts = []
 
                 for workout in all_workouts:
-                    workout_info = _parse_workout(
+                    workout_info = parse_workout_safe(
                         workout, cutoff_date, health_data, user_max_hr
                     )
                     if workout_info:

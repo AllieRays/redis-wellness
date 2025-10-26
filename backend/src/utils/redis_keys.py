@@ -134,6 +134,40 @@ class RedisKeys:
         """
         return f"user:{user_id}:workout:{workout_id}"
 
+    # ========== SLEEP KEYS ==========
+
+    @staticmethod
+    def sleep_by_date(user_id: str) -> str:
+        """
+        Sleep index by date (Redis Sorted Set).
+
+        Stores: date → timestamp mapping for range queries
+        Format: user:{user_id}:sleep:by_date
+        TTL: 210 days (7 months)
+
+        Example:
+            from ..utils.user_config import get_user_id
+            key = RedisKeys.sleep_by_date(get_user_id())
+            # Returns: "user:wellness_user:sleep:by_date"
+        """
+        return f"user:{user_id}:sleep:by_date"
+
+    @staticmethod
+    def sleep_detail(user_id: str, date: str) -> str:
+        """
+        Individual sleep night details (Redis Hash).
+
+        Stores: sleep_hours, in_bed_hours, efficiency, bedtime, wake_time, etc.
+        Format: user:{user_id}:sleep:{date}
+        TTL: 210 days (7 months)
+
+        Example:
+            from ..utils.user_config import get_user_id
+            key = RedisKeys.sleep_detail(get_user_id(), "2024-10-15")
+            # Returns: "user:wellness_user:sleep:2024-10-15"
+        """
+        return f"user:{user_id}:sleep:{date}"
+
     # ========== MEMORY KEYS ==========
 
     @staticmethod

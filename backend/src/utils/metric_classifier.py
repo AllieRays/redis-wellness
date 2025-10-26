@@ -110,6 +110,7 @@ def get_expected_unit_format(metric_type: str) -> str:
         "StepCount": "steps",
         "DistanceWalkingRunning": "mi",
         "HeartRate": "bpm",
+        "RestingHeartRate": "bpm",
         "BodyMass": "lbs",
         "BodyMassIndex": "BMI",
         "ActiveEnergyBurned": "Cal",

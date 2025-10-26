@@ -321,9 +321,9 @@ class ToolResponseFormatter:
         return {"value": round(value, precision), "formatted": formatted}
 
 
-# Pre-instantiated formatters for common tools
-trends_formatter = ToolResponseFormatter("get_trends")
+# Pre-instantiated formatters for active tools
 metrics_formatter = ToolResponseFormatter("get_health_metrics")
-workouts_formatter = ToolResponseFormatter("get_workouts")
-patterns_formatter = ToolResponseFormatter("get_workout_patterns")
-progress_formatter = ToolResponseFormatter("get_workout_progress")
+sleep_formatter = ToolResponseFormatter("get_sleep_analysis")
+workout_data_formatter = ToolResponseFormatter(
+    "get_workout_data"
+)  # Consolidated workout tool

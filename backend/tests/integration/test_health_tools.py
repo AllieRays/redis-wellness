@@ -281,11 +281,13 @@ class TestToolDataFlow:
         assert len(result["results"]) > 0
 
         body_mass = result["results"][0]
-        assert body_mass["metric_type"] == "BodyMass"
+        assert (
+            body_mass["metric"] == "BodyMass"
+        )  # Tool uses 'metric', not 'metric_type'
 
         # Verify the exact value we stored
-        if "records" in body_mass:
-            assert len(body_mass["records"]) > 0
+        if "data" in body_mass:  # Tool uses 'data', not 'records'
+            assert len(body_mass["data"]) > 0
             # Value should be 155.0 lb
-            record_value = body_mass["records"][0]["value"]
+            record_value = body_mass["data"][0]["value"]
             assert "155" in str(record_value)

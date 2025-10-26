@@ -42,6 +42,7 @@ class HealthMetricType(str, Enum):
     # Sleep & Recovery
     SLEEP_ANALYSIS = "HKCategoryTypeIdentifierSleepAnalysis"
     HEART_RATE = "HKQuantityTypeIdentifierHeartRate"
+    RESTING_HEART_RATE = "HKQuantityTypeIdentifierRestingHeartRate"
 
     # Other metrics (fallback)
     OTHER = "other"
@@ -137,6 +138,96 @@ class HealthRecord(BaseModel):
         return " | ".join(context_parts)
 
 
+class SleepState(str, Enum):
+    """Sleep states from Apple Health sleep analysis."""
+
+    IN_BED = "HKCategoryValueSleepAnalysisInBed"
+    ASLEEP_UNSPECIFIED = "HKCategoryValueSleepAnalysisAsleepUnspecified"
+    ASLEEP_CORE = "HKCategoryValueSleepAnalysisAsleepCore"
+    ASLEEP_DEEP = "HKCategoryValueSleepAnalysisAsleepDeep"
+    ASLEEP_REM = "HKCategoryValueSleepAnalysisAsleepREM"
+    AWAKE = "HKCategoryValueSleepAnalysisAwake"
+
+
+class SleepSegment(BaseModel):
+    """
+    Individual sleep segment with start/end times and sleep state.
+
+    Apple Health records sleep as multiple segments per night.
+    Each segment has a sleep state (InBed, Asleep, Awake, etc.).
+    """
+
+    # Public fields
+    state: str = Field(..., privacy_level=PrivacyLevel.PUBLIC)
+
+    # Sensitive fields - sleep timing data
+    start_date: datetime = Field(..., privacy_level=PrivacyLevel.SENSITIVE)
+    end_date: datetime = Field(..., privacy_level=PrivacyLevel.SENSITIVE)
+    duration_hours: float = Field(..., privacy_level=PrivacyLevel.SENSITIVE)
+
+    # Personal fields
+    source_name: str | None = Field(None, privacy_level=PrivacyLevel.PERSONAL)
+
+    @validator("duration_hours", pre=True, always=True)
+    @classmethod
+    def calculate_duration(cls, v, values):
+        """Calculate duration from start/end dates if not provided."""
+        if v is not None:
+            return v
+        if "start_date" in values and "end_date" in values:
+            start = values["start_date"]
+            end = values["end_date"]
+            duration_seconds = (end - start).total_seconds()
+            return duration_seconds / 3600  # Convert to hours
+        return 0.0
+
+
+class SleepSummary(BaseModel):
+    """
+    Daily sleep summary aggregated from multiple segments.
+
+    Provides a consolidated view of sleep for a single night/day.
+    """
+
+    # Public fields
+    date: str = Field(..., privacy_level=PrivacyLevel.PUBLIC)  # YYYY-MM-DD format
+
+    # Sensitive sleep metrics
+    total_sleep_hours: float = Field(..., privacy_level=PrivacyLevel.SENSITIVE)
+    total_in_bed_hours: float = Field(..., privacy_level=PrivacyLevel.SENSITIVE)
+    sleep_efficiency: float | None = Field(
+        None, privacy_level=PrivacyLevel.SENSITIVE
+    )  # Sleep / InBed ratio
+
+    # Optional detailed breakdown
+    deep_sleep_hours: float | None = Field(None, privacy_level=PrivacyLevel.SENSITIVE)
+    rem_sleep_hours: float | None = Field(None, privacy_level=PrivacyLevel.SENSITIVE)
+    core_sleep_hours: float | None = Field(None, privacy_level=PrivacyLevel.SENSITIVE)
+    awake_hours: float | None = Field(None, privacy_level=PrivacyLevel.SENSITIVE)
+
+    # Metadata
+    segment_count: int = Field(0, privacy_level=PrivacyLevel.PUBLIC)
+    first_sleep_time: str | None = Field(
+        None, privacy_level=PrivacyLevel.SENSITIVE
+    )  # HH:MM format
+    last_wake_time: str | None = Field(
+        None, privacy_level=PrivacyLevel.SENSITIVE
+    )  # HH:MM format
+
+    @validator("sleep_efficiency", pre=True, always=True)
+    @classmethod
+    def calculate_efficiency(cls, v, values):
+        """Calculate sleep efficiency from sleep/in_bed hours."""
+        if v is not None:
+            return v
+        if "total_sleep_hours" in values and "total_in_bed_hours" in values:
+            in_bed = values["total_in_bed_hours"]
+            if in_bed > 0:
+                sleep = values["total_sleep_hours"]
+                return round((sleep / in_bed) * 100, 1)
+        return None
+
+
 class WorkoutSummary(BaseModel):
     """
     Workout data with privacy protection.
@@ -228,6 +319,9 @@ class HealthDataCollection(BaseModel):
     workouts: list[WorkoutSummary] = Field(
         default_factory=list, privacy_level=PrivacyLevel.SENSITIVE
     )
+    sleep_summaries: list[SleepSummary] = Field(
+        default_factory=list, privacy_level=PrivacyLevel.SENSITIVE
+    )
     activity_summaries: list[ActivitySummary] = Field(
         default_factory=list, privacy_level=PrivacyLevel.SENSITIVE
     )
@@ -259,6 +353,7 @@ class HealthDataCollection(BaseModel):
             user_profile=anonymized_profile,
             records=anonymized_records,
             workouts=self.workouts,  # Workouts keep device info but could be anonymized too
+            sleep_summaries=self.sleep_summaries,
             activity_summaries=self.activity_summaries,
         )
 
@@ -285,6 +380,9 @@ __all__ = [
     "PrivacyLevel",
     "HealthMetricType",
     "HealthRecord",
+    "SleepState",
+    "SleepSegment",
+    "SleepSummary",
     "WorkoutSummary",
     "ActivitySummary",
     "UserProfile",

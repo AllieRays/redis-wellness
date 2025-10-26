@@ -147,6 +147,39 @@ def import_from_json(
                     "   Workouts are in JSON, queries will work (just slower)"
                 )
 
+        # Sleep indexes - Create Redis hash sets for fast queries
+        if "metrics_records" in data:
+            sleep_records = data["metrics_records"].get(
+                "HKCategoryTypeIdentifierSleepAnalysis", []
+            )
+            if sleep_records:
+                logger.info(f"\n🛌 Indexing {len(sleep_records)} sleep records...")
+                logger.info("   (Creating Redis hashes for O(1) lookups)")
+
+                try:
+                    from src.services.redis_sleep_indexer import SleepIndexer
+
+                    indexer = SleepIndexer()
+
+                    stats = indexer.index_sleep_data(user_id, sleep_records)
+
+                    if "error" in stats:
+                        logger.warning(f"⚠️  Indexing had issues: {stats['error']}")
+                        logger.warning(
+                            "   Sleep data is still in JSON, queries will work (just slower)"
+                        )
+                    else:
+                        logger.info(
+                            f"✅ Created {stats['nights_indexed']} sleep summaries ({stats['keys_created']} Redis keys)"
+                        )
+                        logger.info(f"   TTL: {stats['ttl_days']} days")
+
+                except Exception as e:
+                    logger.warning(f"⚠️  Warning: Could not create sleep indexes: {e}")
+                    logger.warning(
+                        "   Sleep data is in JSON, queries will work (just slower)"
+                    )
+
         return True
 
     except Exception as e:
@@ -211,14 +244,20 @@ def import_from_xml(xml_file: Path, user_id: str, redis_client) -> bool:
                 "unit": None,
             }
 
-        data["metrics_records"][metric_type].append(
-            {
-                "date": record.start_date.isoformat(),
-                "value": str(record.value),
-                "unit": record.unit,
-                "source": record.source_name,
-            }
-        )
+        # For sleep records, we need both start and end dates (duration matters)
+        record_data = {
+            "date": record.start_date.isoformat(),
+            "value": str(record.value),
+            "unit": record.unit,
+            "source": record.source_name,
+        }
+
+        # Sleep records need start/end dates for duration calculation
+        if "Sleep" in metric_type:
+            record_data["start_date"] = record.start_date.isoformat()
+            record_data["end_date"] = record.end_date.isoformat()
+
+        data["metrics_records"][metric_type].append(record_data)
 
         data["metrics_summary"][metric_type]["count"] += 1
         if record.value:
@@ -243,7 +282,9 @@ def import_from_xml(xml_file: Path, user_id: str, redis_client) -> bool:
                 "day_of_week": workout.start_date.strftime("%A"),
                 "type_cleaned": workout_type,
                 "duration": workout.duration,
-                "duration_minutes": round(workout.duration / 60, 1)
+                # IMPORTANT: workout.duration is ALREADY in minutes (durationUnit="min" in Apple Health XML)
+                # DO NOT divide by 60 - that would convert minutes to hours!
+                "duration_minutes": round(workout.duration, 1)
                 if workout.duration
                 else None,
                 "calories": workout.total_energy_burned,
@@ -293,6 +334,9 @@ Examples:
     )
 
     args = parser.parse_args()
+
+    # Configure logging to show INFO level messages
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     # Use environment variables if args not provided
     import os
@@ -354,6 +398,62 @@ Examples:
         sys.exit(1)
 
     if success:
+        # Validate critical metrics were imported correctly
+        print("\n" + "-" * 80)
+        print("🔍 Validating import...")
+
+        try:
+            from src.utils.redis_keys import RedisKeys
+
+            # Check for RestingHeartRate data (regression test for parser bug)
+            main_key = RedisKeys.health_data(args.user_id)
+            health_data_json = client.get(main_key)
+
+            if health_data_json:
+                health_data = json.loads(health_data_json)
+                metrics = health_data.get("metrics_summary", {})
+
+                # Check if RestingHeartRate exists
+                if "RestingHeartRate" in metrics:
+                    count = metrics["RestingHeartRate"].get("count", 0)
+                    print(f"✅ RestingHeartRate: {count:,} records imported")
+                else:
+                    print("⚠️  RestingHeartRate: No records found")
+                    print(
+                        "   (Check if your Apple Health export contains resting heart rate data)"
+                    )
+
+                # Show other key metrics
+                key_metrics = ["HeartRate", "StepCount", "BodyMass"]
+                for metric in key_metrics:
+                    if metric in metrics:
+                        count = metrics[metric].get("count", 0)
+                        print(f"✅ {metric}: {count:,} records")
+
+                # Show sleep data
+                sleep_records = health_data.get("metrics_records", {}).get(
+                    "HKCategoryTypeIdentifierSleepAnalysis", []
+                )
+                if sleep_records:
+                    print(
+                        f"✅ Sleep: {len(sleep_records):,} records ({len(sleep_records) // 6} nights estimated)"
+                    )
+
+                # Show workout data with corrected duration
+                workouts = health_data.get("workouts", [])
+                if workouts:
+                    total_minutes = sum(w.get("duration_minutes", 0) for w in workouts)
+                    total_hours = total_minutes / 60
+                    total_calories = sum(
+                        w.get("calories", 0) for w in workouts if w.get("calories")
+                    )
+                    print(
+                        f"✅ Workouts: {len(workouts):,} workouts ({total_hours:.1f} hours, {total_calories:,.0f} Cal)"
+                    )
+
+        except Exception as e:
+            print(f"⚠️  Validation check failed: {e}")
+
         print("\n" + "=" * 80)
         print("✅ Import completed successfully!")
         print("=" * 80)

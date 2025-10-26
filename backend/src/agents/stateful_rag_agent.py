@@ -357,13 +357,23 @@ class StatefulRAGAgent:
             f"⚙️ Stateful LLM response: has_tool_calls={has_tool_calls}, "
             f"content_length={len(response_content)}, tools={tool_calls_detail}"
         )
+
+        # Note: We don't strip preamble text here because it causes infinite loops
+        # The streaming layer will handle not showing preamble when tool_calls present
+        if has_tool_calls and response_content:
+            logger.debug(
+                "⚠️ Preamble text present with tool calls (will be handled by streaming layer)"
+            )
+
         if not has_tool_calls and not response_content:
             logger.warning("⚠️ LLM returned empty response with no tool calls!")
 
         return {"messages": [response]}
 
+        return {"messages": [response]}
+
     async def _tool_node(self, state: MemoryState) -> dict[str, list[ToolMessage]]:
-        """Execute tools."""
+        """Execute tools with deduplication."""
         last_msg = state["messages"][-1]
         tool_calls = getattr(last_msg, "tool_calls", [])
 
@@ -374,8 +384,28 @@ class StatefulRAGAgent:
         )
         tool_messages = []
 
+        # Track tool calls to prevent duplicates (from best practices doc)
+        tool_tracker = state.get("tool_call_tracker")
+        if not tool_tracker:
+            tool_tracker = ToolCallTracker()
+            state["tool_call_tracker"] = tool_tracker
+
         for tool_call in tool_calls:
             tool_name = tool_call.get("name")
+            tool_args = tool_call.get("args", {})
+
+            # Check for duplicate
+            if tool_tracker.is_duplicate(tool_name, tool_args):
+                logger.info(f"⏭️ Skipping duplicate tool call: {tool_name}")
+                tool_messages.append(
+                    ToolMessage(
+                        content="Data already retrieved in previous tool call. Use the existing results.",
+                        tool_call_id=tool_call.get("id", ""),
+                        name=tool_name,
+                    )
+                )
+                continue
+
             logger.info(f"🔧 Stateful tool: {tool_name}")
 
             tool_found = False

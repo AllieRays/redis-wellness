@@ -68,7 +68,7 @@ class TestToolConsolidation:
     """Test that consolidation achieved the goals."""
 
     def test_total_tool_count(self):
-        """Test that we have exactly 2 health tools (reduced from 6)."""
+        """Test that we have exactly 3 health tools (metrics, sleep, workouts)."""
         from src.apple_health.query_tools import create_user_bound_tools
 
         # Create tools WITHOUT memory (health only)
@@ -77,10 +77,10 @@ class TestToolConsolidation:
             include_memory_tools=False,
         )
 
-        assert len(health_tools) == 2, "Should have exactly 2 health tools"
+        assert len(health_tools) == 3, "Should have exactly 3 health tools"
 
     def test_total_tool_count_with_memory(self):
-        """Test that we have 4 total tools (2 health + 2 memory)."""
+        """Test that we have 5 total tools (3 health + 2 memory)."""
         from src.apple_health.query_tools import create_user_bound_tools
 
         # Create tools WITH memory
@@ -89,7 +89,7 @@ class TestToolConsolidation:
             include_memory_tools=True,
         )
 
-        assert len(all_tools) == 4, "Should have 4 total tools (2 health + 2 memory)"
+        assert len(all_tools) == 5, "Should have 5 total tools (3 health + 2 memory)"
 
     def test_all_tool_names_use_get_verb(self):
         """Test that all tools use natural 'get_*' naming."""
@@ -124,7 +124,7 @@ class TestStatelessAgentToolCount:
     """Test that stateless agent gets correct tool subset."""
 
     def test_stateless_has_no_memory_tools(self):
-        """Test stateless agent receives 2 health tools only."""
+        """Test stateless agent receives 3 health tools only."""
         from src.apple_health.query_tools import create_user_bound_tools
 
         stateless_tools = create_user_bound_tools(
@@ -132,7 +132,7 @@ class TestStatelessAgentToolCount:
             include_memory_tools=False,  # Stateless baseline
         )
 
-        assert len(stateless_tools) == 2
+        assert len(stateless_tools) == 3
 
         tool_names = [t.name for t in stateless_tools]
 
@@ -142,4 +142,5 @@ class TestStatelessAgentToolCount:
 
         # Should have all health tools
         assert "get_health_metrics" in tool_names
+        assert "get_sleep_analysis" in tool_names
         assert "get_workout_data" in tool_names

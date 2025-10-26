@@ -61,8 +61,9 @@ def create_get_health_metrics_tool(user_id: str):
 
         Args:
             metric_types: List of metric types
-                Examples: ["BodyMass"], ["HeartRate", "StepCount"], ["BodyMassIndex"]
-                Valid: "BodyMass", "BodyMassIndex", "HeartRate", "StepCount", "ActiveEnergyBurned"
+                Examples: ["BodyMass"], ["RestingHeartRate"], ["StepCount"], ["BodyMassIndex"]
+                Valid: "BodyMass", "BodyMassIndex", "HeartRate", "RestingHeartRate", "StepCount", "ActiveEnergyBurned"
+                IMPORTANT: Use "RestingHeartRate" for resting HR (measured at rest), "HeartRate" for all HR measurements
             time_period: Natural language time period (default: "recent")
                 Examples: "October 15th", "September", "last 2 weeks", "this month", "recent"
             aggregations: Optional statistics to compute (default: None = raw data)
@@ -84,6 +85,10 @@ def create_get_health_metrics_tool(user_id: str):
             Query: "What was my average heart rate last week?"
             Call: get_health_metrics(metric_types=["HeartRate"], time_period="last week", aggregations=["average"])
             Returns: {"average": "87.5 bpm", "sample_size": 7}
+
+            Query: "What was my average resting heart rate last week?"
+            Call: get_health_metrics(metric_types=["RestingHeartRate"], time_period="last week", aggregations=["average"])
+            Returns: {"average": "73.4 bpm", "sample_size": 7}
 
             Query: "Total steps this month"
             Call: get_health_metrics(metric_types=["StepCount"], time_period="this month", aggregations=["sum"])

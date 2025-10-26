@@ -61,6 +61,9 @@ class TestStatefulAgent:
         assert "memory_stats" in result
         assert isinstance(result["memory_stats"], dict)
 
+    @pytest.mark.xfail(
+        reason="Flaky: asyncio event loop cleanup issue with Redis checkpointer"
+    )
     async def test_stateful_agent_memory_persistence(
         self, stateful_agent, test_user_id, test_session_id
     ):

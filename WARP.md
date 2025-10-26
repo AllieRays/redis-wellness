@@ -11,7 +11,7 @@ This is a **side-by-side demo** comparing **stateless chat** vs. **agentic RAG c
 - **Storage**: Redis Stack with RedisVL vector search (ports 6379, 8001)
 - **LLM**: Qwen 2.5 7B + mxbai-embed-large via Ollama (port 11434)
 
-The application showcases **triple memory systems**: episodic (short-term conversation), semantic (long-term context), and procedural (goals/preferences) memory.
+The application showcases **four-layer memory architecture**: short-term (conversation checkpointing), episodic (user goals), procedural (workflow patterns), and semantic (optional health knowledge) memory.
 
 ```
                            Docker Network
@@ -27,9 +27,10 @@ The application showcases **triple memory systems**: episodic (short-term conver
 └───────────────────────────────────────────────────────────┘
 
 Redis/RedisVL stores:
-- Episodic memory (conversation history)
-- Semantic memory (long-term context with vector search)
-- Procedural memory (goals, preferences, user config)
+- Short-term memory (LangGraph checkpointing for conversation)
+- Episodic memory (user goals via vector search)
+- Procedural memory (workflow patterns via vector search)
+- Semantic memory (optional health knowledge base)
 - Health data cache (7-month TTL)
 ```
 
@@ -47,10 +48,10 @@ Redis/RedisVL stores:
 
 **AI Agents (`/agents/`)** - Two agents for demo comparison:
 - `stateless_agent.py` - Baseline agent with NO memory (simple tool loop)
-- `stateful_rag_agent.py` - Full Redis + RedisVL memory agent (simple tool loop)
+- `stateful_rag_agent.py` - Full Redis + RedisVL memory agent (LangGraph workflow)
 - `__init__.py` - Agent exports
 
-Both agents use the same simple tool-calling loop pattern for maintainability.
+Stateless uses simple loop; stateful uses LangGraph StateGraph with checkpointing.
 
 **Apple Health Module (`/apple_health/`)** - Complete Apple Health data processing:
 - `models.py` - Pydantic models (HealthRecord, WorkoutSummary, etc.)
@@ -584,7 +585,7 @@ Key features of the agentic workflow:
 
 - **Tool-First Policy**: Factual queries skip semantic memory to avoid stale cache
 - **9 Specialized Tools**: Health records, workouts, patterns, comparisons, trends, progress
-- **Triple Memory**: Episodic (conversation) + Semantic (context) + Procedural (goals)
+- **Four-Layer Memory**: Short-term (checkpointing) + Episodic (goals) + Procedural (patterns) + Semantic (optional)
 - **Tool Calling**: Qwen 2.5 7B optimized for function calling
 - **Simple Loop**: Up to 8 iterations for complex multi-step queries
 - **Autonomous**: LLM decides which tools to call, chains them, decides when done

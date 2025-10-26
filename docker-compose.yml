@@ -38,6 +38,7 @@ services:
       - REDIS_SESSION_TTL_SECONDS=18144000
       - REDIS_HEALTH_DATA_TTL_SECONDS=18144000
       - REDIS_DEFAULT_TTL_DAYS=210
+      - USER_HEALTH_CONTEXT=${USER_HEALTH_CONTEXT}
     depends_on:
       redis:
         condition: service_healthy
