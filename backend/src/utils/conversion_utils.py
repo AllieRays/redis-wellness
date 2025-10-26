@@ -1,7 +1,7 @@
 """Unit conversion utilities for health data (pure functions)."""
 
 
-def convert_weight_to_lbs(value_str: str, unit: str = None) -> str:
+def convert_weight_to_lbs(value_str: str, unit: str | None = None) -> str:
     """
     Convert weight from kg to lbs for US display.
 

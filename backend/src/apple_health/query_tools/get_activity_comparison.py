@@ -1,5 +1,5 @@
 """
-Activity Comparison Tool - Comprehensive period-over-period activity analysis.
+Activity Comparison Tool - Get comprehensive activity comparison.
 
 Compares all activity-related metrics between two time periods:
 - Steps
@@ -23,9 +23,9 @@ from ...utils.user_config import get_user_health_data_key
 logger = logging.getLogger(__name__)
 
 
-def create_compare_activity_tool(user_id: str):
+def create_get_activity_comparison_tool(user_id: str):
     """
-    Create compare_activity_periods_tool bound to a specific user.
+    Create get_activity_comparison tool bound to a specific user.
 
     Args:
         user_id: The user identifier to bind to this tool
@@ -35,27 +35,43 @@ def create_compare_activity_tool(user_id: str):
     """
 
     @tool
-    def compare_activity_periods_tool(period1: str, period2: str) -> dict[str, Any]:
+    def get_activity_comparison(period1: str, period2: str) -> dict[str, Any]:
         """
-        Compare comprehensive activity levels between two time periods.
+        Compare comprehensive activity levels (steps, energy, workouts, distance) between two periods.
 
-        Use this when the user asks to compare "activity levels" or general activity.
-        Returns steps, active energy, workouts, and distance for both periods.
+        USE WHEN user asks:
+        - "Compare my activity levels in October vs September"
+        - "How does this month compare to last month for activity?"
+        - "Compare my activity this week vs last week"
+        - "Am I more active this month?"
+
+        DO NOT USE for:
+        - Single metric comparison → use get_trends instead
+        - Raw data without comparison → use get_health_metrics instead
 
         Args:
-            period1: First time period (e.g., "October 2025", "this month", "last week")
-            period2: Second time period (e.g., "September 2025", "last month", "previous week")
+            period1: First time period
+                Examples: "October 2025", "this month", "last week"
+            period2: Second time period
+                Examples: "September 2025", "last month", "previous week"
 
         Returns:
-            Dict with comprehensive activity comparison including steps, energy, workouts, distance
+            Dict with:
+            - period1: {steps, active_energy, distance, workouts}
+            - period2: {steps, active_energy, distance, workouts}
+            - comparison: {differences, percent changes}
 
         Examples:
-            - "Compare my activity levels in October vs September" → period1="October 2025", period2="September 2025"
-            - "How does this month compare to last month for activity?" → period1="this month", period2="last month"
-            - "Compare my activity this week vs last week" → period1="this week", period2="last week"
+            Query: "Compare my activity in October vs September"
+            Call: get_activity_comparison(period1="October 2025", period2="September 2025")
+            Returns: Full activity breakdown with totals, averages, and comparisons
+
+            Query: "This month vs last month activity"
+            Call: get_activity_comparison(period1="this month", period2="last month")
+            Returns: Activity comparison with percent changes
         """
         logger.info(
-            f"🏃 compare_activity_periods_tool called: period1='{period1}', period2='{period2}', user_id={user_id}"
+            f"🏃 get_activity_comparison called: period1='{period1}', period2='{period2}', user_id={user_id}"
         )
 
         try:
@@ -297,6 +313,6 @@ def create_compare_activity_tool(user_id: str):
         except (HealthDataNotFoundError, ToolExecutionError):
             raise
         except Exception as e:
-            raise ToolExecutionError("compare_activity_periods_tool", str(e)) from e
+            raise ToolExecutionError("get_activity_comparison", str(e)) from e
 
-    return compare_activity_periods_tool
+    return get_activity_comparison

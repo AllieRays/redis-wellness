@@ -79,44 +79,13 @@ function getErrorMessage(error: unknown, isRedisChat: boolean): string {
 
 /**
  * Creates metadata HTML for Redis chat messages
+ * Memory retrieval now happens via tools (get_my_goals, get_tool_suggestions)
+ * so they show up in tools_used, not as separate memory badges
  */
 function createMetadataHtml(metadata: StreamMetadata): string {
   let metadataHtml = '';
 
-  if (metadata.memory_stats) {
-    const stats = metadata.memory_stats;
-    const memoryIndicators: string[] = [];
-
-    // Show ALL memory types used (NEW: supports multiple memory types)
-    const memoryTypes = stats.memory_types || ['none'];
-
-    memoryTypes.forEach((memoryType: string) => {
-      if (memoryType === 'episodic') {
-        memoryIndicators.push(
-          '<span class="memory-badge episodic"><i class="fas fa-calendar-check"></i> Episodic memory</span>'
-        );
-      } else if (memoryType === 'procedural') {
-        memoryIndicators.push(
-          '<span class="memory-badge procedural"><i class="fas fa-list-check"></i> Procedural memory</span>'
-        );
-      } else if (memoryType === 'semantic') {
-        memoryIndicators.push(
-          '<span class="memory-badge semantic"><i class="fas fa-brain"></i> Semantic memory</span>'
-        );
-      } else if (memoryType === 'short-term') {
-        memoryIndicators.push(
-          '<span class="memory-badge"><i class="fas fa-file-lines"></i> Short-term memory</span>'
-        );
-      }
-    });
-
-    if (memoryIndicators.length > 0) {
-      metadataHtml = `<div class="message-metadata">${memoryIndicators.join(
-        ' '
-      )}</div>`;
-    }
-  }
-
+  // Memory tools now appear in tools_used array alongside health tools
   if (metadata.tools_used && metadata.tools_used.length > 0) {
     const toolsList = metadata.tools_used
       .map(
@@ -169,9 +138,11 @@ export async function sendStatelessMessage(
         const data = chunk.data as { response?: string };
         if (data.response && data.response !== responseText) {
           responseText = data.response;
-          if (streamingBubble) {
-            streamingBubble.updateContent(responseText);
-          }
+        }
+
+        // Finalize with markdown formatting
+        if (streamingBubble) {
+          streamingBubble.finalizeContent(responseText);
         }
 
         // Update stats
@@ -235,6 +206,11 @@ export async function sendRedisMessage(
         responseText += chunk.content;
         streamingBubble!.updateContent(responseText);
       } else if (chunk.type === 'done' && chunk.data) {
+        // Finalize with markdown formatting
+        if (streamingBubble) {
+          streamingBubble.finalizeContent(responseText);
+        }
+
         // Add metadata after streaming completes
         const metadataHtml = createMetadataHtml(chunk.data);
         if (metadataHtml && streamingBubble) {

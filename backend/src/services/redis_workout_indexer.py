@@ -29,7 +29,7 @@ class WorkoutIndexer:
 
     def index_workouts(
         self, user_id: str, workouts: list[dict[str, Any]]
-    ) -> dict[str, int]:
+    ) -> dict[str, int | str]:
         """
         Create Redis indexes for fast workout queries.
 

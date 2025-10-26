@@ -1,5 +1,5 @@
 """
-Progress Tracking Tool - Compare workout metrics between time periods.
+Workout Progress Tool - Get workout progress comparison between periods.
 
 This tool helps answer questions like:
 - "Am I getting stronger?"
@@ -16,12 +16,13 @@ from typing import Any
 
 from langchain_core.tools import tool
 
+from ...utils.exceptions import ToolExecutionError
 from ...utils.workout_fetchers import fetch_workouts_in_range
 
 logger = logging.getLogger(__name__)
 
 
-def create_progress_tracking_tool(user_id: str):
+def create_get_workout_progress_tool(user_id: str):
     """
     Create get_workout_progress tool bound to a specific user.
 
@@ -37,33 +38,39 @@ def create_progress_tracking_tool(user_id: str):
         period1_days: int = 30, period2_days: int = 60
     ) -> dict[str, Any]:
         """
-        Compare workout metrics between two time periods to show progress.
+        Compare workout metrics between recent and previous periods to track progress.
 
-        Compares recent period (period1) vs previous period (period2) to show if user is improving.
-
-        Metrics compared:
-        - Workout count
-        - Average duration
-        - Total duration
-        - Average calories
-        - Workout frequency (workouts per week)
-
-        Use this when user asks:
+        USE WHEN user asks:
         - "Am I getting stronger?"
         - "How's my progress?"
         - "Am I improving?"
         - "Have I been more active lately?"
         - "How do I compare to last month?"
 
-        This tool performs the comparison for you - don't try to calculate manually!
+        DO NOT USE for:
+        - Day-of-week patterns → use get_workout_patterns instead
+        - Single period stats → use get_workouts instead
 
         Args:
-            period1_days: Recent period to analyze (default 30 = last month)
-            period2_days: Total period including both recent and previous (default 60 = last 2 months)
-                         Previous period is calculated as: period2_days - period1_days
+            period1_days: Recent period in days (default: 30 = last month)
+            period2_days: Total period including both (default: 60 = last 2 months)
+                Previous period = period2_days - period1_days
 
         Returns:
-            Dict with metrics for both periods and percentage changes
+            Dict with:
+            - period1: Recent metrics (count, avg_duration, workouts_per_week)
+            - period2: Previous metrics
+            - changes: Percent changes for all metrics
+            - trend: "improving", "maintaining", or "declining"
+
+        Examples:
+            Query: "Am I improving?"
+            Call: get_workout_progress()
+            Returns: {"trend": "improving", "changes": {"+15%" duration, "+20%" frequency}}
+
+            Query: "Progress over last 3 months"
+            Call: get_workout_progress(period1_days=45, period2_days=90)
+            Returns: Comparison of last 45 days vs previous 45 days
         """
         logger.info(
             f"🔧 get_workout_progress called with period1={period1_days}, period2={period2_days}, user_id={user_id}"
@@ -175,7 +182,10 @@ def create_progress_tracking_tool(user_id: str):
             }
 
         except Exception as e:
-            logger.error(f"❌ Error in get_workout_progress: {str(e)}")
-            return {"error": f"Failed to analyze progress: {str(e)}"}
+            logger.error(
+                f"❌ Error in get_workout_progress: {type(e).__name__}: {e}",
+                exc_info=True,
+            )
+            raise ToolExecutionError("get_workout_progress", str(e)) from e
 
     return get_workout_progress

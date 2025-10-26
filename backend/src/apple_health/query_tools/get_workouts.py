@@ -1,7 +1,7 @@
 """
-Workout Search Tool - LangChain tool for querying workout and activity data.
+Workout Tool - Get workout details with heart rate zones.
 
-Provides the search_workouts_and_activity tool which returns comprehensive
+Provides the get_workouts tool which returns comprehensive
 workout information including heart rate zones and day_of_week tracking.
 """
 
@@ -19,10 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Constants for heart rate zone calculations
 CONSERVATIVE_MAX_HR = 190  # Age-independent maximum heart rate estimate
-DEFAULT_WORKOUT_SEARCH_DAYS = (
-    30  # Default days to search for workouts (enough to find recent activity)
-)
-EXTENDED_WORKOUT_SEARCH_DAYS = 30  # Extended search for "last workout" queries
+DEFAULT_WORKOUT_SEARCH_DAYS = 30  # Default days to search for workouts
 
 
 def _get_heart_rate_during_workout(
@@ -119,9 +116,9 @@ def _get_heart_rate_during_workout(
         return None
 
 
-def create_search_workouts_tool(user_id: str):
+def create_get_workouts_tool(user_id: str):
     """
-    Create search_workouts_and_activity tool bound to a specific user.
+    Create get_workouts tool bound to a specific user.
 
     Args:
         user_id: The user identifier to bind to this tool
@@ -131,43 +128,52 @@ def create_search_workouts_tool(user_id: str):
     """
 
     @tool
-    def search_workouts_and_activity(
+    def get_workouts(
         days_back: int = DEFAULT_WORKOUT_SEARCH_DAYS,
     ) -> dict[str, Any]:
         """
-        Search for recent workout and activity data with detailed metrics.
+        Get workout details with heart rate zones and comprehensive metrics.
 
-        Returns comprehensive workout information including:
-        - Workout type, date, DAY_OF_WEEK (e.g., Friday), time, and duration
-        - Calories burned during workout
-        - Heart rate statistics (avg, min, max) during workout
-        - Heart rate zones and zone distribution
-
-        IMPORTANT: Each workout includes 'day_of_week' field - USE IT! Don't calculate days yourself.
-
-        CRITICAL: Workouts are returned sorted MOST RECENT FIRST. When presenting to users,
-        ALWAYS list them in the order provided (most recent → oldest) for clarity.
-
-        DATE FORMAT: All dates are in UTC and formatted as:
-        - "date": "2025-10-22" (YYYY-MM-DD, date only)
-        - "day_of_week": "Friday" (use this, don't calculate!)
-        - "last_workout": "3 days ago" (human-readable, use this exact text)
-
-        Use this when the user asks:
+        USE WHEN user asks:
+        - "Did I work out on October 17th?"
         - "When did I last work out?"
         - "Show me my recent workouts"
-        - "How active have I been?"
-        - "What was my heart rate during my workout?"
-        - "Which day of the week do I work out?"
+        - "What was my heart rate during workouts?"
+        - "Show my workout history"
+
+        DO NOT USE for:
+        - Workout patterns by day → use get_workout_patterns instead
+        - Progress tracking → use get_workout_progress instead
 
         Args:
-            days_back: How many days back to search (default 30)
+            days_back: Days to search back (default: 30)
 
         Returns:
-            Dict with workout data including day_of_week field for each workout
+            Dict with:
+            - workouts: List of workouts (sorted most recent first)
+            - total_workouts: Count of workouts found
+            - last_workout: Human-readable time since last workout
+
+        Each workout includes:
+        - date: "2025-10-22" (YYYY-MM-DD)
+        - day_of_week: "Friday" (pre-calculated, use this!)
+        - type: Workout type
+        - duration_minutes: Duration
+        - energy_burned: Calories
+        - heart_rate_avg, heart_rate_min, heart_rate_max: HR stats (if available)
+        - heart_rate_zone: Dominant zone (if available)
+
+        Examples:
+            Query: "Show me my recent workouts"
+            Call: get_workouts()
+            Returns: List of last 30 days of workouts with full details
+
+            Query: "Did I work out last week?"
+            Call: get_workouts(days_back=7)
+            Returns: Workouts from last 7 days
         """
         logger.info(
-            f"🔧 search_workouts_and_activity called with days_back={days_back}, user_id={user_id}"
+            f"🔧 get_workouts called with days_back={days_back}, user_id={user_id}"
         )
 
         try:
@@ -292,7 +298,7 @@ def create_search_workouts_tool(user_id: str):
 
         except Exception as e:
             logger.error(
-                f"❌ Error in search_workouts_and_activity: {type(e).__name__}: {e}",
+                f"❌ Error in get_workouts: {type(e).__name__}: {e}",
                 exc_info=True,
             )
             return {
@@ -301,4 +307,4 @@ def create_search_workouts_tool(user_id: str):
                 "workouts": [],
             }
 
-    return search_workouts_and_activity
+    return get_workouts

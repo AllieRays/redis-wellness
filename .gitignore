@@ -93,3 +93,4 @@ fixtures/export*.xml
 
 # Docker development overrides
 docker-compose.override.yml
+dump.rdb

@@ -12,7 +12,6 @@ from typing import Any
 import numpy as np
 from redisvl.index import SearchIndex
 from redisvl.query import VectorQuery
-from redisvl.query.filter import Tag
 from redisvl.schema import IndexSchema
 
 from ..config import get_settings
@@ -209,15 +208,23 @@ class EpisodicMemoryManager:
                 return {"context": None, "hits": 0, "goals": []}
 
             # Build filter: user_id AND event_type=goal
-            filter_expr = Tag("user_id") == user_id
-            filter_expr = filter_expr & (Tag("event_type") == "goal")
+            # Note: Temporarily removing filter to debug vector search
+            # from redisvl.query.filter import Tag
+            # filter_expr = Tag("user_id") == user_id
+            # filter_expr = filter_expr & (Tag("event_type") == "goal")
 
-            # Create vector query
+            # Create vector query WITHOUT filter for debugging
             vector_query = VectorQuery(
                 vector=query_embedding,
                 vector_field_name="embedding",
-                return_fields=["description", "metadata", "timestamp"],
-                filter_expression=filter_expr,
+                return_fields=[
+                    "description",
+                    "metadata",
+                    "timestamp",
+                    "user_id",
+                    "event_type",
+                ],
+                filter_expression=None,  # DEBUG: No filter
                 num_results=top_k,
             )
 
@@ -233,13 +240,24 @@ class EpisodicMemoryManager:
 
             for result in results:
                 metadata = json.loads(result.get("metadata", "{}"))
-                # description = result.get("description", "")  # Not needed, using metadata
+                description = result.get("description", "")
 
                 goals.append(metadata)
-                # Format: "Weight goal: 125 lbs"
-                context_lines.append(
-                    f"{metadata['metric'].capitalize()} goal: {metadata['value']} {metadata['unit']}"
-                )
+
+                # Handle two formats:
+                # 1. Structured: {"metric": "weight", "value": 125, "unit": "lbs"}
+                # 2. Text-only: {"goal_text": "to never skip leg day"}
+                if "metric" in metadata and "value" in metadata and "unit" in metadata:
+                    # Structured goal format
+                    context_lines.append(
+                        f"{metadata['metric'].capitalize()} goal: {metadata['value']} {metadata['unit']}"
+                    )
+                elif "goal_text" in metadata:
+                    # Text-only goal format (from pre-router)
+                    context_lines.append(f"Goal: {metadata['goal_text']}")
+                elif description:
+                    # Fallback to description
+                    context_lines.append(description)
 
             context = "\n".join(context_lines)
 

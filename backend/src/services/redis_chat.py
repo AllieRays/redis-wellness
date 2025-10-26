@@ -19,7 +19,6 @@ from ..services.procedural_memory_manager import get_procedural_memory
 from ..services.redis_connection import get_redis_manager
 from ..utils.exceptions import (
     InfrastructureError,
-    MemoryRetrievalError,
     sanitize_user_id,
 )
 from ..utils.pronoun_resolver import get_pronoun_resolver
@@ -341,18 +340,27 @@ class RedisChatService:
             ) from e
 
     async def get_memory_stats(self, session_id: str) -> dict[str, Any]:
-        """Get CoALA memory statistics for a session."""
-        try:
-            user_id = self._extract_user_id(session_id)
-            return await self.memory_coordinator.get_memory_stats(user_id, session_id)
-        except Exception as e:
-            raise MemoryRetrievalError(memory_type="memory_stats", reason=str(e)) from e
+        """Get memory statistics for a session."""
+        # Memory stats are now returned in chat response
+        # This endpoint is for backward compatibility only
+        return {
+            "session_id": session_id,
+            "episodic_memory": "enabled",
+            "procedural_memory": "enabled",
+            "short_term_memory": "enabled (checkpointer)",
+        }
 
     async def clear_session(self, session_id: str) -> bool:
-        """Clear all memories for a session."""
+        """Clear conversation history for a session."""
         try:
-            result = await self.memory_coordinator.clear_session_memories(session_id)
-            return result.get("short_term", False)
+            # Clear conversation history (Redis LIST)
+            session_key = self._get_session_key(session_id)
+            with self.redis_manager.get_connection() as redis_client:
+                redis_client.delete(session_key)
+
+            # Note: Episodic memory (goals) is kept intentionally
+            # Users can clear goals via "make clear-session" if needed
+            return True
         except Exception as e:
             raise InfrastructureError(
                 message="Failed to clear session",

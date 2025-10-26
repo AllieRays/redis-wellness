@@ -15,6 +15,7 @@ Both agents have the SAME tools - only difference is memory system.
 """
 
 import logging
+from collections.abc import AsyncGenerator
 from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -128,7 +129,7 @@ class StatelessHealthAgent:
         user_id: str,
         max_tool_calls: int = 5,
         stream: bool = False,
-    ):
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """
         Process stateless chat with basic tool calling but NO memory.
 
@@ -141,13 +142,99 @@ class StatelessHealthAgent:
             Dict with response and validation
         """
         try:
+            # PRE-ROUTE: Check if this is a goal-setting or goal-retrieval statement
+            from ..utils.intent_router import (
+                extract_goal_from_statement,
+                should_bypass_tools,
+            )
+
+            should_bypass, direct_response, intent = await should_bypass_tools(message)
+
+            if should_bypass and intent == "goal_setting":
+                logger.info(
+                    "✅ Stateless: Bypassed tools for goal-setting (NO storage - stateless)"
+                )
+                goal_text = extract_goal_from_statement(message)
+                # Stateless agent acknowledges but does NOT store
+                direct_response = f"Got it! You mentioned your goal: {goal_text}."
+
+                # Stream response as tokens for frontend compatibility
+                if stream:
+                    for char in direct_response:
+                        yield {"type": "token", "content": char}
+
+                # Calculate token stats
+                token_stats = {}
+                try:
+                    token_manager = get_token_manager()
+                    messages_for_counting = [
+                        {"role": "user", "content": message},
+                        {"role": "assistant", "content": direct_response},
+                    ]
+                    token_stats = token_manager.get_usage_stats(messages_for_counting)
+                except Exception as e:
+                    logger.warning(f"Could not calculate token stats: {e}")
+                    token_stats = {}
+
+                yield {
+                    "type": "done",
+                    "data": {
+                        "response": direct_response,
+                        "tools_used": [],
+                        "tool_calls_made": 0,
+                        "token_stats": token_stats,
+                        "validation": {"valid": True, "score": 1.0},
+                    },
+                }
+                return
+
+            if should_bypass and intent == "goal_retrieval":
+                logger.info(
+                    "✅ Stateless: Bypassed tools for goal retrieval (NO memory available)"
+                )
+                direct_response = "I don't have any information about your goals. Would you like to share your goal with me?"
+
+                # Stream response as tokens for frontend compatibility
+                if stream:
+                    for char in direct_response:
+                        yield {"type": "token", "content": char}
+
+                # Calculate token stats
+                token_stats = {}
+                try:
+                    token_manager = get_token_manager()
+                    messages_for_counting = [
+                        {"role": "user", "content": message},
+                        {"role": "assistant", "content": direct_response},
+                    ]
+                    token_stats = token_manager.get_usage_stats(messages_for_counting)
+                except Exception as e:
+                    logger.warning(f"Could not calculate token stats: {e}")
+                    token_stats = {}
+
+                yield {
+                    "type": "done",
+                    "data": {
+                        "response": direct_response,
+                        "tools_used": [],
+                        "tool_calls_made": 0,
+                        "token_stats": token_stats,
+                        "validation": {"valid": True, "score": 1.0},
+                    },
+                }
+                return
+
             # Detect verbosity level from query (for response style only)
             verbosity = detect_verbosity(message)
             logger.info(f"Stateless query verbosity: {verbosity}")
 
-            # Create tools (same as stateful agent)
+            # Create tools (health only - NO memory tools for stateless baseline)
             messages = [HumanMessage(content=message)]
-            user_tools = create_user_bound_tools(user_id, conversation_history=messages)
+            user_tools = create_user_bound_tools(
+                user_id,
+                conversation_history=messages,
+                include_memory_tools=False,  # Stateless agent has NO memory
+            )
 
             # Simple tool calling loop
             system_content = self._build_system_prompt_with_verbosity(verbosity)

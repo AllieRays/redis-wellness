@@ -32,15 +32,15 @@ You can chat with two versions of the same agent:
 ## 🎯 The Difference
 
 ### Core Architecture
-
-| Component | Stateless Agent | Stateful Agent | Technology |
+|| Component | Stateless Agent | Stateful Agent | Technology |
 |-----------|-----------------|----------------|------------|
 | **LLM** | Qwen 2.5 7B | Qwen 2.5 7B | Ollama (local inference) |
-| **Orchestration** | Simple tool loop | LangGraph state machine | LangGraph with Redis checkpointing |
-| **Short-term Memory** | None | Conversation history (7-month TTL) | Redis LIST (`LPUSH conversation:{session_id}`) |
-| **Long-term Memory** | None | Semantic context retrieval | RedisVL (HNSW index, 1024-dim embeddings) |
+| **Orchestration** | Simple tool loop | Simple tool loop with state | No LangGraph - direct tool calling |
+| **Episodic Memory** | None | Conversation history (7-month TTL) | Redis LIST (`episodic:{session_id}:history`) |
+| **Semantic Memory** | None | Long-term context with vector search | RedisVL (HNSW index, 1024-dim embeddings) |
+| **Procedural Memory** | None | Goals and preferences tracking | Redis Hash (`procedural:{user_id}:goals`) |
 | **Health Data** | Redis read-only access | Redis read-only access | Redis Hashes + JSON (O(1) lookups) |
-| **Tool Calling** | 9 specialized health tools | 9 specialized health tools | LangChain tool integration |
+| **Tool Calling** | 9 health tools | 11 tools (9 health + 2 memory) | LangChain tool integration |
 
 ### Conversation Capabilities
 
@@ -48,7 +48,7 @@ You can chat with two versions of the same agent:
 |------------|-----------------|----------------|---------------|
 | **Follow-up Questions** | Treats each as new query | Maintains conversation flow | Prior exchanges in LLM prompt |
 | **Pronoun Resolution** | Cannot resolve "it", "that", "those" | Resolves references from context | Message history retrieval |
-| **Multi-turn Reasoning** | Isolated single-turn responses | Coherent multi-turn conversations | State persistence via LangGraph |
+| **Multi-turn Reasoning** | Isolated single-turn responses | Coherent multi-turn conversations | Triple memory system (episodic + semantic + procedural) |
 | **Example** | **You:** "What was my average heart rate last week?"<br>**Bot:** "87 bpm"<br><br>**You:** "Is that good?"<br>**Bot:** "What are you referring to?" | **You:** "What was my average heart rate last week?"<br>**Bot:** "87 bpm"<br><br>**You:** "Is that good?"<br>**Bot:** "87 bpm is within normal range for your age group..." | Stateful uses conversation history + semantic memory |
 
 ---
@@ -74,32 +74,30 @@ flowchart TB
         S3 -->|No| S5
     end
 
-    subgraph stateful["🔴 Stateful Agent (LangGraph)"]
+    subgraph stateful["🔴 Stateful Agent (Triple Memory)"]
         direction TB
         T1["User Query"]:::start
-        T2["Retrieve Episodic Memory<br/>(RedisVL vector search)"]:::memory
-        T3["Retrieve Procedural Memory<br/>(Redis learned patterns)"]:::memory
-        T4["Qwen 2.5 7B<br/>+ Episodic Context<br/>+ Checkpointed History"]:::llm
-        T5{"Need Tools?"}:::decision
-        T6["Tools Query<br/>Redis Health Data Store"]:::tool
-        T7["Reflect<br/>(Evaluate Success)"]:::reflect
-        T8{"Successful?"}:::decision
-        T9["Store Episodic<br/>(Extract Goals)"]:::memory
-        T10["Store Procedural<br/>(Save Pattern)"]:::memory
-        T11["Contextual Response"]:::response
+        T2["Load Context<br/>(Episodic + Semantic)"]:::memory
+        T3["Qwen 2.5 7B<br/>+ Full Context"]:::llm
+        T4{"Need Tools?"}:::decision
+        T5["Execute Tools<br/>(Health + Memory)"]:::tool
+        T6{"Continue?"}:::decision
+        T7["Extract Facts"]:::reflect
+        T8["Update Semantic Memory"]:::memory
+        T9["Update Procedural Memory"]:::memory
+        T10["Contextual Response"]:::response
 
         T1 --> T2
         T2 --> T3
         T3 --> T4
-        T4 --> T5
-        T5 -->|Yes| T6
-        T6 -->|"Results added<br/>to state"| T4
-        T5 -->|No| T7
+        T4 -->|Yes| T5
+        T5 --> T6
+        T6 -->|Yes| T3
+        T6 -->|No| T7
+        T4 -->|No| T7
         T7 --> T8
-        T8 -->|Yes| T9
-        T8 -->|No| T11
+        T8 --> T9
         T9 --> T10
-        T10 --> T11
     end
 
     classDef start fill:#fff,stroke:#dc3545,stroke-width:2px,color:#212529
@@ -114,21 +112,31 @@ flowchart TB
     style stateful fill:#fefefe,stroke:#6c757d,stroke-width:2px
 ```
 
-### Redis Memory Architecture
+### Triple Memory Architecture
 
-The stateful agent uses **three Redis-powered memory systems**:
+The stateful agent uses **three types of memory** inspired by human cognition:
 
-1. **📝 Short-term Memory (LangGraph Checkpointing)**
-   - Redis LIST for conversation history
-   - Tracks tool calls, responses, and state
+1. **📝 Episodic Memory (Short-term Conversation)**
+   - Stores recent conversation turns within a session
+   - Redis key: `episodic:{session_id}:history`
+   - Managed by `episodic_memory_manager.py`
+   - Enables context awareness and pronoun resolution
    - 7-month TTL for long-running conversations
 
-2. **🔍 Long-term Memory (RedisVL Vector Search)**
-   - Semantic search over past interactions
-   - 1024-dim embeddings (mxbai-embed-large)
-   - Retrieves relevant context from conversation history
+2. **🔍 Semantic Memory (Long-term Context)**
+   - Stores important facts extracted from conversations
+   - Redis key: `semantic:{user_id}:{timestamp}` with RedisVL
+   - Managed by `semantic_memory_manager.py`
+   - 1024-dim embeddings (mxbai-embed-large) for similarity search
+   - Enables recall of past information across sessions
 
-3. **📊 Health Data Store (Redis Hashes + JSON)**
+3. **🎯 Procedural Memory (Goals & Preferences)**
+   - Stores user goals, preferences, and learned patterns
+   - Redis key: `procedural:{user_id}:goals`
+   - Managed by `procedural_memory_manager.py`
+   - Enables personalized responses based on objectives
+
+4. **📊 Health Data Store (Redis Hashes + JSON)**
    - Hash sets for O(1) workout lookups
    - JSON blobs for metrics and aggregates
    - Indexed by date, type, and user ID
@@ -141,7 +149,6 @@ The stateful agent uses **three Redis-powered memory systems**:
 - **FastAPI** - High-performance async API framework
 - **Redis 7.0+** - Primary data store and memory layer
 - **RedisVL** - Vector search for semantic memory
-- **LangGraph** - Agent orchestration framework
 - **LangChain** - Tool calling and LLM integration
 - **Ollama** - Local LLM runtime (Qwen 2.5 7B)
 - **Python 3.11+** - Modern async Python with type hints
@@ -189,57 +196,75 @@ while True:
 - ❌ Cannot learn from past interactions
 - ❌ Every query is independent
 
-### 2. Stateful Agent (LangGraph with Memory)
+### 2. Stateful Agent (Simple Loop with Triple Memory)
 
 ```python
-# LangGraph state machine with Redis checkpointing
-class AgentState(TypedDict):
-    messages: list[BaseMessage]
-    memory_context: str  # Retrieved from RedisVL
+# Simple tool-calling loop with triple memory system
+def stateful_agent(user_input: str, session_id: str):
+    # 1. Load episodic memory (recent conversation)
+    history = episodic_memory.get_history(session_id)
 
-# Build graph
-graph = StateGraph(AgentState)
-graph.add_node("agent", call_agent)
-graph.add_node("tools", execute_tools)
-graph.add_node("memory", retrieve_memory)
+    # 2. Search semantic memory (relevant past facts)
+    semantic_context = semantic_memory.search(user_input, top_k=3)
 
-# Redis checkpoint saver
-checkpointer = RedisSaver(redis_client)
+    # 3. Load procedural memory (user goals)
+    goals = procedural_memory.get_goals(session_id)
 
-# Compile with memory persistence
-app = graph.compile(checkpointer=checkpointer)
+    # 4. Build context-aware prompt
+    messages = build_prompt(user_input, history, semantic_context, goals)
 
-# Execute with conversation memory
-for chunk in app.stream(user_input, thread_id="user_123"):
-    yield chunk  # SSE streaming
+    # 5. Tool-calling loop (up to 8 iterations)
+    for iteration in range(8):
+        response = llm.generate(messages, tools=health_tools + memory_tools)
+
+        if response.tool_calls:
+            results = execute_tools(response.tool_calls)
+            messages.append(results)
+        else:
+            break  # LLM decided it's done
+
+    # 6. Extract and store facts in semantic memory
+    facts = extract_facts(messages)
+    semantic_memory.store(facts, session_id)
+
+    # 7. Update procedural memory (goals, preferences)
+    procedural_memory.update(messages, session_id)
+
+    # 8. Save to episodic memory
+    episodic_memory.add(messages, session_id)
+
+    return response.content
 ```
 
 **Capabilities:**
-- ✅ Remembers conversation history (Redis LIST)
-- ✅ Retrieves semantic context (RedisVL)
+- ✅ Remembers conversation history (episodic memory)
+- ✅ Retrieves semantic context across sessions (semantic memory)
+- ✅ Tracks user goals and preferences (procedural memory)
 - ✅ Understands references and pronouns
-- ✅ Learns tool-calling patterns over time
+- ✅ Autonomous tool selection and chaining
 
 ### 3. Tool Calling System
 
-Both agents use **9 specialized health tools**:
+**Both agents** use the same **9 health tools**. **Stateful agent** adds **2 memory tools**:
 
-| Tool | Purpose | Redis Data Structure |
-|------|---------|---------------------|
-| `search_health_records_by_metric` | Query metrics (weight, heart rate) | Redis JSON + sorted sets |
-| `search_workouts_and_activity` | Find workouts with filters | Redis Hash (O(1) lookup) |
-| `aggregate_metrics` | Calculate stats (avg, min, max) | Redis JSON aggregation |
-| `calculate_weight_trends_tool` | Weight trend analysis | Time-series queries |
-| `compare_time_periods_tool` | Period-over-period comparison | Date-ranged queries |
-| `compare_activity_periods_tool` | Activity comparison | Multi-metric aggregation |
-| `get_workout_schedule_analysis` | Workout patterns by day | Hash field queries |
-| `analyze_workout_intensity_by_day` | Intensity by day of week | Aggregation + grouping |
-| `get_workout_progress` | Progress tracking | Time-series comparison |
+| Tool | Purpose | Redis Data Structure | Agent |
+|------|---------|---------------------|-------|
+| `get_health_metrics` | Query health metrics with optional statistics (weight, BMI, heart rate, steps) | Redis JSON | Both |
+| `get_workouts` | Workout details with heart rate zones and day-of-week tracking | Redis JSON | Both |
+| `get_trends` | Trend analysis and period comparisons (any metric, including weight trends) | Redis JSON + Time-series | Both |
+| `get_activity_comparison` | Comprehensive activity comparison (steps, energy, workouts, distance) | Multi-metric aggregation | Both |
+| `get_workout_patterns` | Workout patterns by day (schedule analysis OR intensity comparison) | Aggregation + grouping | Both |
+| `get_workout_progress` | Progress tracking between time periods | Time-series comparison | Both |
+| `search_semantic_memory` | Search long-term semantic memory for past facts | RedisVL vector search | Stateful only |
+| `store_semantic_memory` | Store important facts for future recall | RedisVL vector storage | Stateful only |
 
 **Tool Selection:**
-- LLM autonomously chooses which tool to call
+- LLM autonomously chooses which tools to call
+- Can chain multiple tools together (up to 8 iterations)
 - Tools return structured data from Redis
 - Agent synthesizes results into natural language
+- Stateful agent stores important facts in semantic memory
+- Goals and preferences tracked in procedural memory
 
 ### 4. Redis Data Patterns
 
@@ -254,15 +279,24 @@ HSET user:wellness_user:workout:abc123
   day_of_week "Monday"
 ```
 
-**Conversation Memory:**
+**Triple Memory Storage:**
 ```python
-# LangGraph checkpoint
-ZADD checkpoint:wellness_user:thread_1
-  {timestamp} "{state_json}"
+# Episodic memory (conversation history)
+LPUSH episodic:session_abc:history
+  '{"role": "user", "content": "What was my heart rate?"}'
+  '{"role": "assistant", "content": "Your average was 87 bpm"}'
 
-# Vector embeddings for semantic search
-HSET memory:embeddings:msg_123
+# Semantic memory (long-term facts with embeddings)
+HSET semantic:user123:1698765432
+  text "User's target BMI is 22"
   embedding [0.123, 0.456, ...]  # 1024-dim vector
+  metadata '{"timestamp": 1698765432, "source": "conversation"}'
+
+# Procedural memory (goals and preferences)
+HSET procedural:user123:goals
+  bmi_target "22"
+  workout_goal "Run 3x per week"
+  preferred_metrics '["heart_rate", "steps", "calories"]'
 ```
 
 ---

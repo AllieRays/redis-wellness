@@ -279,10 +279,27 @@ Examples:
         "file", nargs="?", help="Path to export.xml or parsed_health_data.json"
     )
     parser.add_argument("--user-id", default="wellness_user", help="User ID")
-    parser.add_argument("--redis-host", default="localhost", help="Redis host")
-    parser.add_argument("--redis-port", type=int, default=6379, help="Redis port")
+    parser.add_argument(
+        "--redis-host",
+        default=None,
+        help="Redis host (default: REDIS_HOST env or localhost)",
+    )
+    parser.add_argument(
+        "--redis-port",
+        type=int,
+        default=None,
+        help="Redis port (default: REDIS_PORT env or 6379)",
+    )
 
     args = parser.parse_args()
+
+    # Use environment variables if args not provided
+    import os
+
+    if args.redis_host is None:
+        args.redis_host = os.getenv("REDIS_HOST", "localhost")
+    if args.redis_port is None:
+        args.redis_port = int(os.getenv("REDIS_PORT", "6379"))
 
     print("=" * 80)
     print("  Apple Health Data Import")

@@ -10,6 +10,7 @@ This script runs on container startup and:
 Called by docker-entrypoint.sh before starting the main application.
 """
 
+import importlib.util
 import logging
 import sys
 from pathlib import Path
@@ -21,7 +22,12 @@ src_dir = str(Path(__file__).parent.parent / "src")
 if src_dir not in sys.path:
     sys.path.insert(0, src_dir)
 
-from utils.redis_keys import RedisKeys  # noqa: E402
+spec = importlib.util.spec_from_file_location(
+    "redis_keys", str(Path(__file__).parent.parent / "src" / "utils" / "redis_keys.py")
+)
+redis_keys_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(redis_keys_module)  # type: ignore
+RedisKeys = redis_keys_module.RedisKeys
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"

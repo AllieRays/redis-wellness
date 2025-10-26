@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint import clean redis-start redis-stop redis-clean fresh-start demo health verify stats
+.PHONY: help install dev dev-docker up down logs test lint import import-docker clean redis-start redis-stop redis-clean fresh-start demo health verify stats clear-session
 
 # Default target - show help
 help:
@@ -6,34 +6,39 @@ help:
 	@echo "  Redis Wellness - Makefile Commands"
 	@echo "════════════════════════════════════════════════════════════════"
 	@echo ""
-	@echo "📦 Setup & Installation:"
+	@echo "📦 Setup & Development:"
 	@echo "  make install          Install all dependencies"
-	@echo "  make dev              Start development servers"
+	@echo "  make up               Start all Docker containers"
+	@echo "  make down             Stop all Docker containers"
+	@echo "  make logs             View Docker logs (all services)"
+	@echo "  make dev              Start backend locally (dev mode)"
 	@echo "  make health           Check all services (Redis, API, Ollama)"
 	@echo ""
 	@echo "📊 Data Management:"
-	@echo "  make import           Import Apple Health data"
-	@echo "  make import-xml       Import from specific XML file"
+	@echo "  make import           Import data (Docker containers)"
+	@echo "  make import-local     Import data (local dev mode)"
 	@echo "  make verify           Verify data is loaded and indexed"
 	@echo "  make stats            Show health data types and statistics"
 	@echo ""
 	@echo "🧪 Testing & Quality:"
 	@echo "  make test             Run all tests"
 	@echo "  make test-unit        Run unit tests only"
-	@echo "  make test-e2e         Run E2E tests"
 	@echo "  make lint             Run code linting"
 	@echo ""
 	@echo "🔴 Redis Operations:"
-	@echo "  make redis-start      Start Redis container"
+	@echo "  make redis-start      Start Redis container only"
 	@echo "  make redis-stop       Stop Redis container"
 	@echo "  make redis-clean      Clean Redis data (FLUSHALL)"
 	@echo "  make redis-keys       Show Redis keys"
+	@echo "  make clear-session    Clear chat session (keep health data)"
 	@echo ""
 	@echo "🚀 Quick Commands:"
-	@echo "  make fresh-start      Clean + Import + Dev (full reset)"
+	@echo "  make fresh-start      Clean + Import + Start (full reset)"
 	@echo "  make demo             Prepare for demo (import + verify)"
 	@echo "  make clean            Clean all build artifacts"
 	@echo ""
+	@echo "════════════════════════════════════════════════════════════════"
+	@echo "💡 TIP: Use 'make up' for Docker, 'make dev' for local development"
 	@echo "════════════════════════════════════════════════════════════════"
 
 # Install dependencies
@@ -42,42 +47,76 @@ install:
 	cd backend && uv sync
 	@echo "✅ Dependencies installed"
 
-# Start development servers
-dev:
-	@echo "🚀 Starting development servers..."
+# Start all Docker containers
+up:
+	@echo "🐳 Starting all Docker containers..."
 	@echo "📍 Frontend: http://localhost:3000"
 	@echo "📍 Backend API: http://localhost:8000"
 	@echo "📍 API Docs: http://localhost:8000/docs"
-	@make redis-start
+	@echo "📍 RedisInsight: http://localhost:8001"
+	@docker compose up -d
 	@echo ""
+	@echo "✅ All services started!"
+	@echo "💡 View logs: make logs"
+	@echo "💡 Import data: make import"
+
+# Stop all Docker containers
+down:
+	@echo "🐳 Stopping all Docker containers..."
+	@docker compose down
+	@echo "✅ All services stopped"
+
+# View Docker logs
+logs:
+	@docker compose logs -f
+
+# Start backend locally (for development)
+dev:
+	@echo "🚀 Starting backend locally (dev mode)..."
+	@echo "⚠️  Make sure Redis is running: make redis-start"
+	@echo "📍 Backend API: http://localhost:8000"
+	@echo "📍 API Docs: http://localhost:8000/docs"
+	@echo ""
+	@make redis-start
+	@sleep 2
 	@echo "Starting backend server..."
 	cd backend && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 
-# Import Apple Health data (auto-detect)
+# Import data into Docker Redis (for Docker setup)
 import:
-	@echo "📱 Importing Apple Health data..."
-	uv run --directory backend import-health ../apple_health_export/export.xml
+	@echo "📱 Importing Apple Health data into Docker Redis..."
+	@echo "🐳 Running import inside backend container..."
+	@docker compose exec backend uv run import-health /apple_health_export/export.xml
+	@echo "✅ Import complete! Data is now in Docker Redis."
+	@echo "💡 Verify: make verify"
 
-# Import from specific XML file
+# Import data into localhost Redis (for local dev)
+import-local:
+	@echo "📱 Importing Apple Health data (local mode)..."
+	@echo "⚠️  This imports to localhost:6379 (for local dev)"
+	uv run --directory backend import-health apple_health_export/export.xml
+	@echo "✅ Import complete!"
+
+# Import from specific XML file (Docker)
 import-xml:
-	@echo "📱 Importing from XML file..."
-	@read -p "Enter path to export.xml: " xml_path; \
-	cd backend && uv run import-health "$$xml_path"
+	@echo "📱 Importing from XML file (Docker)..."
+	@read -p "Enter path to export.xml (inside container): " xml_path; \
+	docker compose exec backend uv run import-health "$$xml_path"
 
 # Verify data is loaded and indexed
 verify:
-	@echo "🔍 Verifying Redis data..."
-	uv run --directory backend wellness verify
+	@echo "🔍 Verifying Redis data (Docker)..."
+	@docker compose exec backend uv run wellness verify
 
 # Health check all services
 health:
-	@echo "🏥 Checking system health..."
-	uv run --directory backend wellness health
+	@echo "🏥 Checking system health (Docker)..."
+	@docker compose exec backend uv run wellness health
 
 # Show health data statistics
 stats:
-	@echo "📊 Showing health data statistics..."
-	uv run --directory backend wellness stats
+	@echo "📊 Showing health data statistics (Docker)..."
+	@docker compose exec backend uv run wellness stats
 
 # Run all tests
 test:
@@ -134,10 +173,20 @@ redis-keys:
 	@echo "Total keys:"
 	@docker compose exec -T redis redis-cli DBSIZE
 
+# Clear chat session (keeps health data intact)
+clear-session:
+	@echo "🧹 Clearing chat session..."
+	@docker compose exec -T redis redis-cli DEL "user:wellness_user:session:default" "langgraph:checkpoints:default" && echo "✅ Session cleared" || echo "⚠️  Session may not exist"
+	@echo "🧠 Clearing episodic memory (goals)..."
+	@docker compose exec -T redis redis-cli --scan --pattern "episodic:*" | xargs -r docker compose exec -T redis redis-cli DEL && echo "✅ Episodic memory cleared" || echo "⚠️  No episodic memory found"
+	@echo "📋 Note: Health data preserved"
+
 # Fresh start - clean everything and reimport
 fresh-start:
 	@echo "🚀 Fresh start - resetting everything..."
-	@make redis-start
+	@echo "🐳 Starting containers..."
+	@docker compose up -d
+	@sleep 3
 	@echo "🔴 Cleaning Redis..."
 	@docker compose exec -T redis redis-cli FLUSHALL
 	@echo "📱 Importing health data..."
@@ -145,26 +194,8 @@ fresh-start:
 	@echo "✅ Fresh start complete!"
 	@echo ""
 	@echo "Verify with: make redis-keys"
+	@echo "View logs: make logs"
 
-# Demo preparation
-demo:
-	@echo "🎬 Preparing for demo..."
-	@make redis-start
-	@echo ""
-	@echo "📊 Current Redis status:"
-	@make redis-keys
-	@echo ""
-	@read -p "Import fresh data? (y/N): " do_import; \
-	if [ "$$do_import" = "y" ] || [ "$$do_import" = "Y" ]; then \
-		docker compose exec -T redis redis-cli FLUSHALL; \
-		make import; \
-	fi
-	@echo ""
-	@echo "🧪 Running validation tests..."
-	@cd backend/tests/e2e && ./test_data_validation.sh
-	@echo ""
-	@echo "✅ Demo ready!"
-	@echo "Start servers with: make dev"
 
 # Clean build artifacts
 clean:

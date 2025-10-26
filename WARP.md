@@ -11,7 +11,7 @@ This is a **side-by-side demo** comparing **stateless chat** vs. **agentic RAG c
 - **Storage**: Redis Stack with RedisVL vector search (ports 6379, 8001)
 - **LLM**: Qwen 2.5 7B + mxbai-embed-large via Ollama (port 11434)
 
-The application showcases **dual memory systems**: short-term conversation history and long-term semantic memory with vector search.
+The application showcases **triple memory systems**: episodic (short-term conversation), semantic (long-term context), and procedural (goals/preferences) memory.
 
 ```
                            Docker Network
@@ -27,8 +27,9 @@ The application showcases **dual memory systems**: short-term conversation histo
 └───────────────────────────────────────────────────────────┘
 
 Redis/RedisVL stores:
-- Short-term memory (conversation history)
-- Long-term memory (semantic vector search)
+- Episodic memory (conversation history)
+- Semantic memory (long-term context with vector search)
+- Procedural memory (goals, preferences, user config)
 - Health data cache (7-month TTL)
 ```
 
@@ -54,17 +55,28 @@ Both agents use the same simple tool-calling loop pattern for maintainability.
 **Apple Health Module (`/apple_health/`)** - Complete Apple Health data processing:
 - `models.py` - Pydantic models (HealthRecord, WorkoutSummary, etc.)
 - `parser.py` - Secure XML parsing with validation
-- `query_tools/` - LangChain tools for AI queries (9 tools: search, aggregate, workouts, patterns, trends)
+- `tool_models.py` - Pydantic models for tool inputs/outputs
+- `query_tools/` - LangChain tools for AI queries:
+  - `get_health_metrics.py` - Search health records
+  - `get_workouts.py` - Search and retrieve workout data
+  - `get_activity_comparison.py` - Compare activity periods
+  - `get_workout_patterns.py` - Analyze workout patterns
+  - `get_workout_progress.py` - Track workout progress over time
+  - `get_trends.py` - Analyze health metric trends
+  - `goal_tools.py` - Goal setting and tracking
+  - `memory_tools.py` - Semantic memory search and storage
 - `__init__.py` - Clean module exports
 
 **Services (`/services/`)** - Data layer and business logic:
-- `redis_chat.py` - RAG chat service with dual memory
+- `redis_chat.py` - RAG chat service with triple memory system
 - `stateless_chat.py` - No-memory baseline service
-- `memory_manager.py` - RedisVL dual memory system (short + long-term)
+- `episodic_memory_manager.py` - Short-term conversation memory
+- `semantic_memory_manager.py` - Long-term semantic memory (RedisVL)
+- `procedural_memory_manager.py` - Goal tracking and user preferences
 - `redis_connection.py` - Production-ready Redis connection management
 - `redis_workout_indexer.py` - Fast Redis workout indexes (O(1) aggregations)
 - `redis_apple_health_manager.py` - Redis CRUD operations for Apple Health data
-- `embedding_cache.py` - Embedding cache for performance
+- `embedding_service.py` - Embedding generation and caching
 
 **Utils (`/utils/`)** - Pure utilities and helpers:
 - `agent_helpers.py` - Shared agent utilities (LLM, prompts, message handling)
@@ -75,26 +87,86 @@ Both agents use the same simple tool-calling loop pattern for maintainability.
 - `stats_utils.py` - Statistical calculation utilities
 - `time_utils.py` - Time parsing and date utilities
 - `health_analytics.py` - Health trend analysis functions
+- `api_errors.py` - API error handling
+- `conversation_fact_extractor.py` - Extract facts from conversations for semantic memory
+- `conversion_utils.py` - Unit conversion utilities
+- `date_validator.py` - Date validation logic
+- `exceptions.py` - Custom exception classes
+- `intent_router.py` - Route user intents to appropriate tools
+- `metric_classifier.py` - Classify health metrics
+- `pronoun_resolver.py` - Resolve pronouns in user queries
+- `redis_keys.py` - Centralized Redis key management
+- `token_manager.py` - Token counting and management
+- `user_config.py` - User configuration management
+- `verbosity_detector.py` - Detect user preference for verbose/concise responses
 
 **Frontend Structure (`/frontend/src/`)**:
 
 - `main.ts` - Chat UI with side-by-side comparison
 - `api.ts` - Backend API client with TypeScript
 - `types.ts` - TypeScript interfaces for API communication
+- `constants.ts` - Frontend constants and configuration
+- `stats.ts` - Memory statistics tracking and display
+- `streaming.ts` - Server-sent events (SSE) streaming handler
 - `style.css` - Modern chat UI styling
+- `utils/` - Frontend utilities:
+  - `sanitizer.ts` - XSS protection and HTML sanitization
+  - `ui.ts` - UI helper functions
 
 **Documentation (`/docs/`)**:
 
-- `HEALTH_DATA_PIPELINE.md` - Apple Health XML → Redis pipeline
-- `REORGANIZATION_SUMMARY.md` - Project structure cleanup (Oct 2025)
-- `LANGGRAPH_REMOVAL_PLAN.md` - Why we removed LangGraph and use simple loops
-- `INTELLIGENT_HEALTH_TOOLS_PLAN.md` - Agentic health tools design
-- `RAG_IMPLEMENTATION.md` - RedisVL memory architecture
-- `linting.md` - Code quality and pre-commit setup
+- `01_QUICKSTART.md` - Quick start guide
+- `02_THE_DEMO.md` - Demo walkthrough and comparison
+- `03_MEMORY_ARCHITECTURE.md` - Triple memory system architecture
+- `04_AUTONOMOUS_AGENTS.md` - Agentic tool-calling system
+- `05_REDIS_PATTERNS.md` - Redis usage patterns and best practices
+- `06_ARCHITECTURE_DECISIONS.md` - Key architectural decisions and rationale
+- `07_APPLE_HEALTH_DATA.md` - Apple Health data pipeline and processing
+- `RETRIEVAL_PATTERNS_GUIDE.md` - Data retrieval patterns and strategies
+- `SERVICES.md` - Service layer documentation
+- `archive/` - Archived documentation from previous iterations
 
 ## Development Commands
 
-### Environment Setup
+### Quick Start with Make
+
+**Use the Makefile for common tasks:**
+
+```bash
+# Show all available commands
+make help
+
+# Setup & Installation
+make install          # Install all dependencies
+make dev              # Start development servers
+make health           # Check all services (Redis, API, Ollama)
+
+# Data Management
+make import           # Import Apple Health data from apple_health_export/export.xml
+make import-xml       # Import from specific XML file (prompts for path)
+make verify           # Verify data is loaded and indexed
+make stats            # Show health data types and statistics
+
+# Testing & Quality
+make test             # Run all tests
+make test-unit        # Run unit tests only
+make test-e2e         # Run E2E tests
+make lint             # Run code linting
+
+# Redis Operations
+make redis-start      # Start Redis container
+make redis-stop       # Stop Redis container
+make redis-clean      # Clean Redis data (FLUSHALL - prompts for confirmation)
+make redis-keys       # Show Redis keys (first 20 + total count)
+make clear-session    # Clear chat session (keeps health data)
+
+# Quick Commands
+make fresh-start      # Clean + Import + Dev (full reset)
+make demo             # Prepare for demo (import + verify)
+make clean            # Clean all build artifacts
+```
+
+### Environment Setup (Manual)
 
 ```bash
 # Quick start (recommended)
@@ -164,7 +236,7 @@ uv run python -m backend.src.main   # Run development server
 
 ### Testing
 
-**All tests moved to `/backend/tests/` for proper monorepo structure:**
+**All tests organized in `/backend/tests/`:**
 
 ```bash
 # Run all backend tests
@@ -173,16 +245,28 @@ uv run pytest tests/
 
 # Unit tests (no external dependencies)
 uv run pytest tests/unit/
+# - test_numeric_validator.py - Validation logic
+# - test_health_analytics.py - Health analytics functions
+# - test_intent_router.py - Intent routing logic
+# - test_metric_aggregators.py - Metric aggregation
+# - test_stats_utils.py - Statistical utilities
+# - test_time_utils.py - Time parsing utilities
+# - test_consolidated_tools.py - Tool function tests
 
 # Integration tests (require Redis/services)
-uv run pytest tests/ -k "not unit"
+uv run pytest tests/integration/
+# - test_episodic_memory.py - Short-term memory
+# - test_procedural_memory.py - Goal and preference tracking
+# - test_health_tools.py - Apple Health tool integration
+# - test_redis_services.py - Redis service layer
 
-# Specific test categories
-uv run pytest tests/unit/test_numeric_validator.py  # Validation logic
-uv run pytest tests/unit/test_math_tools.py         # Mathematical functions
-uv run pytest tests/unit/test_stateless_isolation.py # Pure function tests
-uv run pytest tests/test_redis_chat_rag.py          # RAG memory system
-uv run pytest tests/test_redis_chat_api.py          # HTTP API integration
+# API tests (require running backend)
+uv run pytest tests/api/
+# - test_chat_endpoints.py - Chat endpoint integration
+
+# LLM tests (require Ollama)
+uv run pytest tests/llm/
+# - test_agents.py - Full agent workflow tests
 
 # Health check endpoints
 curl http://localhost:8000/health
@@ -218,9 +302,20 @@ git push  # Triggers comprehensive checks
 ### Health Data Integration
 
 ```bash
-# Upload Apple Health export
-curl -X POST http://localhost:8000/api/health/upload \
-  -F "file=@export.xml"
+# Import Apple Health data (recommended - uses Make)
+make import
+
+# Or import from specific XML file
+make import-xml
+
+# Verify data was imported successfully
+make verify
+
+# Show statistics about imported data
+make stats
+
+# Manual import (if not using Make)
+uv run --directory backend import-health apple_health_export/export.xml
 ```
 
 ## Debugging Best Practices
@@ -463,17 +558,19 @@ TTL: 7 months
 ### API Structure
 
 **Core Demo Endpoints:**
-- `/api/chat/stateless` - Stateless chat (no memory)
-- `/api/chat/redis` - RAG chat with full memory
-- `/api/chat/demo/info` - Demo comparison documentation
+- `POST /api/chat/stateless` - Stateless chat (no memory)
+- `POST /api/chat/stateless/stream` - Stateless chat with streaming (SSE)
+- `POST /api/chat/stateful` - Stateful RAG chat with full memory (LangGraph)
+- `POST /api/chat/stateful/stream` - Stateful chat with streaming (SSE)
+- `GET /api/chat/demo/info` - Demo comparison documentation
 
 **Memory Management:**
-- `/api/chat/history/{session_id}` - View conversation history
-- `/api/chat/memory/{session_id}` - Memory statistics
-- `/api/chat/session/{session_id}` - Clear session (DELETE)
+- `GET /api/chat/history/{session_id}` - View conversation history
+- `GET /api/chat/memory/{session_id}` - Memory statistics
+- `DELETE /api/chat/session/{session_id}` - Clear session
 
 **Health Data:**
-- Import via `import_health.py` script (not HTTP endpoint)
+- Import via `make import` or `import_health.py` script (not HTTP endpoint)
 - Data automatically indexed in Redis on import
 - Semantic memory cleared on import to prevent stale data
 
@@ -487,7 +584,7 @@ Key features of the agentic workflow:
 
 - **Tool-First Policy**: Factual queries skip semantic memory to avoid stale cache
 - **9 Specialized Tools**: Health records, workouts, patterns, comparisons, trends, progress
-- **Dual Memory**: Short-term conversation + long-term context (Redis + RedisVL)
+- **Triple Memory**: Episodic (conversation) + Semantic (context) + Procedural (goals)
 - **Tool Calling**: Qwen 2.5 7B optimized for function calling
 - **Simple Loop**: Up to 8 iterations for complex multi-step queries
 - **Autonomous**: LLM decides which tools to call, chains them, decides when done
@@ -546,21 +643,39 @@ curl -X POST http://localhost:8000/api/chat/stateless \
 # Follow-up fails: "Is that good?" → "What are you referring to?"
 ```
 
-**Redis RAG Chat** (remembers context):
+**Stateful RAG Chat** (remembers context):
 ```bash
-curl -X POST http://localhost:8000/api/chat/redis \
+curl -X POST http://localhost:8000/api/chat/stateful \
   -H "Content-Type: application/json" \
   -d '{"message": "What was my average heart rate last week?", "session_id": "demo"}'
 
 # Follow-up works: "Is that good?" → "87 bpm is within normal range..."
 ```
 
+**Streaming Chat** (tokens arrive in real-time):
+```bash
+# Stateless streaming
+curl -X POST http://localhost:8000/api/chat/stateless/stream \
+  -H "Content-Type: application/json" \
+  -d '{"message": "did I work out on October 17th?"}'
+
+# Stateful streaming
+curl -X POST http://localhost:8000/api/chat/stateful/stream \
+  -H "Content-Type: application/json" \
+  -d '{"message": "did I work out on October 17th?", "session_id": "demo"}'
+```
+
 ### Load Health Data
 
 ```bash
-# Upload Apple Health export
-curl -X POST http://localhost:8000/api/health/upload \
-  -F "file=@export.xml"
+# Import Apple Health data (recommended)
+make import
+
+# Or use manual command
+uv run --directory backend import-health apple_health_export/export.xml
+
+# Verify data was imported
+make verify
 ```
 
 The application demonstrates how Redis + RedisVL transforms stateless chat into context-aware, memory-powered health insights using **100% local processing**.

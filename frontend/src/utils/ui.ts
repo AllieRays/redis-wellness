@@ -56,34 +56,13 @@ export class LoadingIndicator {
 }
 
 /**
- * Creates metadata HTML for memory stats and tools
+ * Creates metadata HTML for tools
+ * Memory retrieval now happens via tools (get_my_goals, get_tool_suggestions)
  */
-function createMetadataHtml(toolsUsed?: ToolUsed[], memoryStats?: MemoryStats): string {
+function createMetadataHtml(toolsUsed?: ToolUsed[]): string {
   let metadataHtml = '';
 
-  // Add memory stats badges
-  if (memoryStats) {
-    const memoryIndicators: string[] = [];
-
-    if (memoryStats.short_term_available) {
-      memoryIndicators.push(
-        '<span class="memory-badge"><i class="fas fa-file-lines"></i> Short-term memory</span>'
-      );
-    }
-    if (memoryStats.semantic_hits > 0) {
-      memoryIndicators.push(
-        `<span class="memory-badge semantic"><i class="fas fa-brain"></i> ${memoryStats.semantic_hits} semantic memories</span>`
-      );
-    }
-
-    if (memoryIndicators.length > 0) {
-      metadataHtml = `<div class="message-metadata">${memoryIndicators.join(
-        ' '
-      )}</div>`;
-    }
-  }
-
-  // Add tools used badges
+  // Add tools used badges (includes both health tools AND memory tools)
   if (toolsUsed && toolsUsed.length > 0) {
     const toolsList = toolsUsed
       .map(
@@ -114,9 +93,7 @@ export function addMessage(
   const messageDiv = document.createElement('div');
   messageDiv.className = role === 'user' ? 'message-user' : 'message-assistant';
 
-  const metadataHtml = metadata
-    ? createMetadataHtml(metadata.tools_used, metadata.memory_stats)
-    : '';
+  const metadataHtml = metadata ? createMetadataHtml(metadata.tools_used) : '';
 
   // Add Redis icon for Redis assistant messages
   const iconPrefix = isRedisChat
@@ -146,6 +123,8 @@ export class StreamingMessageBubble {
   private bubbleEl: HTMLElement;
   private iconHtml: string;
   private contentEl: HTMLElement;
+  private lastScrollTime = 0;
+  private scrollThrottle = 50; // ms
 
   constructor(chatArea: HTMLDivElement, isRedisChat: boolean) {
     this.element = document.createElement('div');
@@ -168,19 +147,31 @@ export class StreamingMessageBubble {
   }
 
   updateContent(content: string): void {
-    const safeContent = createSafeHtmlWithIcon(content, '');
-    this.contentEl.innerHTML = safeContent;
+    // Use textContent for plain text streaming (no formatting until done)
+    this.contentEl.textContent = content;
 
-    // Scroll to bottom only if user is near bottom (within 100px)
+    // Throttle scroll updates to reduce reflows
+    const now = Date.now();
     const chatArea = this.element.parentElement;
-    if (chatArea) {
+    if (chatArea && now - this.lastScrollTime > this.scrollThrottle) {
       const isNearBottom =
         chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 100;
       if (isNearBottom) {
-        requestAnimationFrame(() => {
-          chatArea.scrollTop = chatArea.scrollHeight;
-        });
+        chatArea.scrollTop = chatArea.scrollHeight;
       }
+      this.lastScrollTime = now;
+    }
+  }
+
+  finalizeContent(content: string): void {
+    // Apply markdown formatting when streaming is complete
+    const safeContent = createSafeHtmlWithIcon(content, '');
+    this.contentEl.innerHTML = safeContent;
+
+    // Final scroll to ensure visibility
+    const chatArea = this.element.parentElement;
+    if (chatArea) {
+      chatArea.scrollTop = chatArea.scrollHeight;
     }
   }
 

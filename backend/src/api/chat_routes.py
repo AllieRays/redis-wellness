@@ -22,7 +22,6 @@ from ..utils.exceptions import (
     RedisConnectionError,
     generate_correlation_id,
 )
-from ..utils.user_config import get_user_id
 from .models.errors import (
     internal_error,
     service_error,
@@ -485,43 +484,6 @@ async def get_memory_stats(session_id: str):
         raise HTTPException(
             status_code=500, detail=error_response.model_dump(mode="json")
         ) from e
-
-
-@router.get("/tokens/{session_id}")
-async def get_token_usage(session_id: str, limit: int = 10):
-    """
-    Get token usage statistics for a session's context.
-
-    Shows:
-    - Current token count
-    - Maximum token limit
-    - Usage percentage
-    - Whether trimming is needed
-
-    Useful for monitoring context window usage and detecting when
-    automatic trimming will occur.
-    """
-    from ..services.short_term_memory_manager import get_short_term_memory_manager
-
-    user_id = get_user_id()  # Single user configuration
-    short_term_manager = get_short_term_memory_manager()
-
-    (
-        context_str,
-        token_stats,
-    ) = await short_term_manager.get_short_term_context_token_aware(
-        user_id, session_id, limit=limit
-    )
-
-    return {
-        "session_id": session_id,
-        "token_stats": token_stats,
-        "status": (
-            "over_threshold"
-            if token_stats.get("is_over_threshold")
-            else "under_threshold"
-        ),
-    }
 
 
 @router.delete("/session/{session_id}", response_model=ClearSessionResponse)

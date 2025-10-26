@@ -138,22 +138,19 @@ def _plan_tool_sequence(query: str, query_type: str, past_patterns: list[dict]) 
     # Otherwise, suggest default tools for query type
     default_tools = {
         "weight_analysis": [
-            "search_health_records_by_metric",
-            "aggregate_metrics",
-            "calculate_weight_trends_tool",
+            "get_health_metrics",
+            "get_trends",
         ],
         "workout_analysis": [
-            "search_workouts_and_activity",
-            "get_workout_schedule_analysis",
+            "get_workouts",
+            "get_workout_patterns",
         ],
-        "comparison": ["search_health_records_by_metric", "compare_time_periods_tool"],
-        "progress": ["search_health_records_by_metric", "get_workout_progress"],
-        "health_metric": ["search_health_records_by_metric"],  # Simple default
+        "comparison": ["get_trends", "get_activity_comparison"],
+        "progress": ["get_health_metrics", "get_workout_progress"],
+        "health_metric": ["get_health_metrics"],  # Simple default
     }
 
-    plan["suggested_tools"] = default_tools.get(
-        query_type, ["search_health_records_by_metric"]
-    )
+    plan["suggested_tools"] = default_tools.get(query_type, ["get_health_metrics"])
     plan["reasoning"] = f"Default tool sequence for {query_type} queries"
     plan["confidence"] = 0.3  # Low confidence for defaults
 

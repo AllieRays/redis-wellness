@@ -1,5 +1,6 @@
 """Mathematical analysis for health data using NumPy/SciPy (pure functions)."""
 
+from datetime import date
 from typing import Any
 
 from .conversion_utils import kg_to_lbs
@@ -304,7 +305,7 @@ def correlate_metrics(
         filter_start, filter_end, time_range_desc = parse_time_period(time_period)
 
         # Create date-indexed dictionaries for matching
-        x_by_date = {}
+        x_by_date: dict[date, list[float]] = {}
         for record in records_x:
             record_date = parse_health_record_date(record["date"])
             if filter_start <= record_date <= filter_end:
@@ -317,7 +318,7 @@ def correlate_metrics(
                 except (ValueError, TypeError):
                     continue
 
-        y_by_date = {}
+        y_by_date: dict[date, list[float]] = {}
         for record in records_y:
             record_date = parse_health_record_date(record["date"])
             if filter_start <= record_date <= filter_end:
@@ -352,7 +353,6 @@ def correlate_metrics(
         correlation_result = calculate_pearson_correlation(x_values, y_values)
 
         # Add interpretation
-        correlation_result["correlation"]
         if correlation_result.get("significant"):
             if "positive" in correlation_result["strength"]:
                 interpretation = (

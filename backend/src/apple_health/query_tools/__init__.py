@@ -5,11 +5,12 @@ This package provides LangChain tools for querying Apple Health data from Redis.
 All tools are user-bound and automatically inject user context.
 
 Structure:
-- search_health_records.py - Health metric search tool
-- search_workouts.py - Workout and activity search tool
-- apple_health_statistics.py - Statistics and aggregation tool
-- apple_health_trends_and_comparisons.py - Advanced analytics (trends, comparisons)
-- compare_activity.py - Multi-metric activity comparison
+- get_health_metrics.py - Health metrics with optional statistics
+- get_workouts.py - Workout details with heart rate zones
+- get_trends.py - Trend analysis and period comparisons
+- get_activity_comparison.py - Multi-metric activity comparison
+- get_workout_patterns.py - Workout patterns by day (schedule/intensity)
+- get_workout_progress.py - Progress tracking between periods
 
 Main Entry Point:
 - create_user_bound_tools() - Creates all tools bound to a specific user
@@ -20,37 +21,33 @@ import logging
 from langchain_core.tools import BaseTool
 
 from ...utils.user_config import validate_user_context
-from .apple_health_statistics import create_aggregate_metrics_tool
-from .apple_health_trends_and_comparisons import (
-    create_compare_periods_tool,
-    create_weight_trends_tool,
-)
-from .compare_activity import create_compare_activity_tool
-from .progress_tracking import create_progress_tracking_tool
-from .search_health_records import create_search_health_records_tool
-from .search_workouts import create_search_workouts_tool
-from .workout_patterns import (
-    create_intensity_analysis_tool,
-    create_workout_schedule_tool,
-)
+from .get_activity_comparison import create_get_activity_comparison_tool
+from .get_health_metrics import create_get_health_metrics_tool
+from .get_trends import create_get_trends_tool
+from .get_workout_patterns import create_get_workout_patterns_tool
+from .get_workout_progress import create_get_workout_progress_tool
+from .get_workouts import create_get_workouts_tool
+from .memory_tools import create_memory_tools
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
     "create_user_bound_tools",
-    "create_search_health_records_tool",
-    "create_search_workouts_tool",
-    "create_aggregate_metrics_tool",
-    "create_weight_trends_tool",
-    "create_compare_periods_tool",
-    "create_compare_activity_tool",
-    "create_workout_schedule_tool",
-    "create_intensity_analysis_tool",
-    "create_progress_tracking_tool",
+    "create_get_health_metrics_tool",
+    "create_get_workouts_tool",
+    "create_get_trends_tool",
+    "create_get_activity_comparison_tool",
+    "create_get_workout_patterns_tool",
+    "create_get_workout_progress_tool",
+    "create_memory_tools",
 ]
 
 
-def create_user_bound_tools(user_id: str, conversation_history=None) -> list[BaseTool]:
+def create_user_bound_tools(
+    user_id: str,
+    conversation_history=None,
+    include_memory_tools: bool = True,
+) -> list[BaseTool]:
     """
     Create tool instances bound to the single application user.
 
@@ -60,20 +57,23 @@ def create_user_bound_tools(user_id: str, conversation_history=None) -> list[Bas
     Args:
         user_id: The user identifier (normalized to single user in this mode)
         conversation_history: Recent conversation messages (unused, for backward compatibility)
+        include_memory_tools: Whether to include memory retrieval tools (default: True)
+                             Set to False for stateless agent baseline
 
     Returns:
         List of LangChain tools with validated user_id injected
 
-    Tool Set:
-        1. search_health_records_by_metric - Query health metrics (weight, BMI, HR, steps)
-        2. search_workouts_and_activity - Query workout data with heart rate zones
-        3. aggregate_metrics - Calculate statistics (avg, min, max, sum, count)
-        4. calculate_weight_trends_tool - Weight trend analysis with regression
-        5. compare_time_periods_tool - Period-over-period comparisons (single metric)
-        6. compare_activity_periods_tool - Comprehensive activity comparison (steps, energy, workouts, distance)
-        7. get_workout_schedule_analysis - Analyze workout patterns by day of week
-        8. analyze_workout_intensity_by_day - Compare workout intensity across days
-        9. get_workout_progress - Track progress between time periods
+    Tool Set (Health - always included):
+        1. get_health_metrics - Health metrics with optional statistics (raw data OR aggregated)
+        2. get_workouts - Workout details with heart rate zones
+        3. get_trends - Trend analysis and period comparisons (any metric)
+        4. get_activity_comparison - Comprehensive activity comparison (steps, energy, workouts, distance)
+        5. get_workout_patterns - Workout patterns by day (schedule OR intensity)
+        6. get_workout_progress - Progress tracking between time periods
+
+    Tool Set (Memory - optional):
+        7. get_my_goals - Retrieve user goals and preferences
+        8. get_tool_suggestions - Retrieve learned tool-calling patterns
     """
     # Normalize to single user configuration
     user_id = validate_user_context(user_id)
@@ -85,18 +85,26 @@ def create_user_bound_tools(user_id: str, conversation_history=None) -> list[Bas
 
     # Create all tools with user binding
     tools = [
-        create_search_health_records_tool(user_id),  # All metric queries
-        create_search_workouts_tool(user_id),  # All workout queries
-        create_aggregate_metrics_tool(user_id),  # Statistics and aggregations
-        create_weight_trends_tool(user_id),  # Weight trend analysis with regression
-        create_compare_periods_tool(
-            user_id
-        ),  # Period-over-period comparisons (single metric)
-        create_compare_activity_tool(user_id),  # Comprehensive activity comparison
-        create_workout_schedule_tool(user_id),  # Workout pattern analysis by day
-        create_intensity_analysis_tool(user_id),  # Workout intensity by day comparison
-        create_progress_tracking_tool(user_id),  # Progress tracking between periods
+        create_get_health_metrics_tool(user_id),  # Health metrics (raw OR stats)
+        create_get_workouts_tool(user_id),  # Workout details with HR zones
+        create_get_trends_tool(user_id),  # Trends and period comparisons
+        create_get_activity_comparison_tool(user_id),  # Activity comparison
+        create_get_workout_patterns_tool(user_id),  # Workout patterns by day
+        create_get_workout_progress_tool(user_id),  # Progress tracking
     ]
 
-    logger.info(f"✅ Created {len(tools)} user-bound tools")
+    # Add memory retrieval tools (for autonomous memory access)
+    # Stateless agent sets include_memory_tools=False for baseline comparison
+    # Note: Goal setting is handled by pre-router, not tools
+    if include_memory_tools:
+        memory_tools = create_memory_tools(user_id)
+        tools.extend(memory_tools)
+        logger.info(
+            f"✅ Created {len(tools)} user-bound tools (including {len(memory_tools)} memory tools)"
+        )
+    else:
+        logger.info(
+            f"✅ Created {len(tools)} user-bound tools (health only, no memory)"
+        )
+
     return tools

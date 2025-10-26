@@ -174,7 +174,7 @@ def calculate_percentage_change(old_value: float, new_value: float) -> float:
 
 def calculate_pearson_correlation(
     values_x: list[float], values_y: list[float]
-) -> dict[str, float]:
+) -> dict[str, float | str | bool]:
     """
     Calculate Pearson correlation coefficient between two variables.
 

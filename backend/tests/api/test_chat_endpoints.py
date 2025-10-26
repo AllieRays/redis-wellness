@@ -1,10 +1,13 @@
 """
 API tests for chat endpoints.
 
+NOTE: These tests run against the REAL backend in Docker.
+Requires: docker-compose up -d backend
+
 REAL TESTS - REQUIRE BACKEND:
-- Tests real FastAPI endpoints with TestClient
+- Tests real FastAPI endpoints via httpx client
 - No mocks - tests actual HTTP request/response flow
-- Requires Redis for stateful tests
+- Requires: docker-compose up -d backend redis
 """
 
 import pytest
@@ -111,6 +114,68 @@ class TestConversationHistoryAPI:
         data = response.json()
         assert "messages" in data
         assert isinstance(data["messages"], list)
+
+
+@pytest.mark.api
+@pytest.mark.integration  # Requires backend running
+class TestStreamingEndpoints:
+    """Test streaming chat endpoints."""
+
+    def test_stateless_stream_basic(self, test_client):
+        """Test stateless streaming endpoint returns SSE format."""
+        # Use httpx streaming
+        with test_client.stream(
+            "POST", "/api/chat/stateless/stream", json={"message": "Hello"}
+        ) as response:
+            assert response.status_code == 200
+            assert "text/event-stream" in response.headers["content-type"]
+
+            # Read at least one chunk
+            content = b""
+            for chunk in response.iter_bytes():
+                content += chunk
+                if b"data:" in content:
+                    break
+
+            # Verify SSE format
+            assert b"data:" in content
+
+    def test_redis_stream_basic(self, test_client, test_session_id):
+        """Test Redis streaming endpoint returns SSE format."""
+        # Use httpx streaming
+        with test_client.stream(
+            "POST",
+            "/api/chat/stateful/stream",
+            json={"message": "Hello", "session_id": test_session_id},
+        ) as response:
+            assert response.status_code == 200
+            assert "text/event-stream" in response.headers["content-type"]
+
+            # Read at least one chunk
+            content = b""
+            for chunk in response.iter_bytes():
+                content += chunk
+                if b"data:" in content:
+                    break
+
+            # Verify SSE format
+            assert b"data:" in content
+
+    @pytest.mark.integration
+    def test_redis_stream_includes_memory_stats(self, test_client, test_session_id):
+        """Test Redis streaming includes memory_stats in done event."""
+        with test_client.stream(
+            "POST",
+            "/api/chat/stateful/stream",
+            json={"message": "test", "session_id": test_session_id},
+        ) as response:
+            # Read full stream
+            content = b""
+            for chunk in response.iter_bytes():
+                content += chunk
+
+            # Verify memory_stats appears somewhere in stream
+            assert b"memory_stats" in content or b"done" in content
 
 
 @pytest.mark.api

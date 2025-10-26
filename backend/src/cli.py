@@ -7,12 +7,17 @@ importing health data, running diagnostics, etc.
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
 
 import redis
 import requests
+
+# Get Redis connection details from environment
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 
 # Import the import script from the same directory
 import_health_data_path = Path(__file__).parent / "import_health_data.py"
@@ -31,7 +36,7 @@ def health_check():
     print("1️⃣  Redis")
     print("-" * 80)
     try:
-        client = redis.Redis(host="localhost", port=6379, decode_responses=True)
+        client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
         client.ping()
         info = client.info("server")
         version = info.get("redis_version", "unknown")
@@ -87,7 +92,9 @@ def health_check():
         try:
             from redisvl.redis.connection import RedisConnectionFactory
 
-            conn = RedisConnectionFactory.get_redis_connection("redis://localhost:6379")
+            conn = RedisConnectionFactory.get_redis_connection(
+                f"redis://{REDIS_HOST}:{REDIS_PORT}"
+            )
             conn.ping()
             print("   Connection: Active")
         except Exception:
@@ -184,7 +191,7 @@ def verify_data(user_id: str = "wellness_user", verbose: bool = False):
     # Connect to Redis
     print("🔌 Connecting to Redis...")
     try:
-        client = redis.Redis(host="localhost", port=6379, decode_responses=True)
+        client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
         client.ping()
         print("✅ Redis connection successful")
     except Exception as e:
@@ -221,7 +228,7 @@ def verify_data(user_id: str = "wellness_user", verbose: bool = False):
 
         if verbose and workouts_in_blob > 0:
             print("\n   Sample workout types:")
-            workout_types = {}
+            workout_types: dict[str, int] = {}
             for w in data.get("workouts", [])[:10]:
                 wtype = w.get("type_cleaned", w.get("type", "Unknown"))
                 workout_types[wtype] = workout_types.get(wtype, 0) + 1
@@ -350,7 +357,7 @@ def show_stats(user_id: str = "wellness_user", verbose: bool = False):
     # Connect to Redis
     print("🔌 Connecting to Redis...")
     try:
-        client = redis.Redis(host="localhost", port=6379, decode_responses=True)
+        client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
         client.ping()
         print("✅ Redis connection successful")
     except Exception as e:
@@ -444,7 +451,7 @@ def show_stats(user_id: str = "wellness_user", verbose: bool = False):
         print(f"✅ Found {len(workouts)} total workouts\n")
 
         # Count workout types
-        workout_types = {}
+        workout_types: dict[str, int] = {}
         total_duration = 0
         total_calories = 0
         date_range = {"min": None, "max": None}

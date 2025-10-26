@@ -71,7 +71,7 @@ def aggregate_daily_sums(
         # Returns: {date(2025, 10, 17): 1424.0}
     """
     filter_start, filter_end = _normalize_date_range(date_range)
-    daily_totals = defaultdict(float)
+    daily_totals: defaultdict[date, float] = defaultdict(float)
 
     for record in records:
         try:

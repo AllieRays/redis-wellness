@@ -1,10 +1,12 @@
 """
-Stateful LangGraph agent with episodic AND procedural memory.
+Stateful LangGraph agent with autonomous memory retrieval.
 
-Now includes:
-- Checkpointing (conversation history)
-- Episodic memory (user goals, preferences)
-- Procedural memory (learned workflows with orchestration)
+Memory is now tool-based (following Redis AI Resources pattern):
+- Memory RETRIEVAL: LLM decides when to call memory tools
+- Memory STORAGE: Automatic after response (episodic + procedural)
+- Checkpointing: LangGraph manages conversation history
+
+This makes memory truly autonomous - the LLM decides what context it needs.
 """
 
 import logging
@@ -76,28 +78,37 @@ class StatefulRAGAgent:
             logger.info("✅ StatefulRAGAgent initialized (no memory features)")
 
     def _build_graph(self):
-        """Build graph with episodic AND procedural memory orchestration."""
+        """
+        Build graph with autonomous memory retrieval.
+
+        New flow (memory as tools):
+        1. LLM entry point (with ALL tools including memory)
+        2. LLM decides: call tools (health OR memory) or finish?
+        3. If tools: execute and loop back to LLM
+        4. If finish: reflect → store episodic → store procedural → END
+
+        Memory retrieval is now autonomous - LLM calls memory tools when needed.
+        Memory storage still automatic at end (reflection-based).
+        """
         workflow = StateGraph(MemoryState)
 
-        # Add all nodes
-        if self.episodic:
-            workflow.add_node("retrieve_episodic", self._retrieve_episodic_node)
-            workflow.add_node("store_episodic", self._store_episodic_node)
-
-        if self.procedural:
-            workflow.add_node("retrieve_procedural", self._retrieve_procedural_node)
-            workflow.add_node("reflect", self._reflect_node)
-            workflow.add_node("store_procedural", self._store_procedural_node)
-
+        # Core nodes (LLM + tools)
         workflow.add_node("llm", self._llm_node)
         workflow.add_node("tools", self._tool_node)
 
-        # Build graph flow with orchestration
+        # Storage nodes (keep these - automatic after response)
+        if self.episodic:
+            workflow.add_node("store_episodic", self._store_episodic_node)
+        if self.procedural:
+            workflow.add_node("reflect", self._reflect_node)
+            workflow.add_node("store_procedural", self._store_procedural_node)
+
+        # Build flow: LLM entry point → tools loop → storage at end
+        workflow.set_entry_point("llm")  # Start with LLM (not memory retrieval!)
+
+        # LLM decides: call tools or finish?
         if self.episodic and self.procedural:
-            # Full orchestration: retrieve_episodic → retrieve_procedural → llm → tools → reflect → store_episodic → store_procedural → END
-            workflow.set_entry_point("retrieve_episodic")
-            workflow.add_edge("retrieve_episodic", "retrieve_procedural")
-            workflow.add_edge("retrieve_procedural", "llm")
+            # Full memory: llm → tools → llm (loop) → reflect → store_episodic → store_procedural → END
             workflow.add_conditional_edges(
                 "llm", self._should_continue, {"tools": "tools", "end": "reflect"}
             )
@@ -106,9 +117,7 @@ class StatefulRAGAgent:
             workflow.add_edge("store_episodic", "store_procedural")
             workflow.add_edge("store_procedural", END)
         elif self.episodic:
-            # Episodic only (original flow)
-            workflow.set_entry_point("retrieve_episodic")
-            workflow.add_edge("retrieve_episodic", "llm")
+            # Episodic only: llm → tools → llm (loop) → store_episodic → END
             workflow.add_conditional_edges(
                 "llm",
                 self._should_continue,
@@ -117,8 +126,7 @@ class StatefulRAGAgent:
             workflow.add_edge("tools", "llm")
             workflow.add_edge("store_episodic", END)
         else:
-            # No memory
-            workflow.set_entry_point("llm")
+            # No memory storage: llm → tools → llm (loop) → END
             workflow.add_conditional_edges(
                 "llm", self._should_continue, {"tools": "tools", "end": END}
             )
@@ -126,79 +134,7 @@ class StatefulRAGAgent:
 
         return workflow.compile(checkpointer=self.checkpointer)
 
-    async def _retrieve_episodic_node(self, state: MemoryState) -> dict:
-        """Retrieve episodic memory before LLM call."""
-        if not self.episodic:
-            return {"episodic_context": None}
-
-        logger.info("🧠 Retrieving episodic memory...")
-
-        # Get user's message as query
-        user_message = state["messages"][-1].content if state["messages"] else ""
-        user_id = state["user_id"]
-
-        try:
-            # Retrieve goals from episodic memory
-            result = await self.episodic.retrieve_goals(
-                user_id=user_id, query=user_message, top_k=3
-            )
-
-            context = result.get("context")
-            if context:
-                logger.info(f"✅ Retrieved {result['hits']} episodic memories")
-            else:
-                logger.info("ℹ️ No episodic memories found")
-
-            return {"episodic_context": context}
-
-        except Exception as e:
-            logger.error(f"❌ Memory retrieval failed: {e}")
-            return {"episodic_context": None}
-
-    async def _retrieve_procedural_node(self, state: MemoryState) -> dict:
-        """Retrieve procedural patterns and create execution plan."""
-        if not self.procedural:
-            return {
-                "procedural_patterns": None,
-                "execution_plan": None,
-                "workflow_start_time": int(time.time() * 1000),
-            }
-
-        logger.info("🔧 Retrieving procedural patterns...")
-        user_message = state["messages"][-1].content if state["messages"] else ""
-        start_time = int(time.time() * 1000)
-
-        try:
-            result = await self.procedural.retrieve_patterns(
-                query=user_message, top_k=3
-            )
-            patterns = result.get("patterns", [])
-            plan = result.get("plan")
-
-            if patterns:
-                logger.info(f"✅ Retrieved {len(patterns)} procedural patterns")
-                if plan:
-                    logger.info(
-                        f"📋 Execution plan: {plan.get('suggested_tools')} (confidence: {plan.get('confidence'):.2%})"
-                    )
-            else:
-                logger.info("ℹ️ No procedural patterns found")
-
-            return {
-                "procedural_patterns": patterns,
-                "execution_plan": plan,
-                "workflow_start_time": start_time,
-            }
-
-        except Exception as e:
-            logger.error(f"❌ Procedural retrieval failed: {e}")
-            return {
-                "procedural_patterns": None,
-                "execution_plan": None,
-                "workflow_start_time": start_time,
-            }
-
-    async def _reflect_node(self, state: MemoryState) -> dict:
+    async def _reflect_node(self, state: MemoryState) -> dict[str, Any]:
         """Evaluate workflow success for procedural memory storage."""
         if not self.procedural:
             return {}
@@ -236,7 +172,7 @@ class StatefulRAGAgent:
         )
         return {}  # Evaluation stored in state for store_procedural_node
 
-    async def _store_episodic_node(self, state: MemoryState) -> dict:
+    async def _store_episodic_node(self, state: MemoryState) -> dict[str, Any]:
         """Extract facts and store in episodic memory after LLM response."""
         logger.info("💾 Storing episodic memory...")
 
@@ -290,7 +226,7 @@ class StatefulRAGAgent:
             logger.error(f"❌ Memory storage failed: {e}")
             return {}
 
-    async def _store_procedural_node(self, state: MemoryState) -> dict:
+    async def _store_procedural_node(self, state: MemoryState) -> dict[str, Any]:
         """Store successful workflow pattern in procedural memory."""
         if not self.procedural:
             return {}
@@ -358,8 +294,13 @@ class StatefulRAGAgent:
             logger.error(f"❌ Procedural storage failed: {e}")
             return {}
 
-    async def _llm_node(self, state: MemoryState) -> dict:
-        """Call LLM with tools and episodic context."""
+    async def _llm_node(self, state: MemoryState) -> dict[str, list[BaseMessage]]:
+        """
+        Call LLM with ALL tools (health + memory).
+
+        Memory is now tool-based - LLM decides when to retrieve memory.
+        No more hardcoded episodic context injection.
+        """
         logger.info("🤖 LLM node")
         logger.info(f"   State has {len(state['messages'])} messages")
 
@@ -374,33 +315,35 @@ class StatefulRAGAgent:
         # Build system prompt
         system_prompt = build_base_system_prompt()
 
-        # DEBUG: Log system prompt to verify TOOL-FIRST POLICY is included
+        # DEBUG: Log system prompt
         logger.warning(f"📝 STATEFUL SYSTEM PROMPT:\n{system_prompt[:500]}...")
 
-        # Inject episodic memory context
-        if state.get("episodic_context"):
-            system_prompt += (
-                f"\n\n📋 USER CONTEXT (from memory):\n{state['episodic_context']}"
-            )
-            logger.info("✅ Injected episodic context into prompt")
-
-        # Bind tools
+        # Bind ALL tools (health + memory)
+        # Memory retrieval is now autonomous via tools
         tools = create_user_bound_tools(
             state["user_id"], conversation_history=state["messages"]
         )
         llm_with_tools = self.llm.bind_tools(tools)
 
-        # Call LLM
-        messages = [SystemMessage(content=system_prompt)] + state["messages"]
+        logger.info(f"   🛠️ LLM has access to {len(tools)} tools (health + memory)")
+
+        # Call LLM with limited history (last 10 messages for demo)
+        # Keep only recent messages to avoid context bloat
+        recent_messages = (
+            state["messages"][-10:]
+            if len(state["messages"]) > 10
+            else state["messages"]
+        )
+        messages = [SystemMessage(content=system_prompt)] + recent_messages
         logger.info(
-            f"   Calling LLM with {len(messages)} total messages (system + {len(state['messages'])} history)"
+            f"   Calling LLM with {len(messages)} total messages (system + {len(recent_messages)} recent history, trimmed from {len(state['messages'])})"
         )
         response = await llm_with_tools.ainvoke(messages)
 
         logger.info(f"LLM called tools: {bool(getattr(response, 'tool_calls', None))}")
         return {"messages": [response]}
 
-    async def _tool_node(self, state: MemoryState) -> dict:
+    async def _tool_node(self, state: MemoryState) -> dict[str, list[ToolMessage]]:
         """Execute tools."""
         last_msg = state["messages"][-1]
         tool_calls = getattr(last_msg, "tool_calls", [])
@@ -416,17 +359,33 @@ class StatefulRAGAgent:
             tool_name = tool_call.get("name")
             logger.info(f"   → {tool_name}")
 
+            tool_found = False
             for tool in tools:
                 if tool.name == tool_name:
-                    result = await tool.ainvoke(tool_call["args"])
-                    tool_messages.append(
-                        ToolMessage(
-                            content=str(result),
-                            tool_call_id=tool_call.get("id", ""),
-                            name=tool_name,
+                    try:
+                        result = await tool.ainvoke(tool_call["args"])
+                        tool_messages.append(
+                            ToolMessage(
+                                content=str(result),
+                                tool_call_id=tool_call.get("id", ""),
+                                name=tool_name,
+                            )
                         )
-                    )
+                        tool_found = True
+                    except Exception as e:
+                        logger.error(f"❌ Tool {tool_name} failed: {e}")
+                        tool_messages.append(
+                            ToolMessage(
+                                content=f"Error: {str(e)}",
+                                tool_call_id=tool_call.get("id", ""),
+                                name=tool_name,
+                            )
+                        )
+                        tool_found = True
                     break
+
+            if not tool_found:
+                logger.warning(f"⚠️ Tool {tool_name} not found")
 
         return {"messages": tool_messages}
 
@@ -452,6 +411,162 @@ class StatefulRAGAgent:
         logger.info(
             f"🎯 StatefulRAGAgent.chat() called: message='{message[:50]}...', session_id={session_id}"
         )
+
+        # PRE-ROUTE: Check if this is a goal-setting or goal-retrieval statement
+        from ..utils.intent_router import (
+            extract_goal_from_statement,
+            should_bypass_tools,
+        )
+
+        should_bypass, direct_response, intent = await should_bypass_tools(message)
+
+        if should_bypass and intent == "goal_setting":
+            logger.info(
+                "✅ Bypassed tools for goal-setting statement - storing goal in Redis"
+            )
+
+            # Extract and store the goal in episodic memory
+            goal_text = extract_goal_from_statement(message)
+
+            try:
+                from ..services.episodic_memory_manager import get_episodic_memory
+
+                get_episodic_memory()
+
+                # Store as a generic text goal (not metric-specific)
+                # We create a simple memory entry with the goal text
+                import json
+
+                from ..services.redis_connection import get_redis_manager
+                from ..utils.redis_keys import RedisKeys
+                from ..utils.time_utils import get_utc_timestamp
+
+                redis_manager = get_redis_manager()
+                timestamp = get_utc_timestamp()
+                memory_key = RedisKeys.episodic_memory(user_id, "goal", timestamp)
+
+                # Generate embedding for semantic search
+                from ..services.embedding_service import get_embedding_service
+
+                embedding_service = get_embedding_service()
+                embedding = await embedding_service.generate_embedding(
+                    f"User's goal: {goal_text}"
+                )
+
+                if embedding:
+                    import numpy as np
+
+                    memory_data = {
+                        "user_id": user_id,
+                        "event_type": "goal",
+                        "timestamp": timestamp,
+                        "description": f"User's goal: {goal_text}",
+                        "metadata": json.dumps({"goal_text": goal_text}),
+                        "embedding": np.array(embedding, dtype=np.float32).tobytes(),
+                    }
+
+                    with redis_manager.get_connection() as redis_client:
+                        redis_client.hset(memory_key, mapping=memory_data)
+                        # Set TTL (7 months)
+                        from ..config import get_settings
+
+                        settings = get_settings()
+                        redis_client.expire(
+                            memory_key, settings.redis_session_ttl_seconds
+                        )
+
+                    logger.info(f"💾 Stored goal in Redis: '{goal_text}'")
+
+            except Exception as e:
+                logger.error(f"❌ Failed to store goal: {e}", exc_info=True)
+
+            # Calculate token stats for the bypassed response
+            token_stats = {}
+            try:
+                from ..utils.token_manager import get_token_manager
+
+                token_manager = get_token_manager()
+
+                # Count tokens for user message + assistant response
+                messages_for_counting = [
+                    {"role": "user", "content": message},
+                    {"role": "assistant", "content": direct_response},
+                ]
+
+                token_stats = token_manager.get_usage_stats(messages_for_counting)
+                logger.info(
+                    f"📊 Token stats (bypassed): {token_stats.get('token_count', 0)} tokens ({token_stats.get('usage_percent', 0):.1f}%)"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Could not calculate token stats for bypassed response: {e}"
+                )
+                token_stats = {}
+
+            return {
+                "response": direct_response,
+                "tools_used": [],
+                "tool_calls_made": 0,
+                "memory_stats": {
+                    "semantic_hits": 0,
+                    "goals_stored": 1,  # We're storing a goal
+                    "procedural_patterns_used": 0,
+                    "memory_type": "none",
+                    "memory_types": [],
+                    "short_term_available": False,
+                },
+                "token_stats": token_stats,
+                "validation": {
+                    "valid": True,
+                    "score": 1.0,
+                    "hallucinations_detected": 0,
+                    "numbers_validated": 0,
+                    "total_numbers": 0,
+                },
+            }
+
+        if should_bypass and intent == "goal_retrieval":
+            logger.info(
+                "✅ Bypassed tools for goal retrieval - instant response from Redis"
+            )
+
+            # Calculate token stats
+            token_stats = {}
+            try:
+                from ..utils.token_manager import get_token_manager
+
+                token_manager = get_token_manager()
+                messages_for_counting = [
+                    {"role": "user", "content": message},
+                    {"role": "assistant", "content": direct_response},
+                ]
+                token_stats = token_manager.get_usage_stats(messages_for_counting)
+            except Exception as e:
+                logger.warning(f"Could not calculate token stats: {e}")
+                token_stats = {}
+
+            return {
+                "response": direct_response,
+                "tools_used": [],
+                "tool_calls_made": 0,
+                "memory_stats": {
+                    "semantic_hits": 0,
+                    "goals_stored": 0,
+                    "procedural_patterns_used": 0,
+                    "memory_type": "none",
+                    "memory_types": [],
+                    "short_term_available": False,
+                },
+                "token_stats": token_stats,
+                "validation": {
+                    "valid": True,
+                    "score": 1.0,
+                    "hallucinations_detected": 0,
+                    "numbers_validated": 0,
+                    "total_numbers": 0,
+                },
+            }
+
         input_state = {
             "messages": [HumanMessage(content=message)],
             "user_id": user_id,
@@ -461,15 +576,18 @@ class StatefulRAGAgent:
             "workflow_start_time": int(time.time() * 1000),  # For procedural timing
         }
 
-        # Add config for checkpointing
+        # Add config for checkpointing with recursion limit to prevent infinite loops
         config = (
-            {"configurable": {"thread_id": session_id}} if self.checkpointer else None
+            {"configurable": {"thread_id": session_id}, "recursion_limit": 10}
+            if self.checkpointer
+            else {"recursion_limit": 10}
         )
 
-        if config:
+        if self.checkpointer:
             logger.info(f"📝 Using checkpoint thread_id: {session_id}")
+        logger.info("⚠️ Recursion limit: 10 iterations")
 
-        # Use ainvoke with MemorySaver (async-compatible checkpointer)
+        # Use ainvoke with recursion limit (max 10 iterations = 5 tool-calling cycles)
         final_state = await self.graph.ainvoke(input_state, config)
         logger.info(f"📊 Final state has {len(final_state['messages'])} messages")
 
@@ -505,9 +623,11 @@ class StatefulRAGAgent:
                 f"✅ Validation passed (score: {validation_result['score']:.2%})"
             )
 
-        # Calculate memory stats
-        episodic_retrieved = final_state.get("episodic_context") is not None
-        procedural_retrieved = final_state.get("procedural_patterns") is not None
+        # Calculate memory stats based on ACTUAL TOOL CALLS (autonomous memory retrieval)
+        # Memory is now retrieved via tools, not hardcoded state fields
+        episodic_retrieved = "get_my_goals" in tools_used
+        procedural_retrieved = "get_tool_suggestions" in tools_used
+
         goals_stored = len(
             [
                 msg
@@ -521,23 +641,16 @@ class StatefulRAGAgent:
         # Determine ALL memory types actually used (can be multiple)
         memory_types_used = []
 
-        # Check for episodic memory (past conversations from Redis)
+        # Check for episodic memory tool (get_my_goals)
         if episodic_retrieved:
             memory_types_used.append("episodic")
 
-        # Check for procedural memory (learned tool-calling patterns)
+        # Check for procedural memory tool (get_tool_suggestions)
         if procedural_retrieved:
             memory_types_used.append("procedural")
 
-        # Check for semantic memory (health data accessed via tools)
-        health_tools = [
-            "search_health_records",
-            "search_workouts",
-            "search_health_records_by_metric",
-        ]
-        semantic_used = any(tool in health_tools for tool in tools_used)
-        if semantic_used:
-            memory_types_used.append("semantic")
+        # NOTE: Health data tools are shown separately in tools_used, not as memory types
+        # We don't include 'semantic' in memory_types anymore since health tools are explicit
 
         # Check for short-term memory (conversation history in LangGraph state)
         # Short-term is the immediate conversation context (current session)
@@ -551,9 +664,9 @@ class StatefulRAGAgent:
         memory_type = memory_types_used[0] if memory_types_used else "none"
 
         logger.info(
-            f"💾 Memory stats: episodic={episodic_retrieved}, procedural={procedural_retrieved}, "
-            f"semantic={semantic_used}, short_term={conversation_history_available}, "
-            f"memory_types={memory_types_used}, primary={memory_type}, procedural_patterns_used={procedural_patterns_used}"
+            f"💾 Memory stats: episodic_tool={episodic_retrieved}, procedural_tool={procedural_retrieved}, "
+            f"short_term={conversation_history_available}, memory_types={memory_types_used}, "
+            f"primary={memory_type}, tools_used={tools_used}"
         )
 
         # Calculate token stats from LangGraph state messages

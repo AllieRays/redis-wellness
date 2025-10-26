@@ -1,6 +1,6 @@
 # Backend Services Architecture
 
-This document explains the 11 backend services that power the Redis Wellness demo.
+This document explains the 9 backend services that power the Redis Wellness demo.
 
 ## Service Overview
 
@@ -41,7 +41,7 @@ This document explains the 11 backend services that power the Redis Wellness dem
 **What it does:**
 - Receives user messages
 - Calls LLM directly with no conversation history
-- Has access to all 9 health tools
+- Has access to 6 health tools (no memory tools)
 - Returns responses without context awareness
 
 **Use case:** Demonstrates what AI agents are like WITHOUT memory.
@@ -62,6 +62,7 @@ This document explains the 11 backend services that power the Redis Wellness dem
 - Retrieves relevant context from procedural memory
 - Coordinates with memory managers for context-aware responses
 - Manages conversation sessions
+- Has access to 8 tools (6 health + 2 memory tools)
 
 **Use case:** Demonstrates intelligent agents WITH memory.
 
@@ -82,7 +83,7 @@ This document explains the 11 backend services that power the Redis Wellness dem
 **Purpose:** Orchestrates all memory types for the stateful agent.
 
 **What it does:**
-- Coordinates 4 memory types: short-term, procedural, semantic, episodic
+- Coordinates 3 memory types: short-term, procedural, episodic
 - Retrieves relevant memories before LLM calls
 - Stores new memories after LLM responses
 - Provides unified memory interface to chat layer
@@ -90,8 +91,7 @@ This document explains the 11 backend services that power the Redis Wellness dem
 **Memory types managed:**
 - **Short-term:** Recent conversation turns (Redis LIST)
 - **Procedural:** Learned query→tool patterns (RedisVL Vector Index)
-- **Semantic:** Long-term facts (RedisVL Vector Index) - currently minimal usage
-- **Episodic:** Significant events (Redis HASH) - currently minimal usage
+- **Episodic:** Stored goals and preferences (RedisVL Vector Index)
 
 **Key methods:**
 - `retrieve_memories()` - Fetches relevant context for a query
@@ -99,7 +99,7 @@ This document explains the 11 backend services that power the Redis Wellness dem
 - `get_memory_stats()` - Returns memory usage statistics
 
 **Dependencies:**
-- All 4 memory manager services
+- All 3 memory manager services
 - Redis connection service
 
 ---
@@ -147,58 +147,35 @@ This document explains the 11 backend services that power the Redis Wellness dem
 **Example:**
 ```
 Query: "How many workouts do I have?"
-→ Suggests: search_workouts tool (learned from past success)
+→ Suggests: get_workouts tool (learned from past success)
 ```
 
----
-
-### semantic_memory_manager.py
-**Purpose:** Long-term memory for facts and knowledge.
-
-**What it does:**
-- Stores important facts extracted from conversations
-- Uses RedisVL Vector Index for semantic search
-- Retrieves relevant facts when similar topics arise
-- Designed for multi-session memory (future enhancement)
-
-**Redis pattern:** RedisVL HNSW Vector Index (semantic_memory_{session_id})
-
-**Key methods:**
-- `retrieve_semantic_memories()` - Finds relevant facts by similarity
-- `store_semantic_memory()` - Saves a new fact
-- `clear_semantic_memories()` - Resets long-term memory
-
-**Current usage:** Minimal (short conversations don't accumulate much)
-
-**Future potential:** Multi-session memory ("Remember last week we discussed...")
-
----
 
 ### episodic_memory_manager.py
-**Purpose:** Stores significant events and milestones.
+**Purpose:** Stores user goals and preferences.
 
 **What it does:**
-- Records important conversation events (first question, tool failures, etc.)
-- Provides context about conversation flow
-- Helps agent understand conversation history beyond raw messages
-- Designed for richer context (future enhancement)
+- Stores user goals and preferences as embeddings in RedisVL Vector Index
+- Provides semantic search for goal retrieval
+- Powers the `get_my_goals` memory tool for autonomous goal retrieval
+- Enables context-aware responses based on user preferences
 
-**Redis pattern:** HASH (episodic_memory:{session_id}:{event_id})
+**Redis pattern:** RedisVL HNSW Vector Index (episodic_memory_{user_id})
 
 **Key methods:**
-- `retrieve_episodic_memories()` - Fetches significant events
-- `store_episodic_event()` - Records a new event
-- `clear_episodic_memories()` - Resets event history
+- `retrieve_goals()` - Finds relevant goals by semantic similarity
+- `store_goal()` - Saves a new goal or preference
+- `get_goal_stats()` - Returns goal storage statistics
+- `clear_goals()` - Resets episodic memory
 
-**Event types:**
-- FIRST_QUESTION - Start of conversation
-- TOOL_CALL - Tools used
-- ERROR - Problems encountered
-- MILESTONE - Significant moments
+**Why it matters:** Agent remembers what you told it you want to achieve.
 
-**Current usage:** Minimal (basic event tracking)
-
-**Future potential:** Richer conversation context ("You've asked about workouts 3 times")
+**Example:**
+```
+User: "My goal is to get to 125 lbs"
+→ Stored in episodic memory
+→ Later: "What's my weight goal?" → Agent uses get_my_goals tool → "125 lbs"
+```
 
 ---
 
@@ -243,32 +220,30 @@ Query: "How many workouts do I have?"
 - `get_health_records_in_range()` - Date range queries
 - `get_latest_metric()` - Most recent value for a metric
 
-**Use case:** Powers the 6 health metric tools (heart rate, steps, etc.)
+**Use case:** Powers the `get_health_metrics` tool for querying health records
 
 ---
 
 ### redis_workout_indexer.py
-**Purpose:** Indexes workout data for fast semantic search.
+**Purpose:** Manages workout data storage and retrieval.
 
 **What it does:**
-- Creates RedisVL HNSW Vector Index for workout search
-- Generates embeddings for workout metadata
-- Supports semantic queries ("cycling workouts last week")
-- Optimized for fast retrieval (50-100x faster than scanning)
+- Stores workout data in Redis JSON
+- Provides fast workout queries by date and type
+- Enriches workout data with day_of_week and relative time fields
+- Powers the `get_workouts` tool
 
-**Redis pattern:** RedisVL HNSW Vector Index (workout_index)
+**Redis pattern:** JSON (health:user:{user_id}:data with workouts array)
 
 **Key methods:**
-- `create_index()` - Builds vector index from workout data
-- `semantic_search()` - Finds workouts by similarity
-- `get_workout_by_id()` - Direct workout lookup
-- `delete_index()` - Removes index
+- `store_workout()` - Saves a workout record
+- `get_workouts_in_range()` - Fetches workouts by date range
+- `get_recent_workouts()` - Retrieves recent workout data
 
-**Why it matters:** Enables natural language workout queries.
+**Why it matters:** Enables workout queries with proper date filtering.
 
 **Performance:**
-- Vector search: ~10-50ms
-- Naive scanning: 500-5000ms
+- JSON queries: ~10-50ms with proper indexing
 
 ---
 

@@ -65,7 +65,9 @@ class AuthenticationError(WellnessError):
 class ValidationError(WellnessError):
     """Input validation errors (400 status)."""
 
-    def __init__(self, message: str, field: str = None, value: Any = None, **kwargs):
+    def __init__(
+        self, message: str, field: str | None = None, value: Any = None, **kwargs
+    ):
         super().__init__(
             message=message,
             error_code="VALIDATION_INVALID_INPUT",
@@ -86,7 +88,10 @@ class HealthDataNotFoundError(BusinessLogicError):
     """No health data found for the specified criteria."""
 
     def __init__(
-        self, user_id: str, time_period: str = None, metric_types: list = None
+        self,
+        user_id: str,
+        time_period: str | None = None,
+        metric_types: list[str] | None = None,
     ):
         details = {"user_id": sanitize_user_id(user_id)}
         if time_period:
@@ -116,7 +121,7 @@ class ToolExecutionError(BusinessLogicError):
 class MemoryRetrievalError(BusinessLogicError):
     """Memory system retrieval failed."""
 
-    def __init__(self, memory_type: str, reason: str = None, **kwargs):
+    def __init__(self, memory_type: str, reason: str | None = None, **kwargs):
         super().__init__(
             message=f"{memory_type} memory retrieval failed"
             + (f": {reason}" if reason else ""),
@@ -129,7 +134,7 @@ class MemoryRetrievalError(BusinessLogicError):
 class MemoryStorageError(BusinessLogicError):
     """Memory system storage failed."""
 
-    def __init__(self, memory_type: str, reason: str = None, **kwargs):
+    def __init__(self, memory_type: str, reason: str | None = None, **kwargs):
         super().__init__(
             message=f"{memory_type} memory storage failed"
             + (f": {reason}" if reason else ""),
@@ -145,7 +150,9 @@ class MemoryStorageError(BusinessLogicError):
 class RedisConnectionError(InfrastructureError):
     """Redis connection or operation failed."""
 
-    def __init__(self, operation: str, original_error: Exception = None, **kwargs):
+    def __init__(
+        self, operation: str, original_error: Exception | None = None, **kwargs
+    ):
         super().__init__(
             message=f"Redis operation failed: {operation}",
             error_code="REDIS_CONNECTION_FAILED",
@@ -189,7 +196,7 @@ class ErrorResponse:
 
     @staticmethod
     def create(
-        error: WellnessError = None, success: bool = False, data: Any = None
+        error: WellnessError | None = None, success: bool = False, data: Any = None
     ) -> dict[str, Any]:
         """Create standardized error response."""
         return {
@@ -211,11 +218,11 @@ class ToolResult:
         self,
         success: bool,
         data: Any = None,
-        error_code: str = None,
+        error_code: str | None = None,
         message: str = "",
-        details: dict[str, Any] = None,
-        execution_time_ms: float = None,
-        correlation_id: str = None,
+        details: dict[str, Any] | None = None,
+        execution_time_ms: float | None = None,
+        correlation_id: str | None = None,
     ):
         self.success = success
         self.data = data
@@ -252,8 +259,8 @@ class ToolResult:
         cls,
         data: Any,
         message: str = "Operation completed successfully",
-        execution_time_ms: float = None,
-    ):
+        execution_time_ms: float | None = None,
+    ) -> "ToolResult":
         """Create successful tool result."""
         return cls(
             success=True,
@@ -263,7 +270,9 @@ class ToolResult:
         )
 
     @classmethod
-    def error(cls, error_code: str, message: str, details: dict[str, Any] = None):
+    def error(
+        cls, error_code: str, message: str, details: dict[str, Any] | None = None
+    ) -> "ToolResult":
         """Create error tool result."""
         return cls(
             success=False, error_code=error_code, message=message, details=details or {}

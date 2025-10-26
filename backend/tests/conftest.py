@@ -194,14 +194,39 @@ async def stateful_agent(clean_redis: Redis):
 
 
 @pytest.fixture
-def test_client():
+def api_base_url() -> str:
+    """Get base URL for API tests (Docker container)."""
+    import os
+
+    return os.getenv("API_BASE_URL", "http://localhost:8000")
+
+
+@pytest.fixture
+def test_client(api_base_url):
     """
-    Provide FastAPI TestClient for API tests.
+    Provide HTTP client for API tests against Docker container.
 
-    Note: TestClient is synchronous, use for API endpoint testing only.
+    This connects to the REAL backend running in Docker, not TestClient.
+    Requires: docker-compose up backend
     """
-    from fastapi.testclient import TestClient
+    import httpx
 
-    from src.main import app
+    # Create httpx client that connects to Docker
+    client = httpx.Client(base_url=api_base_url, timeout=30.0)
 
-    return TestClient(app)
+    # Verify backend is available
+    try:
+        response = client.get("/health")
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Backend not healthy. Is docker-compose up? Status: {response.status_code}"
+            )
+    except httpx.ConnectError as e:
+        raise RuntimeError(
+            f"Cannot connect to backend at {api_base_url}. "
+            f"Run: docker-compose up -d backend\n"
+            f"Error: {e}"
+        ) from e
+
+    yield client
+    client.close()
