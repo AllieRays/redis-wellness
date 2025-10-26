@@ -18,12 +18,47 @@ from ...utils.time_utils import parse_health_record_date as _parse_health_record
 logger = logging.getLogger(__name__)
 
 # Constants for heart rate zone calculations
-CONSERVATIVE_MAX_HR = 190  # Age-independent maximum heart rate estimate
+CONSERVATIVE_MAX_HR = 190  # Age-independent maximum heart rate estimate (fallback)
 DEFAULT_WORKOUT_SEARCH_DAYS = 30  # Default days to search for workouts
 
 
+def _calculate_max_hr(date_of_birth: str | None) -> int:
+    """
+    Calculate age-based maximum heart rate using standard formula.
+
+    Uses 220 - age formula when date of birth is available,
+    falls back to conservative estimate of 190 otherwise.
+
+    Args:
+        date_of_birth: ISO date string (YYYY-MM-DD) or None
+
+    Returns:
+        Estimated maximum heart rate in bpm
+    """
+    if date_of_birth:
+        try:
+            from datetime import date
+
+            dob = date.fromisoformat(date_of_birth)
+            today = date.today()
+            age = (
+                today.year
+                - dob.year
+                - ((today.month, today.day) < (dob.month, dob.day))
+            )
+
+            # Standard formula: 220 - age
+            if 18 <= age <= 100:  # Reasonable age range
+                return 220 - age
+        except (ValueError, TypeError):
+            pass
+
+    # Fallback to conservative estimate
+    return CONSERVATIVE_MAX_HR
+
+
 def _get_heart_rate_during_workout(
-    health_data: dict, workout_start_str: str, duration_minutes: float
+    health_data: dict, workout_start_str: str, duration_minutes: float, user_max_hr: int
 ) -> dict[str, Any] | None:
     """
     Get heart rate statistics during a workout.
@@ -69,7 +104,7 @@ def _get_heart_rate_during_workout(
         max_hr = max(workout_hrs)
 
         # Calculate heart rate zones (based on % of max HR)
-        max_hr_estimate = CONSERVATIVE_MAX_HR
+        max_hr_estimate = user_max_hr
 
         zones = {
             "zone1_easy": 0,  # 50-60% (95-114 bpm)
@@ -112,7 +147,99 @@ def _get_heart_rate_during_workout(
                 k.replace("_", " ").title(): v for k, v in zones.items() if v > 0
             },
         }
-    except Exception:
+    except Exception as e:
+        logger.debug(
+            f"Failed to get heart rate data for workout: {type(e).__name__}: {e}"
+        )
+        return None
+
+
+def _parse_workout_entry(
+    workout: dict[str, Any],
+    cutoff_date: datetime,
+    health_data: dict[str, Any],
+    user_max_hr: int,
+) -> dict[str, Any] | None:
+    """
+    Parse a single workout entry from health data.
+
+    Args:
+        workout: Raw workout data dict
+        cutoff_date: Only include workouts after this date
+        health_data: Full health data for heart rate lookup
+
+    Returns:
+        Formatted workout info dict or None if parsing fails
+    """
+    # IMPORTANT: Use 'startDate' (full datetime) not 'date' (date string only)
+    start_date_str = workout.get("startDate", "")
+    if not start_date_str:
+        return None
+
+    try:
+        # Parse ISO datetime from workout data (stored with .isoformat())
+        workout_date = datetime.fromisoformat(start_date_str.replace("Z", "+00:00"))
+
+        # If naive datetime, assume UTC
+        if workout_date.tzinfo is None:
+            workout_date = workout_date.replace(tzinfo=UTC)
+
+        if workout_date < cutoff_date:
+            return None
+
+        # Format workout info
+        workout_type = workout.get("type", "Unknown").replace(
+            "HKWorkoutActivityType", ""
+        )
+
+        # Support both duration_minutes and duration (both in minutes)
+        # NOTE: Apple Health XML stores duration in minutes, not seconds
+        # Use explicit None check to handle 0-duration workouts correctly
+        duration_min = workout.get("duration_minutes")
+        if duration_min is None:
+            duration_min = workout.get("duration", 0)
+
+        # Validate duration before using in timedelta
+        if duration_min and isinstance(duration_min, int | float) and duration_min > 0:
+            # Get heart rate data during workout
+            hr_data = _get_heart_rate_during_workout(
+                health_data, start_date_str, duration_min, user_max_hr
+            )
+        else:
+            hr_data = None
+            if duration_min is None or duration_min < 0:
+                logger.debug(
+                    f"Invalid duration for workout on {start_date_str}: {duration_min}"
+                )
+                duration_min = 0
+
+        # Format workout info (UTC, frontend handles timezone)
+        day_of_week = workout_date.strftime("%A")
+
+        # Basic workout info (always included)
+        workout_info = {
+            "date": workout_date.date().isoformat(),  # "2025-10-17"
+            "datetime": workout_date.isoformat(),  # "2025-10-17T16:59:18+00:00"
+            "day_of_week": day_of_week,
+            "type": workout_type,
+            "duration_minutes": (round(float(duration_min), 1) if duration_min else 0),
+        }
+
+        # Always include detailed info (calories, heart rate)
+        # Use explicit None check to handle 0-calorie workouts correctly
+        calories = workout.get("calories")
+        if calories is None:
+            calories = workout.get("totalEnergyBurned", 0)
+        workout_info["energy_burned"] = calories
+
+        # Add heart rate data if available
+        if hr_data:
+            workout_info.update(hr_data)
+
+        return workout_info
+
+    except Exception as e:
+        logger.debug(f"Skipping workout due to parsing error: {type(e).__name__}: {e}")
         return None
 
 
@@ -146,7 +273,10 @@ def create_get_workouts_tool(user_id: str):
         - Progress tracking → use get_workout_progress instead
 
         Args:
-            days_back: Days to search back (default: 30)
+            days_back: Days to search back (default: 90)
+                      ⚠️ IMPORTANT: For specific dates like "October 17th", ALWAYS use default (90) or higher!
+                      Only use days_back=1 if user explicitly says "today" or "in the past day".
+                      For "recent" or "last week", use 7-30 days.
 
         Returns:
             Dict with:
@@ -186,6 +316,14 @@ def create_get_workouts_tool(user_id: str):
 
                 health_data = json.loads(health_data_json)
 
+                # Calculate user-specific max HR from date of birth
+                user_profile = health_data.get("user_profile", {})
+                date_of_birth = user_profile.get("date_of_birth")
+                user_max_hr = _calculate_max_hr(date_of_birth)
+                logger.debug(
+                    f"Using max HR {user_max_hr} bpm for user (age-based: {date_of_birth is not None})"
+                )
+
                 # Get actual workout records
                 all_workouts = health_data.get("workouts", [])
                 logger.info(
@@ -197,85 +335,32 @@ def create_get_workouts_tool(user_id: str):
                 recent_workouts = []
 
                 for workout in all_workouts:
-                    # IMPORTANT: Use 'startDate' (full datetime) not 'date' (date string only)
-                    start_date_str = workout.get("startDate", "")
-                    if start_date_str:
-                        try:
-                            # Parse ISO datetime from workout data (stored with .isoformat())
-                            # Note: Workouts use ISO format, not health record format
-                            workout_date = datetime.fromisoformat(
-                                start_date_str.replace("Z", "+00:00")
-                            )
+                    workout_info = _parse_workout_entry(
+                        workout, cutoff_date, health_data, user_max_hr
+                    )
+                    if workout_info:
+                        recent_workouts.append(workout_info)
 
-                            # If naive datetime, assume UTC
-                            if workout_date.tzinfo is None:
-                                workout_date = workout_date.replace(tzinfo=UTC)
-
-                            if workout_date >= cutoff_date:
-                                # Format workout info
-                                workout_type = workout.get("type", "Unknown").replace(
-                                    "HKWorkoutActivityType", ""
-                                )
-                                # Support both duration_minutes and duration (in seconds)
-                                duration_min = (
-                                    workout.get("duration_minutes")
-                                    or workout.get("duration", 0) / 60
-                                )
-
-                                # Get heart rate data during workout
-                                hr_data = _get_heart_rate_during_workout(
-                                    health_data, start_date_str, duration_min
-                                )
-
-                                # Format workout info (UTC, frontend handles timezone)
-                                day_of_week = workout_date.strftime("%A")
-
-                                # Basic workout info (always included)
-                                workout_info = {
-                                    "date": workout_date.date().isoformat(),  # "2025-10-17"
-                                    "datetime": workout_date.isoformat(),  # "2025-10-17T16:59:18+00:00"
-                                    "day_of_week": day_of_week,
-                                    "type": workout_type,
-                                    "duration_minutes": (
-                                        round(duration_min, 1)
-                                        if isinstance(duration_min, int | float)
-                                        else duration_min
-                                    ),
-                                }
-
-                                # Always include detailed info (calories, heart rate)
-                                # LLM will decide what to mention based on user query
-                                workout_info["energy_burned"] = workout.get(
-                                    "calories"
-                                ) or workout.get("totalEnergyBurned", 0)
-                                # Add heart rate data if available
-                                if hr_data:
-                                    workout_info.update(hr_data)
-
-                                recent_workouts.append(workout_info)
-                        except Exception as e:
-                            logger.debug(
-                                f"Skipping workout due to parsing error: {type(e).__name__}: {e}"
-                            )
-                            continue
-
-                # Sort by date (most recent first)
-                recent_workouts.sort(key=lambda x: x["date"], reverse=True)
+                # Sort by datetime (most recent first)
+                recent_workouts.sort(key=lambda x: x["datetime"], reverse=True)
                 logger.info(
                     f"✅ Filtered to {len(recent_workouts)} recent workouts (last {days_back} days)"
                 )
 
                 # Calculate time since last workout
                 if recent_workouts:
-                    last_workout_date = recent_workouts[0]["date"]
                     try:
-                        # Parse date string (YYYY-MM-DD format)
-                        date_obj = datetime.fromisoformat(last_workout_date)
-                        # CRITICAL: Use UTC for consistent timezone handling
+                        # Use datetime field to avoid re-parsing
+                        last_workout_datetime = datetime.fromisoformat(
+                            recent_workouts[0]["datetime"]
+                        )
                         now = datetime.now(UTC)
-                        days_ago = (now.date() - date_obj.date()).days
+                        days_ago = (now.date() - last_workout_datetime.date()).days
                         time_ago = f"{days_ago} days ago" if days_ago > 0 else "today"
-                    except Exception:
+                    except Exception as e:
+                        logger.debug(
+                            f"Failed to calculate time since last workout: {type(e).__name__}: {e}"
+                        )
                         time_ago = "unknown"
                 else:
                     time_ago = "no workouts found"

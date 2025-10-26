@@ -60,17 +60,32 @@ def create_get_workout_patterns_tool(user_id: str):
 
         Returns:
             Dict with:
-            - For "schedule": day_frequency, regular_days, workouts_per_week_avg, consistency
-            - For "intensity": intensity_by_day, hardest_day, easiest_day, ranking
+            - For "schedule": day_frequency, regular_days, most_common_day, workouts_per_week_avg, consistency_pct
+            - For "intensity": intensity_by_day, hardest_day, easiest_day, day_ranking, intensity_difference_pct
 
         Examples:
             Query: "What days do I usually work out?"
             Call: get_workout_patterns(analysis_type="schedule")
-            Returns: {"day_frequency": {"Monday": 25, "Wednesday": 22}, "regular_days": ["Monday", "Wednesday"]}
+            Returns: {
+                "most_common_day": "Monday",
+                "most_common_day_consistency_pct": 75.0,
+                "workouts_per_week_avg": 2.5,
+                "day_frequency": {"Monday": 25, "Wednesday": 22},
+                "regular_days": ["Monday", "Wednesday"]
+            }
 
             Query: "What day do I work out harder?"
             Call: get_workout_patterns(analysis_type="intensity")
-            Returns: {"hardest_day": "Monday", "intensity_by_day": {"Monday": {"avg_duration_minutes": 45}}}
+            Returns: {
+                "hardest_day": "Monday",
+                "easiest_day": "Friday",
+                "intensity_difference_pct": 45.2,
+                "day_ranking": ["Monday", "Wednesday", "Friday"],
+                "intensity_by_day": {
+                    "Monday": {"workout_count": 10, "avg_duration_minutes": 52.3, "avg_calories": 420},
+                    "Friday": {"workout_count": 5, "avg_duration_minutes": 36.0, "avg_calories": 280}
+                }
+            }
         """
         logger.info(
             f"🔧 get_workout_patterns called: analysis_type='{analysis_type}', "
@@ -130,18 +145,19 @@ def _analyze_schedule(recent_workouts: list, days_back: int) -> dict[str, Any]:
         day for day, count in day_counts.items() if count >= regular_threshold
     ]
 
+    # Calculate consistency percentage for top day
+    consistency_pct = None
+    if sorted_days:
+        consistency_pct = round((sorted_days[0][1] / weeks) * 100, 1)
+
     return {
         "period": f"last {days_back} days",
         "total_workouts": len(recent_workouts),
         "workouts_per_week_avg": round(len(recent_workouts) / weeks, 1),
         "day_frequency": dict(sorted_days),
         "regular_days": regular_days,
-        "most_common_day": sorted_days[0] if sorted_days else None,
-        "analysis": {
-            "weeks_analyzed": round(weeks, 1),
-            "consistency_threshold": f"{int(regular_threshold)} workouts = regular day",
-            "unique_days_used": len(day_counts),
-        },
+        "most_common_day": sorted_days[0][0] if sorted_days else None,
+        "most_common_day_consistency_pct": consistency_pct,
         "analysis_type": "schedule",
     }
 
@@ -161,28 +177,51 @@ def _analyze_intensity(recent_workouts: list, days_back: int) -> dict[str, Any]:
         ]
         calories = [w["calories"] for w in day_workouts if w.get("calories")]
 
+        # Primary metric: avg duration (most reliable intensity indicator)
+        avg_duration = round(mean(durations), 1) if durations else 0
+        avg_calories = round(mean(calories), 1) if calories else 0
+
         intensity[day] = {
-            "count": len(day_workouts),
-            "avg_duration_minutes": round(mean(durations), 1) if durations else 0,
-            "avg_calories": round(mean(calories), 1) if calories else 0,
-            "total_duration_minutes": round(sum(durations), 1) if durations else 0,
+            "workout_count": len(day_workouts),
+            "avg_duration_minutes": avg_duration,
+            "avg_calories": avg_calories,
         }
 
-    # Sort by intensity (total duration is best proxy)
+    # Sort by avg duration (better than total for intensity comparison)
     sorted_days = sorted(
         intensity.items(),
-        key=lambda x: x[1]["total_duration_minutes"],
+        key=lambda x: x[1]["avg_duration_minutes"],
         reverse=True,
     )
+
+    # Calculate relative intensity (% difference from easiest day)
+    hardest_day_data = sorted_days[0][1] if sorted_days else None
+    easiest_day_data = sorted_days[-1][1] if sorted_days else None
+    intensity_difference_pct = None
+
+    if (
+        hardest_day_data
+        and easiest_day_data
+        and easiest_day_data["avg_duration_minutes"] > 0
+    ):
+        intensity_difference_pct = round(
+            (
+                (
+                    hardest_day_data["avg_duration_minutes"]
+                    - easiest_day_data["avg_duration_minutes"]
+                )
+                / easiest_day_data["avg_duration_minutes"]
+            )
+            * 100,
+            1,
+        )
 
     return {
         "period": f"last {days_back} days",
         "intensity_by_day": dict(sorted_days),
         "hardest_day": sorted_days[0][0] if sorted_days else None,
         "easiest_day": sorted_days[-1][0] if sorted_days else None,
-        "analysis": {
-            "ranking": [day for day, _ in sorted_days],
-            "metric_used": "total_duration_minutes (best intensity proxy)",
-        },
+        "intensity_difference_pct": intensity_difference_pct,
+        "day_ranking": [day for day, _ in sorted_days],
         "analysis_type": "intensity",
     }

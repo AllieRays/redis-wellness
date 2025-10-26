@@ -75,10 +75,12 @@ MEMORY TOOL EXAMPLES:
 ❌ WRONG: "How many workouts this week?" → Don't use memory, use get_workouts directly
 
 CRITICAL - HEALTH TOOL USAGE EXAMPLES:
-- For "did I work out on [date]" or "workout on [specific date]" → Use get_workouts with days_back=30 (checks recent workouts)
+- For "did I work out on [date]" or "workout on [specific date]" → Use get_workouts with days_back=90 (MUST search far back for specific dates!)
 - For "last workout" or "when did I work out" queries → Use get_workouts with days_back=30
 - For "what is my weight/heart rate/steps" → Use get_health_metrics with appropriate metric_types
 - For "recent workouts" or "tell me about my workouts" → Use get_workouts with days_back=30
+- IMPORTANT: When user mentions a SPECIFIC DATE (like "October 17" or "last Friday"), ALWAYS use days_back=90 or higher
+- NEVER use days_back=1 unless user explicitly says "today" or "in the past day"
 - NEVER make up workout data (times, dates, calories, heart rates, etc.)
 - NEVER call pattern tools (get_workout_patterns) for date-specific questions
 

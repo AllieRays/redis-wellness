@@ -21,12 +21,18 @@ from .base import (
     sanitize_for_ai,
     validate_tool_input,
 )
+from .conversation_fact_extractor import (
+    ConversationFactExtractor,
+    get_fact_extractor,
+)
 from .conversion_utils import convert_weight_to_lbs, kg_to_lbs, lbs_to_kg
+from .date_validator import DateValidator, get_date_validator
 from .health_analytics import (
     calculate_weight_trends,
     compare_time_periods,
     correlate_metrics,
 )
+from .intent_bypass_handler import handle_intent_bypass
 from .metric_aggregators import aggregate_metric_values, get_aggregation_summary
 from .metric_classifier import (
     AggregationStrategy,
@@ -50,6 +56,10 @@ from .time_utils import (
     parse_health_record_date,
     parse_time_period,
 )
+from .token_manager import TokenManager, get_token_manager
+from .tool_deduplication import ToolCallTracker
+from .validation_retry import build_validation_result, validate_and_retry_response
+from .verbosity_detector import VerbosityLevel, detect_verbosity
 from .workout_fetchers import (
     fetch_recent_workouts,
     fetch_workouts_from_redis,
@@ -94,6 +104,23 @@ __all__ = [
     # Validation
     "NumericValidator",
     "get_numeric_validator",
+    "DateValidator",
+    "get_date_validator",
+    "validate_and_retry_response",
+    "build_validation_result",
+    # Fact extraction
+    "ConversationFactExtractor",
+    "get_fact_extractor",
+    # Intent handling
+    "handle_intent_bypass",
+    # Tool management
+    "ToolCallTracker",
+    # Token management
+    "TokenManager",
+    "get_token_manager",
+    # Verbosity detection
+    "VerbosityLevel",
+    "detect_verbosity",
     # Redis keys
     "RedisKeys",
     "generate_workout_id",

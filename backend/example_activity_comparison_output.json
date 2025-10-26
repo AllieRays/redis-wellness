@@ -1,0 +1,87 @@
+{
+  "periods": {
+    "p1": {
+      "period": "October 2025",
+      "dates": "2025-10-01 to 2025-10-31",
+      "steps": {
+        "total": 245000,
+        "avg": 7903.2,
+        "days": 31
+      },
+      "energy": {
+        "total": 15200.5,
+        "avg": 490.3,
+        "days": 31,
+        "unit": "kcal"
+      },
+      "distance": {
+        "total": 156.3,
+        "avg": 5.0,
+        "days": 31,
+        "unit": "km"
+      },
+      "workouts": {
+        "count": 12,
+        "types": {
+          "Running": 8,
+          "Cycling": 4
+        },
+        "duration_mins": 540.0
+      }
+    },
+    "p2": {
+      "period": "September 2025",
+      "dates": "2025-09-01 to 2025-09-30",
+      "steps": {
+        "total": 216000,
+        "avg": 7200.0,
+        "days": 30
+      },
+      "energy": {
+        "total": 13800.0,
+        "avg": 460.0,
+        "days": 30,
+        "unit": "kcal"
+      },
+      "distance": {
+        "total": 138.0,
+        "avg": 4.6,
+        "days": 30,
+        "unit": "km"
+      },
+      "workouts": {
+        "count": 10,
+        "types": {
+          "Running": 7,
+          "Cycling": 3
+        },
+        "duration_mins": 450.0
+      }
+    }
+  },
+  "comparison": {
+    "steps": {
+      "diff": 703.2,
+      "pct": 9.8,
+      "direction": "up"
+    },
+    "active_energy": {
+      "diff": 30.3,
+      "pct": 6.6,
+      "direction": "up",
+      "unit": "kcal"
+    },
+    "distance": {
+      "diff": 0.4,
+      "pct": 8.7,
+      "direction": "up",
+      "unit": "km"
+    },
+    "workouts": {
+      "diff": 2.0,
+      "pct": 20.0,
+      "direction": "up"
+    }
+  },
+  "summary": "9.8% more daily steps; 6.6% more energy burned; 8.7% more distance; 2 more workouts"
+}

@@ -26,10 +26,19 @@ from ..utils.agent_helpers import (
     build_error_response,
     create_health_llm,
 )
-from ..utils.date_validator import get_date_validator
-from ..utils.numeric_validator import get_numeric_validator
+from ..utils.intent_bypass_handler import handle_intent_bypass
 from ..utils.token_manager import get_token_manager
+from ..utils.tool_deduplication import ToolCallTracker
+from ..utils.validation_retry import (
+    build_validation_result,
+    validate_and_retry_response,
+)
 from ..utils.verbosity_detector import VerbosityLevel, detect_verbosity
+from .constants import (
+    LOG_SYSTEM_PROMPT_PREVIEW_LENGTH,
+    MAX_TOOL_ITERATIONS,
+    VALIDATION_STRICT_MODE,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +109,7 @@ class StatelessHealthAgent:
         self,
         message: str,
         user_id: str,
-        max_tool_calls: int = 8,
+        max_tool_calls: int = MAX_TOOL_ITERATIONS,
     ) -> dict[str, Any]:
         """Non-streaming chat (original implementation)."""
         result = None
@@ -115,7 +124,7 @@ class StatelessHealthAgent:
         self,
         message: str,
         user_id: str,
-        max_tool_calls: int = 8,
+        max_tool_calls: int = MAX_TOOL_ITERATIONS,
     ):
         """Streaming chat that yields tokens as they arrive."""
         async for chunk in self._chat_impl(
@@ -136,92 +145,24 @@ class StatelessHealthAgent:
         Args:
             message: User's message
             user_id: User identifier
-            max_tool_calls: Maximum tool calls per turn (default: 8)
+            max_tool_calls: Maximum tool iterations (default: MAX_TOOL_ITERATIONS)
 
         Returns:
             Dict with response and validation
         """
         try:
             # PRE-ROUTE: Check if this is a goal-setting or goal-retrieval statement
-            from ..utils.intent_router import (
-                extract_goal_from_statement,
-                should_bypass_tools,
+            bypass_result = await handle_intent_bypass(
+                message=message, user_id=user_id, is_stateful=False
             )
 
-            should_bypass, direct_response, intent = await should_bypass_tools(message)
-
-            if should_bypass and intent == "goal_setting":
-                logger.info(
-                    "✅ Stateless: Bypassed tools for goal-setting (NO storage - stateless)"
-                )
-                goal_text = extract_goal_from_statement(message)
-                # Stateless agent acknowledges but does NOT store
-                direct_response = f"Got it! You mentioned your goal: {goal_text}."
-
+            if bypass_result:
                 # Stream response as tokens for frontend compatibility
                 if stream:
-                    for char in direct_response:
+                    for char in bypass_result["response"]:
                         yield {"type": "token", "content": char}
 
-                # Calculate token stats
-                token_stats = {}
-                try:
-                    token_manager = get_token_manager()
-                    messages_for_counting = [
-                        {"role": "user", "content": message},
-                        {"role": "assistant", "content": direct_response},
-                    ]
-                    token_stats = token_manager.get_usage_stats(messages_for_counting)
-                except Exception as e:
-                    logger.warning(f"Could not calculate token stats: {e}")
-                    token_stats = {}
-
-                yield {
-                    "type": "done",
-                    "data": {
-                        "response": direct_response,
-                        "tools_used": [],
-                        "tool_calls_made": 0,
-                        "token_stats": token_stats,
-                        "validation": {"valid": True, "score": 1.0},
-                    },
-                }
-                return
-
-            if should_bypass and intent == "goal_retrieval":
-                logger.info(
-                    "✅ Stateless: Bypassed tools for goal retrieval (NO memory available)"
-                )
-                direct_response = "I don't have any information about your goals. Would you like to share your goal with me?"
-
-                # Stream response as tokens for frontend compatibility
-                if stream:
-                    for char in direct_response:
-                        yield {"type": "token", "content": char}
-
-                # Calculate token stats
-                token_stats = {}
-                try:
-                    token_manager = get_token_manager()
-                    messages_for_counting = [
-                        {"role": "user", "content": message},
-                        {"role": "assistant", "content": direct_response},
-                    ]
-                    token_stats = token_manager.get_usage_stats(messages_for_counting)
-                except Exception as e:
-                    logger.warning(f"Could not calculate token stats: {e}")
-                    token_stats = {}
-
-                yield {
-                    "type": "done",
-                    "data": {
-                        "response": direct_response,
-                        "tools_used": [],
-                        "tool_calls_made": 0,
-                        "token_stats": token_stats,
-                        "validation": {"valid": True, "score": 1.0},
-                    },
-                }
+                yield {"type": "done", "data": bypass_result}
                 return
 
             # Detect verbosity level from query (for response style only)
@@ -238,22 +179,23 @@ class StatelessHealthAgent:
 
             # Simple tool calling loop
             system_content = self._build_system_prompt_with_verbosity(verbosity)
-            # DEBUG: Log system prompt
-            logger.warning(f"📝 STATELESS SYSTEM PROMPT:\n{system_content[:500]}...")
+            logger.debug(
+                f"📝 Stateless system prompt preview:\n{system_content[:LOG_SYSTEM_PROMPT_PREVIEW_LENGTH]}..."
+            )
             system_msg = SystemMessage(content=system_content)
 
             conversation = [system_msg, HumanMessage(content=message)]
             tool_calls_made = 0
             tools_used_list = []
             tool_results = []
-            tool_call_history = []  # Track tool calls to prevent duplicates
+            tool_tracker = ToolCallTracker()  # Track tool calls to prevent duplicates
 
-            # Simple tool loop (same as stateful agent, but no memory)
+            # Simple tool loop (no memory stored)
             for iteration in range(max_tool_calls):
                 # Bind tools and call LLM
                 llm_with_tools = self.llm.bind_tools(user_tools)
-                logger.info(
-                    f"Iteration {iteration + 1}: conversation has {len(conversation)} messages"
+                logger.debug(
+                    f"🔄 Stateless iteration {iteration + 1}/{max_tool_calls}: {len(conversation)} messages in context"
                 )
 
                 # If streaming and first iteration, use astream directly
@@ -292,7 +234,9 @@ class StatelessHealthAgent:
                         tool_calls_present = True
 
                 if not tool_calls_present:
-                    logger.info(f"Agent finished after {iteration + 1} iteration(s)")
+                    logger.info(
+                        f"✅ Stateless agent finished after {iteration + 1} iteration(s)"
+                    )
 
                     # If streaming enabled, stream the final response (after tool calls)
                     if stream and iteration > 0:
@@ -309,14 +253,10 @@ class StatelessHealthAgent:
                 # Execute tools
                 for tool_call in response.tool_calls:
                     tool_name = tool_call.get("name", "unknown")
-                    tool_args = str(tool_call.get("args", {}))
+                    tool_args = tool_call.get("args", {})
 
                     # Check if this exact tool call was already made
-                    tool_signature = f"{tool_name}:{tool_args}"
-                    if tool_signature in tool_call_history:
-                        logger.warning(
-                            f"⚠️ Skipping duplicate tool call: {tool_name} with same args"
-                        )
+                    if tool_tracker.is_duplicate(tool_name, tool_args):
                         # Add a message saying we already have this data
                         tool_msg = ToolMessage(
                             content="Data already retrieved in previous tool call. Use the existing results.",
@@ -326,11 +266,12 @@ class StatelessHealthAgent:
                         conversation.append(tool_msg)
                         continue
 
-                    tool_call_history.append(tool_signature)
                     tool_calls_made += 1
                     tools_used_list.append(tool_name)
 
-                    logger.info(f"Tool call #{tool_calls_made}: {tool_name}")
+                    logger.info(
+                        f"🔧 Stateless tool call #{tool_calls_made}: {tool_name}"
+                    )
 
                     # Find and execute tool
                     tool_found = False
@@ -366,7 +307,7 @@ class StatelessHealthAgent:
             final_message = conversation[-1]
             if not isinstance(final_message, AIMessage):
                 logger.info(
-                    "Generating final response after max iterations (no tools)..."
+                    f"⚠️ Stateless reached max iterations ({max_tool_calls}), generating final response..."
                 )
                 # Call LLM WITHOUT tools to force a final text response
                 final_response = await self.llm.ainvoke(conversation)
@@ -375,81 +316,53 @@ class StatelessHealthAgent:
             else:
                 response_text = final_message.content
 
-            # Validate response (numeric + date validation)
-            numeric_validator = get_numeric_validator()
-            numeric_validation = numeric_validator.validate_response(
-                response_text=response_text,
-                tool_results=tool_results,
-                strict=False,
-            )
-
-            # Validate dates to catch hallucinations like Oct 11 vs Oct 15
-            date_validator = get_date_validator()
-            date_validation = date_validator.validate_response(
-                user_query=message,
-                response_text=response_text,
-            )
-
-            # Log validation results and handle failures
-            if not date_validation["valid"]:
-                logger.error(
-                    f"❌ DATE MISMATCH DETECTED: {date_validation['warnings']}"
+            # Validate response and retry if needed (shared utility)
+            if stream:
+                # For streaming, validation happens after all tokens streamed
+                # We'll handle retry in streaming mode if needed
+                retry_generator = validate_and_retry_response(
+                    response_text=response_text,
+                    tool_results=tool_results,
+                    user_query=message,
+                    llm=self.llm,
+                    conversation=conversation,
+                    stream=True,
                 )
-                # Append correction prompt and retry
-                correction_prompt = (
-                    f"\n\nYour response mentions the wrong date. "
-                    f"User asked about {date_validation['query_dates'][0]['raw_match']}, "
-                    f"but you mentioned {date_validation['response_dates'][0]['raw_match']}. "
-                    f"Please correct your response to use the date the user asked about."
+                # If retry is needed, it will yield tokens
+                async for chunk in retry_generator:
+                    if chunk.get("type") == "token":
+                        yield chunk
+                    elif chunk.get("type") == "validation_retry":
+                        response_text = chunk["corrected_text"]
+
+                # Get final validation results
+                from ..utils.date_validator import get_date_validator
+                from ..utils.numeric_validator import get_numeric_validator
+
+                numeric_validator = get_numeric_validator()
+                numeric_validation = numeric_validator.validate_response(
+                    response_text=response_text,
+                    tool_results=tool_results,
+                    strict=VALIDATION_STRICT_MODE,
                 )
-                conversation.append(AIMessage(content=response_text))
-                conversation.append(HumanMessage(content=correction_prompt))
-
-                # Retry once without tools
-                llm_without_tools = self.llm
-
-                if stream:
-                    # Stream the corrected response
-                    response_text = ""
-                    async for chunk in llm_without_tools.astream(conversation):
-                        if hasattr(chunk, "content") and chunk.content:
-                            response_text += chunk.content
-                            yield {"type": "token", "content": chunk.content}
-                else:
-                    retry_response = await llm_without_tools.ainvoke(conversation)
-                    response_text = retry_response.content
-
-                logger.info("🔄 Retry response generated (date correction)")
-
-            elif not numeric_validation["valid"]:
-                logger.warning(
-                    f"Validation failed (score: {numeric_validation['score']:.2%})"
+                date_validator = get_date_validator()
+                date_validation = date_validator.validate_response(
+                    user_query=message,
+                    response_text=response_text,
                 )
-                # If validation completely failed (score = 0), append correction prompt and retry once
-                if numeric_validation["score"] == 0.0 and tool_results:
-                    logger.warning(
-                        "⚠️ Zero validation score - retrying with correction prompt"
-                    )
-                    correction_prompt = (
-                        "\n\nYour previous response contained numbers that don't match the tool data. "
-                        "Please provide a response using ONLY the numbers from the tool results above. "
-                        "Quote the exact values from the tool output."
-                    )
-                    conversation.append(
-                        AIMessage(content=response_text)
-                    )  # Add bad response
-                    conversation.append(
-                        HumanMessage(content=correction_prompt)
-                    )  # Add correction
-
-                    # Retry once without tools
-                    llm_without_tools = self.llm
-                    retry_response = await llm_without_tools.ainvoke(conversation)
-                    response_text = retry_response.content
-                    logger.info("🔄 Retry response generated (numeric correction)")
             else:
-                logger.info(
-                    f"Validation passed (score: {numeric_validation['score']:.2%})"
+                # Non-streaming mode
+                (
+                    response_text,
+                    numeric_validation,
+                    date_validation,
+                ) = await validate_and_retry_response(
+                    response_text=response_text,
+                    tool_results=tool_results,
+                    user_query=message,
+                    llm=self.llm,
+                    conversation=conversation,
+                    stream=False,
                 )
 
             # Calculate token usage stats for conversation
@@ -468,32 +381,25 @@ class StatelessHealthAgent:
                         {"role": role, "content": str(msg.content)}
                     )
             token_stats = token_manager.get_usage_stats(conversation_dicts)
+            logger.info(
+                f"📊 Stateless token stats: {token_stats.get('token_count', 0)} tokens "
+                f"({token_stats.get('usage_percent', 0):.1f}% of context)"
+            )
 
             result = {
                 "response": response_text,
                 "tools_used": list(set(tools_used_list)),
                 "tool_calls_made": tool_calls_made,
                 "token_stats": token_stats,
-                "validation": {
-                    "numeric_valid": numeric_validation["valid"],
-                    "numeric_score": numeric_validation["score"],
-                    "date_valid": date_validation["valid"],
-                    "hallucinations_detected": len(
-                        numeric_validation.get("hallucinations", [])
-                    ),
-                    "date_mismatches": len(date_validation.get("date_mismatches", [])),
-                    "numbers_validated": numeric_validation.get("stats", {}).get(
-                        "matched", 0
-                    ),
-                    "total_numbers": numeric_validation.get("stats", {}).get(
-                        "total_numbers", 0
-                    ),
-                },
+                "validation": build_validation_result(
+                    numeric_validation, date_validation
+                ),
                 "type": "stateless_with_tools",
             }
 
             yield {"type": "done", "data": result}
 
         except Exception as e:
+            logger.error(f"❌ Stateless agent error: {e}", exc_info=True)
             error_response = build_error_response(e, "stateless_with_tools")
             yield {"type": "error", "data": error_response}

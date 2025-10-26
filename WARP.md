@@ -590,12 +590,6 @@ Key features of the agentic workflow:
 - **Autonomous**: LLM decides which tools to call, chains them, decides when done
 - **Memory Clearing**: Import script clears semantic memory to prevent stale data
 
-**Why Simple Loop, Not LangGraph?**
-- Redis already handles persistence (no need for checkpointers)
-- Queries complete in one turn (~3-15 seconds)
-- Simpler to debug and maintain
-- Same agentic behavior: autonomous tool selection, chaining, and decision-making
-- See `/docs/LANGGRAPH_REMOVAL_PLAN.md` for full analysis
 
 ### TypeScript Frontend
 

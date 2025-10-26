@@ -314,7 +314,6 @@ async def redis_chat(request: RedisChatRequest, http_request: Request):
             "type": "redis_with_memory",
             "response_time_ms": response_time_ms,
         }
-        print(f"\n\n=== RESPONSE DICT: {response_dict}\n\n")
         return response_dict
 
     except HTTPException:

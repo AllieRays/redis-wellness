@@ -97,9 +97,9 @@ class TestGetHealthMetricsTool:
 
         # Verify we got body mass data
         body_mass_result = result["results"][0]
-        assert body_mass_result["metric_type"] == "BodyMass"
-        assert "records" in body_mass_result
-        assert len(body_mass_result["records"]) > 0
+        assert body_mass_result["metric"] == "BodyMass"
+        assert "data" in body_mass_result
+        assert len(body_mass_result["data"]) > 0
 
     def test_get_health_metrics_aggregation(
         self, sample_health_data_in_redis, test_user_id
@@ -120,9 +120,9 @@ class TestGetHealthMetricsTool:
 
         # Verify statistics calculated
         hr_result = result["results"][0]
-        assert hr_result["metric_type"] == "HeartRate"
-        assert "statistics" in hr_result
-        assert "average" in hr_result["statistics"]
+        assert hr_result["metric"] == "HeartRate"
+        assert "stats" in hr_result
+        assert "average" in hr_result["stats"]
 
     def test_get_health_metrics_no_data(self, clean_redis, test_user_id):
         """Test querying when no data exists."""
@@ -148,7 +148,7 @@ class TestGetHealthMetricsTool:
 
         assert "results" in result
         assert len(result["results"]) >= 2
-        metric_types_found = [r["metric_type"] for r in result["results"]]
+        metric_types_found = [r["metric"] for r in result["results"]]
         assert "BodyMass" in metric_types_found
         assert "HeartRate" in metric_types_found
 

@@ -176,9 +176,9 @@ class RedisChatService:
         Process chat message with CoALA memory framework.
 
         Flow:
-        1. Resolve pronouns in user message (currently disabled for testing)
-        2. Retrieve conversation history (short-term memory via checkpointer)
-        3. Process with stateful RAG agent (agent handles memory retrieval/storage)
+        1. Resolve pronouns in user message ("that" → "BMI", etc.)
+        2. Process with stateful RAG agent (checkpointer handles conversation history)
+        3. Agent retrieves semantic + episodic + procedural memory as needed
         4. Update pronoun context for future queries
 
         Args:
@@ -222,12 +222,12 @@ class RedisChatService:
 
             user_id = self._extract_user_id(session_id)
 
-            # DISABLED pronoun resolution for testing
-            message_to_process = message
-
-            # Get conversation history for agent
-            # TEMPORARILY DISABLED - testing without history
-            # history = await self.get_conversation_history(session_id, limit=10)
+            # Resolve pronouns in user message
+            with self.redis_manager.get_connection() as redis_client:
+                pronoun_resolver = get_pronoun_resolver(redis_client)
+                message_to_process = pronoun_resolver.resolve_pronouns(
+                    session_id=session_id, query=message
+                )
 
             # Process with stateful RAG agent (checkpointer handles history)
             result = await self.agent.chat(
@@ -295,8 +295,12 @@ class RedisChatService:
 
             user_id = self._extract_user_id(session_id)
 
-            # DISABLED pronoun resolution for testing
-            message_to_process = message
+            # Resolve pronouns in user message
+            with self.redis_manager.get_connection() as redis_client:
+                pronoun_resolver = get_pronoun_resolver(redis_client)
+                message_to_process = pronoun_resolver.resolve_pronouns(
+                    session_id=session_id, query=message
+                )
 
             # Stream from agent (checkpointer handles history)
             response_text = ""

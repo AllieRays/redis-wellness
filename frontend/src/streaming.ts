@@ -151,7 +151,10 @@ export async function sendStatelessMessage(
       }
     }
   } catch (error) {
-    console.error('Stateless streaming error:', error);
+    // Log error for debugging but don't expose to production logs
+    if (import.meta.env.DEV) {
+      console.error('Stateless streaming error:', error);
+    }
 
     if (streamingBubble && firstTokenReceived) {
       streamingBubble.remove();
@@ -223,7 +226,10 @@ export async function sendRedisMessage(
       }
     }
   } catch (error) {
-    console.error('Redis streaming error:', error);
+    // Log error for debugging but don't expose to production logs
+    if (import.meta.env.DEV) {
+      console.error('Redis streaming error:', error);
+    }
 
     if (streamingBubble && firstTokenReceived) {
       streamingBubble.remove();

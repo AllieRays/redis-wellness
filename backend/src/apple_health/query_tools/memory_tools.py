@@ -41,10 +41,10 @@ async def get_my_goals(
         top_k: Number of goals to return (default: 3)
 
     Returns:
-        Your stored goals, or message if none found
+        Formatted goals string with one goal per line, or "No goals found." if none exist.
 
     Example:
-        "Weight goal: 125 lbs"
+        "Weight goal: 125 lbs\nBMI goal: 22"
     """
     try:
         # Import here to avoid circular dependencies
@@ -53,8 +53,10 @@ async def get_my_goals(
         # Hardcode user_id for single-user application
         user_id = "wellness_user"
 
+        # Log with proper truncation
+        query_display = f"{query[:47]}..." if len(query) > 50 else query
         logger.info(
-            f"🧠 Tool called: get_my_goals(query='{query[:50]}...', user_id={user_id}, top_k={top_k})"
+            f"🧠 Tool called: get_my_goals(query='{query_display}', top_k={top_k})"
         )
 
         # Get memory manager singleton instance
@@ -71,15 +73,15 @@ async def get_my_goals(
         hits = result.get("hits", 0)
 
         if context:
-            logger.info(f"✅ Retrieved {hits} goals")
+            logger.info(f"✅ Retrieved {hits} goal(s)")
             return context
         else:
-            logger.info("ℹ️ No goals found")
-            return "No goals found. You haven't set any goals yet."
+            logger.info("🔍 No goals found")
+            return "No goals found."
 
     except Exception as e:
         logger.error(f"❌ Goal retrieval failed: {e}")
-        return f"Error retrieving goals: {str(e)}"
+        return f"Error: {str(e)}"
 
 
 @tool
@@ -88,35 +90,43 @@ async def get_tool_suggestions(
     top_k: int = 3,
 ) -> str:
     """
-    Get tool suggestions based on learned successful patterns.
+    Retrieve tool suggestions based on successful past patterns.
 
-    Get suggestions for which tools to use based on what worked before.
-
-    Returns:
-    - Suggested tools for this type of query
-    - Success rates of those tool combinations
-    - Reasoning for the suggestions
+    Analyzes query similarity to find which tool combinations worked well before.
+    Uses semantic search over historical workflow patterns.
 
     Args:
-        query: Query to get tool suggestions for (e.g., 'weight trend analysis')
-        top_k: Number of patterns to return (default: 3)
+        query: Query to analyze (e.g., 'weight trend analysis')
+        top_k: Number of patterns to retrieve (default: 3)
 
     Returns:
-        Formatted string with tool suggestions and reasoning, or empty if none found
+        Structured string with:
+        - Tools: Comma-separated list of suggested tools
+        - Reasoning: Why these tools were suggested
+        - Confidence: Success rate as percentage
+
+        Returns "No tool suggestions found." if no patterns match.
 
     Example:
-        "For weight trend queries, use: get_health_metrics, get_trends (90% success)"
+        "Tools: get_health_metrics, get_trends
+        Reasoning: Based on previous successful workflow (success: 95%)
+        Confidence: 95%"
     """
     try:
         # Import here to avoid circular dependencies
         from ...services.procedural_memory_manager import get_procedural_memory
 
+        # Log with proper truncation
+        query_display = f"{query[:47]}..." if len(query) > 50 else query
         logger.info(
-            f"🔧 Tool called: get_tool_suggestions(query='{query[:50]}...', top_k={top_k})"
+            f"🔧 Tool called: get_tool_suggestions(query='{query_display}', top_k={top_k})"
         )
 
         # Get memory manager singleton instance
         memory_manager = get_procedural_memory()
+        if not memory_manager:
+            logger.warning("⚠️ Procedural memory manager not available")
+            return "No tool suggestions found."
 
         # Retrieve patterns
         result = await memory_manager.retrieve_patterns(
@@ -124,42 +134,47 @@ async def get_tool_suggestions(
             top_k=top_k,
         )
 
-        patterns = result.get("patterns", [])
         plan = result.get("plan")
+        if not plan:
+            logger.info("🔍 No tool suggestions found")
+            return "No tool suggestions found."
 
-        if patterns and plan:
-            suggested_tools = plan.get("suggested_tools", [])
-            reasoning = plan.get("reasoning", "")
-            confidence = plan.get("confidence", 0.0)
+        suggested_tools = plan.get("suggested_tools", [])
+        reasoning = plan.get("reasoning", "")
+        confidence = plan.get("confidence", 0.0)
 
-            logger.info(f"✅ Retrieved {len(patterns)} tool suggestions")
+        if not suggested_tools:
+            logger.info("🔍 No tool suggestions in plan")
+            return "No tool suggestions found."
 
-            response = f"Suggested tools: {', '.join(suggested_tools)}\n"
-            response += f"Reasoning: {reasoning}\n"
-            response += f"Confidence: {confidence:.0%}"
-            return response
-        else:
-            logger.info("ℹ️ No tool suggestions found")
-            return "No tool suggestions found for this query. Proceed with your best judgment."
+        logger.info(f"✅ Retrieved {len(suggested_tools)} tool suggestion(s)")
+
+        # Structured format for better LLM parsing
+        tools_list = ", ".join(suggested_tools)
+        return (
+            f"Tools: {tools_list}\nReasoning: {reasoning}\nConfidence: {confidence:.0%}"
+        )
 
     except Exception as e:
         logger.error(f"❌ Tool suggestion retrieval failed: {e}")
-        return f"Error retrieving tool suggestions: {str(e)}"
+        return f"Error: {str(e)}"
 
 
-def create_memory_tools(user_id: str = "wellness_user") -> list[Any]:
+def create_memory_tools() -> list[Any]:
     """
-    Create memory retrieval tools bound to a user.
+    Create memory retrieval tools for LLM agents.
 
-    Args:
-        user_id: User identifier to bind to tools
+    Returns list of LangChain tools that allow the LLM to:
+    - Retrieve user goals and preferences (get_my_goals)
+    - Get tool usage suggestions from past patterns (get_tool_suggestions)
+
+    Note: Single-user application, so user_id is hardcoded to 'wellness_user'.
 
     Returns:
         List of LangChain tools for memory retrieval
     """
-    logger.info(f"🧠 Creating memory tools for user_id={user_id}")
+    logger.info("🧠 Creating memory tools")
 
-    # Tools hardcode user_id internally for single-user application
     return [
         get_my_goals,
         get_tool_suggestions,

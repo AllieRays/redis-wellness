@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-docker up down logs test lint import import-docker clean redis-start redis-stop redis-clean fresh-start demo health verify stats clear-session
+.PHONY: help install dev dev-docker up down logs test lint import import-docker clean redis-start redis-stop redis-clean fresh-start demo health verify stats clear-session rebuild
 
 # Default target - show help
 help:
@@ -33,6 +33,7 @@ help:
 	@echo "  make clear-session    Clear chat session (keep health data)"
 	@echo ""
 	@echo "🚀 Quick Commands:"
+	@echo "  make rebuild          Rebuild Docker images (clear cache, keep data)"
 	@echo "  make fresh-start      Clean + Import + Start (full reset)"
 	@echo "  make demo             Prepare for demo (import + verify)"
 	@echo "  make clean            Clean all build artifacts"
@@ -196,6 +197,15 @@ fresh-start:
 	@echo "Verify with: make redis-keys"
 	@echo "View logs: make logs"
 
+
+# Rebuild Docker images (clear cache, keep Redis data)
+rebuild:
+	@echo "🔨 Rebuilding Docker images with cache clearing..."
+	@echo "📋 Note: Redis data will be preserved"
+	@docker compose build --no-cache
+	@docker compose up -d
+	@echo "✅ Rebuild complete!"
+	@echo "💡 View logs: make logs"
 
 # Clean build artifacts
 clean:

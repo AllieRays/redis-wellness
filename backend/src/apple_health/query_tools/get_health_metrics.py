@@ -14,24 +14,14 @@ from typing import Any
 from langchain_core.tools import tool
 
 from ...services.redis_apple_health_manager import redis_manager
-from ...utils.conversion_utils import (
-    convert_weight_to_lbs as _convert_weight_to_lbs,
-)
-from ...utils.conversion_utils import (
-    kg_to_lbs as _kg_to_lbs,
-)
+from ...utils.conversion_utils import kg_to_lbs
 from ...utils.exceptions import HealthDataNotFoundError, ToolExecutionError
 from ...utils.metric_aggregators import aggregate_metric_values, get_aggregation_summary
 from ...utils.metric_classifier import (
     get_aggregation_strategy,
     get_expected_unit_format,
 )
-from ...utils.time_utils import (
-    parse_health_record_date as _parse_health_record_date,
-)
-from ...utils.time_utils import (
-    parse_time_period as _parse_time_period,
-)
+from ...utils.time_utils import parse_health_record_date, parse_time_period
 from ...utils.user_config import get_user_health_data_key
 
 logger = logging.getLogger(__name__)
@@ -106,9 +96,9 @@ def create_get_health_metrics_tool(user_id: str):
 
         try:
             # Parse time period into date range
-            filter_start, filter_end, time_range_desc = _parse_time_period(time_period)
-            logger.info(
-                f"📅 Parsed '{time_period}' → {filter_start.strftime('%Y-%m-%d')} to "
+            filter_start, filter_end, time_range_desc = parse_time_period(time_period)
+            logger.debug(
+                f"Parsed '{time_period}' → {filter_start.strftime('%Y-%m-%d')} to "
                 f"{filter_end.strftime('%Y-%m-%d')} ({time_range_desc})"
             )
 
@@ -117,7 +107,11 @@ def create_get_health_metrics_tool(user_id: str):
                 health_data_json = redis_client.get(main_key)
 
                 if not health_data_json:
-                    return {"error": "No health data found for user", "results": []}
+                    return {
+                        "mode": "error",
+                        "error": "No health data found for user",
+                        "results": [],
+                    }
 
                 health_data = json.loads(health_data_json)
                 metrics_records = health_data.get("metrics_records", {})
@@ -145,9 +139,14 @@ def create_get_health_metrics_tool(user_id: str):
 
         except HealthDataNotFoundError:
             raise
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid health data format: {e}", exc_info=True)
+            raise ToolExecutionError(
+                "get_health_metrics", f"Invalid health data format: {e}"
+            ) from e
         except Exception as e:
             logger.error(
-                f"❌ Error in get_health_metrics: {type(e).__name__}: {e}",
+                f"Error in get_health_metrics: {type(e).__name__}: {e}",
                 exc_info=True,
             )
             raise ToolExecutionError("get_health_metrics", str(e)) from e
@@ -165,75 +164,156 @@ def _get_raw_data(
 ) -> dict[str, Any]:
     """Get raw health metric data points without aggregation."""
     results = []
+
     for metric_type in metric_types:
+        # Get unit format for this metric type
+        unit = get_expected_unit_format(metric_type) or ""
+
         # Try to get historical records first
         if metric_type in metrics_records:
             all_records = metrics_records[metric_type]
-            logger.info(f"📊 Found {len(all_records)} total {metric_type} records")
+            logger.debug(f"Found {len(all_records)} total {metric_type} records")
 
-            # Filter by date range
-            filtered_records = []
+            # Filter by date range and normalize values
+            data = []
             for record in all_records:
-                record_date = _parse_health_record_date(record["date"])
+                record_date = parse_health_record_date(record["date"])
 
                 if filter_start <= record_date <= filter_end:
-                    value = record["value"]
-                    unit = record["unit"]
+                    raw_value = record["value"]
+                    raw_unit = record.get("unit", "")
 
-                    # Convert weight from kg/lb to lbs
+                    # Normalize weight to lbs
                     if metric_type == "BodyMass":
-                        value = _convert_weight_to_lbs(value, unit)
-                    elif unit:
-                        value = f"{value} {unit}"
+                        numeric_value = (
+                            kg_to_lbs(raw_value)
+                            if "kg" in raw_unit.lower()
+                            else float(raw_value)
+                        )
+                        unit = "lbs"
+                    else:
+                        numeric_value = float(raw_value)
 
-                    filtered_records.append(
+                    data.append(
                         {
-                            "value": value,
                             "date": record_date.date().isoformat(),
+                            "value": numeric_value,
                         }
                     )
 
             logger.info(
-                f"✅ Filtered to {len(filtered_records)} {metric_type} records ({time_range_desc})"
+                f"Filtered to {len(data)} {metric_type} records in {time_range_desc}"
             )
 
             results.append(
                 {
-                    "metric_type": metric_type,
-                    "records": filtered_records,
-                    "total_found": len(filtered_records),
-                    "time_range": time_range_desc,
+                    "metric": metric_type,
+                    "unit": unit,
+                    "count": len(data),
+                    "data": data,
+                    "data_source": "historical",
                 }
             )
 
         # Fall back to summary if no detailed records
         elif metric_type in metrics_summary:
             metric_info = metrics_summary[metric_type]
-            latest_value = metric_info.get("latest_value", "N/A")
-            unit = metric_info.get("unit", "")
+            latest_value = metric_info.get("latest_value")
+            raw_unit = metric_info.get("unit", "")
 
-            if metric_type == "BodyMass" and latest_value != "N/A":
-                latest_value = _convert_weight_to_lbs(latest_value, unit)
-            elif latest_value != "N/A" and unit:
-                latest_value = f"{latest_value} {unit}"
+            # Normalize value
+            if latest_value is not None:
+                if metric_type == "BodyMass" and "kg" in raw_unit.lower():
+                    numeric_value = kg_to_lbs(latest_value)
+                    unit = "lbs"
+                else:
+                    numeric_value = float(latest_value)
+                    unit = raw_unit or unit
+
+                # Create single data point from summary
+                data = [
+                    {
+                        "date": metric_info.get("latest_date", "N/A"),
+                        "value": numeric_value,
+                    }
+                ]
+            else:
+                data = []
 
             results.append(
                 {
-                    "metric_type": metric_type,
-                    "latest_value": latest_value,
-                    "latest_date": metric_info.get("latest_date", "N/A"),
-                    "total_records": metric_info.get("count", 0),
-                    "time_range": time_range_desc,
+                    "metric": metric_type,
+                    "unit": unit,
+                    "count": len(data),
+                    "data": data,
+                    "data_source": "summary_fallback",
+                }
+            )
+        else:
+            # No data found for this metric
+            results.append(
+                {
+                    "metric": metric_type,
+                    "unit": unit,
+                    "count": 0,
+                    "data": [],
+                    "data_source": "none",
                 }
             )
 
-    logger.info(f"📤 Returning {len(results)} metric types (raw data)")
+    logger.info(f"Returning {len(results)} metric types (raw data)")
     return {
-        "results": results,
-        "total_metrics": len(results),
-        "searched_metrics": metric_types,
         "mode": "raw_data",
+        "time_range": time_range_desc,
+        "total_metrics": len(results),
+        "results": results,
     }
+
+
+def _format_stat_value(
+    metric_type: str, stat_type: str, value: float, unit: str, sample_size: int = 0
+) -> dict[str, Any]:
+    """Format statistic value with metric-specific context.
+
+    Returns dict with 'value' (numeric) and 'formatted' (human-readable string).
+    """
+    # Metric-specific formatters
+    formatters = {
+        "StepCount": {
+            "average": lambda v: f"{v:.0f} steps/day",
+            "min": lambda v: f"{v:.0f} steps (lowest day)",
+            "max": lambda v: f"{v:.0f} steps (most active day)",
+            "sum": lambda v: f"{v:.0f} total steps ({sample_size} days)",
+        },
+        "HeartRate": {
+            "average": lambda v: f"{v:.1f} bpm (daily avg)",
+            "min": lambda v: f"{v:.1f} bpm (lowest daily avg)",
+            "max": lambda v: f"{v:.1f} bpm (highest daily avg)",
+        },
+        "BodyMass": {
+            "average": lambda v: f"{v:.1f} lbs",
+            "min": lambda v: f"{v:.1f} lbs",
+            "max": lambda v: f"{v:.1f} lbs",
+        },
+        "DistanceWalkingRunning": {
+            "sum": lambda v: f"{v:.1f} total miles ({sample_size} days)",
+        },
+    }
+
+    # Get formatter or use default
+    formatter = formatters.get(metric_type, {}).get(stat_type)
+    if formatter:
+        formatted = formatter(value)
+    else:
+        # Default formatting
+        if stat_type == "sum":
+            formatted = (
+                f"{value:.1f} {unit} ({sample_size} days)" if unit else f"{value:.1f}"
+            )
+        else:
+            formatted = f"{value:.1f} {unit}" if unit else f"{value:.1f}"
+
+    return {"value": round(value, 2), "formatted": formatted}
 
 
 def _calculate_statistics(
@@ -249,11 +329,11 @@ def _calculate_statistics(
 
     for metric_type in metric_types:
         if metric_type not in metrics_records:
-            logger.warning(f"⚠️ Metric {metric_type} not found in records")
+            logger.warning(f"Metric {metric_type} not found in records")
             continue
 
         all_records = metrics_records[metric_type]
-        logger.info(f"📊 Found {len(all_records)} total {metric_type} records")
+        logger.debug(f"Found {len(all_records)} total {metric_type} records")
 
         # Apply metric-specific aggregation strategy
         date_range = (filter_start, filter_end)
@@ -262,12 +342,13 @@ def _calculate_statistics(
         )
 
         if not aggregated_values:
-            logger.warning(f"⚠️ No {metric_type} records found in time range")
+            logger.warning(f"No {metric_type} records found in time range")
             results.append(
                 {
-                    "metric_type": metric_type,
-                    "time_range": time_range_desc,
-                    "statistics": {},
+                    "metric": metric_type,
+                    "unit": get_expected_unit_format(metric_type) or "",
+                    "sample_size": 0,
+                    "stats": {},
                     "message": f"No {metric_type} data found for {time_range_desc}",
                 }
             )
@@ -278,13 +359,10 @@ def _calculate_statistics(
         strategy = get_aggregation_strategy(metric_type)
 
         logger.info(
-            f"✅ {metric_type} aggregation: {summary['strategy']} strategy, "
+            f"{metric_type} aggregation: {summary['strategy']} strategy, "
             f"{summary['original_records']} → {summary['aggregated_values']} values "
             f"(reduction: {summary['reduction_ratio']:.1f}x)"
         )
-
-        # Calculate statistics
-        statistics = {}
 
         # Get appropriate unit format
         unit = (
@@ -300,89 +378,65 @@ def _calculate_statistics(
                 all_records[0].get("unit", "kg") if all_records else "kg"
             ).lower()
             if "kg" in original_unit:
-                values_for_stats = [_kg_to_lbs(v) for v in aggregated_values]
+                values_for_stats = [kg_to_lbs(v) for v in aggregated_values]
             unit = "lbs"
 
-        # Compute requested statistics
+        # Compute requested statistics using helper
+        stats = {}
+        sample_size = len(aggregated_values)
+
         if "average" in aggregations or "avg" in aggregations:
             avg_value = mean(values_for_stats)
-            if metric_type == "StepCount":
-                statistics["average"] = f"{avg_value:.0f} steps/day"
-            elif metric_type == "HeartRate":
-                statistics["average"] = f"{avg_value:.1f} bpm (daily avg)"
-            elif metric_type == "BodyMass":
-                statistics["average"] = f"{avg_value:.1f} lbs"
-            else:
-                statistics["average"] = (
-                    f"{avg_value:.1f} {unit}" if unit else f"{avg_value:.1f}"
-                )
+            stats["average"] = _format_stat_value(
+                metric_type, "average", avg_value, unit, sample_size
+            )
 
         if "min" in aggregations or "minimum" in aggregations:
             min_value = min(values_for_stats)
-            if metric_type == "StepCount":
-                statistics["min"] = f"{min_value:.0f} steps (lowest day)"
-            elif metric_type == "HeartRate":
-                statistics["min"] = f"{min_value:.1f} bpm (lowest daily avg)"
-            elif metric_type == "BodyMass":
-                statistics["min"] = f"{min_value:.1f} lbs"
-            else:
-                statistics["min"] = (
-                    f"{min_value:.1f} {unit}" if unit else f"{min_value:.1f}"
-                )
+            stats["min"] = _format_stat_value(
+                metric_type, "min", min_value, unit, sample_size
+            )
 
         if "max" in aggregations or "maximum" in aggregations:
             max_value = max(values_for_stats)
-            if metric_type == "StepCount":
-                statistics["max"] = f"{max_value:.0f} steps (most active day)"
-            elif metric_type == "HeartRate":
-                statistics["max"] = f"{max_value:.1f} bpm (highest daily avg)"
-            elif metric_type == "BodyMass":
-                statistics["max"] = f"{max_value:.1f} lbs"
-            else:
-                statistics["max"] = (
-                    f"{max_value:.1f} {unit}" if unit else f"{max_value:.1f}"
-                )
+            stats["max"] = _format_stat_value(
+                metric_type, "max", max_value, unit, sample_size
+            )
 
         if "sum" in aggregations or "total" in aggregations:
-            sum_value = sum(aggregated_values)
-            if metric_type == "StepCount":
-                statistics["sum"] = (
-                    f"{sum_value:.0f} total steps ({len(aggregated_values)} days)"
-                )
-            elif metric_type == "DistanceWalkingRunning":
-                statistics["sum"] = (
-                    f"{sum_value:.1f} total miles ({len(aggregated_values)} days)"
-                )
-            elif metric_type == "BodyMass":
-                logger.warning(
-                    f"⚠️ Skipping sum aggregation for {metric_type} (not meaningful)"
+            # Skip sum for BodyMass (not meaningful)
+            if metric_type == "BodyMass":
+                logger.debug(
+                    f"Skipping sum aggregation for {metric_type} (not meaningful)"
                 )
             else:
-                statistics["sum"] = (
-                    f"{sum_value:.1f} {unit}" if unit else f"{sum_value:.1f}"
+                sum_value = sum(aggregated_values)
+                stats["sum"] = _format_stat_value(
+                    metric_type, "sum", sum_value, unit, sample_size
                 )
 
         if "count" in aggregations:
             if strategy.value in ["cumulative", "daily_average", "latest_value"]:
-                statistics["count"] = f"{len(aggregated_values)} days with data"
+                count_formatted = f"{sample_size} days with data"
             else:
-                statistics["count"] = f"{len(aggregated_values)} readings"
+                count_formatted = f"{sample_size} readings"
+            stats["count"] = {"value": sample_size, "formatted": count_formatted}
 
         results.append(
             {
-                "metric_type": metric_type,
-                "time_range": time_range_desc,
-                "statistics": statistics,
+                "metric": metric_type,
+                "unit": unit,
+                "sample_size": sample_size,
                 "aggregation_strategy": strategy.value,
-                "sample_size": len(aggregated_values),
                 "original_records": summary["original_records"],
+                "stats": stats,
             }
         )
 
-    logger.info(f"📤 Returning statistics for {len(results)} metrics")
+    logger.info(f"Returning statistics for {len(results)} metrics")
     return {
-        "results": results,
-        "total_metrics": len(results),
-        "time_range": time_range_desc,
         "mode": "statistics",
+        "time_range": time_range_desc,
+        "total_metrics": len(results),
+        "results": results,
     }

@@ -69,7 +69,10 @@ async function checkHealth(): Promise<void> {
       data.ollama_connected ? 'Connected' : 'Disconnected'
     }`;
   } catch (error) {
-    console.error('Health check failed:', error);
+    // Log error for debugging but don't expose to production logs
+    if (import.meta.env.DEV) {
+      console.error('Health check failed:', error);
+    }
     // Update badges to show disconnected state
     redisStatus.className = 'status-badge disconnected';
     redisStatus.textContent = 'Redis: Unknown';
@@ -153,7 +156,10 @@ clearCacheButton.addEventListener('click', async () => {
         clearCacheButton.disabled = false;
       }, SUCCESS_MESSAGE_DURATION);
     } catch (error) {
-      console.error('Failed to clear cache:', error);
+      // Log error for debugging but don't expose to production logs
+      if (import.meta.env.DEV) {
+        console.error('Failed to clear cache:', error);
+      }
       alert('Failed to clear cache. Please try again.');
       clearCacheButton.innerHTML = '<i class="fas fa-trash-alt"></i> Clear Cache';
       clearCacheButton.disabled = false;
@@ -184,7 +190,10 @@ if (toggleControlsButton && controlButtonsContainer) {
 
 // Global error handler for unhandled promise rejections
 window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
-  console.error('Unhandled promise rejection:', event.reason);
+  // Log error for debugging but don't expose to production logs
+  if (import.meta.env.DEV) {
+    console.error('Unhandled promise rejection:', event.reason);
+  }
   // Optionally show user-facing error notification
   event.preventDefault(); // Prevent default browser behavior
 });

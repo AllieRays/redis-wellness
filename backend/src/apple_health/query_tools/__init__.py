@@ -97,7 +97,7 @@ def create_user_bound_tools(
     # Stateless agent sets include_memory_tools=False for baseline comparison
     # Note: Goal setting is handled by pre-router, not tools
     if include_memory_tools:
-        memory_tools = create_memory_tools(user_id)
+        memory_tools = create_memory_tools()
         tools.extend(memory_tools)
         logger.info(
             f"✅ Created {len(tools)} user-bound tools (including {len(memory_tools)} memory tools)"
