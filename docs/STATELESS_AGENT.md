@@ -90,7 +90,7 @@ flowchart TB
 
     style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
     style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
-    style FastPath fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style FastPath fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style SimpleLoop fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
     style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
     style RedisData fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff

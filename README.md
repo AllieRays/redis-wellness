@@ -81,68 +81,52 @@ You can chat with two versions of the same agent:
 ### Agent Comparison
 
 ```mermaid
-flowchart TB
-    subgraph stateless["🟦 Stateless Agent - Simple Tool Loop"]
+flowchart LR
+    subgraph stateless["🟦 Stateless Agent"]
         direction TB
-        S1["User Query"]:::start
-        S2["Intent Bypass<br/>(Goal Check)"]:::router
-        S3["Qwen 2.5 7B"]:::llm
-        S4{"Tool Calls?"}:::decision
-        S5["Execute Health Tools:<br/>• get_health_metrics<br/>• get_workouts<br/>• get_trends<br/>• get_activity_comparison<br/>• get_workout_patterns<br/>• get_workout_progress"]:::tool
-        S6{"Continue?<br/>(Max 8)"}:::decision
-        S7["Response"]:::response
+        S1["User Query"]:::query
+        S2["Qwen 2.5 7B"]:::llm
+        S3["Health Tools<br/>(3 tools)"]:::tool
+        S4["Redis<br/>(Health Data)"]:::redis
+        S5["Response"]:::response
+        S6["❌ No Memory"]:::nomemory
 
         S1 --> S2
-        S2 -->|"Goal Query"| S7
-        S2 -->|"Normal"| S3
+        S2 --> S3
         S3 --> S4
-        S4 -->|Yes| S5
-        S5 --> S6
-        S6 -->|Yes| S3
-        S6 -->|No| S7
-        S4 -->|No| S7
+        S4 --> S5
+        S5 -.-> S6
     end
 
-    subgraph stateful["🔴 Stateful Agent - LangGraph with Memory"]
+    subgraph stateful["🔴 Stateful Agent"]
         direction TB
-        T1["User Query"]:::start
-        T2["Intent Bypass<br/>(Goal Check)"]:::router
-        T3["LangGraph Entry<br/>(Load Checkpointed History)"]:::memory
-        T4["Qwen 2.5 7B"]:::llm
-        T5{"Tool Calls?"}:::decision
-        T6["Execute Tools:<br/><b>Health (9):</b> get_health_metrics, get_workouts,<br/>get_trends, get_activity_comparison,<br/>get_workout_patterns, get_workout_progress<br/><br/><b>Memory (2):</b> get_my_goals,<br/>get_tool_suggestions"]:::tool
-        T7{"Continue?"}:::decision
-        T8["Reflect<br/>(Evaluate)"]:::reflect
-        T9["Store Episodic<br/>(Goals)"]:::memory
-        T10["Store Procedural<br/>(Patterns)"]:::memory
-        T11["Response"]:::response
+        T1["User Query"]:::query
+        T2["LangGraph<br/>Checkpointing"]:::memory
+        T3["Qwen 2.5 7B"]:::llm
+        T4["Health + Memory Tools<br/>(5 tools)"]:::tool
+        T5["Redis + RedisVL<br/>(Health Data + Vector Search)"]:::redis
+        T6["Response"]:::response
+        T7["✅ Store Memory<br/>(Goals & Patterns)"]:::memory
 
         T1 --> T2
-        T2 -->|"Goal Query"| T11
-        T2 -->|"Normal"| T3
+        T2 --> T3
         T3 --> T4
         T4 --> T5
-        T5 -->|Yes| T6
+        T5 --> T6
         T6 --> T7
-        T7 -->|Yes| T4
-        T7 -->|No| T8
-        T5 -->|No| T8
-        T8 --> T9
-        T9 --> T10
-        T10 --> T11
+        T7 -.-> T2
     end
 
-    classDef start fill:#fff,stroke:#dc3545,stroke-width:2px,color:#212529
-    classDef router fill:#fff,stroke:#fd7e14,stroke-width:2px,color:#212529
-    classDef llm fill:#fff,stroke:#0d6efd,stroke-width:2px,color:#212529
-    classDef decision fill:#fff,stroke:#ffc107,stroke-width:2px,color:#212529
-    classDef tool fill:#198754,stroke:#198754,stroke-width:2px,color:#fff
+    classDef query fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    classDef llm fill:#fff,stroke:#0d6efd,stroke-width:2px,color:#000
+    classDef tool fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
+    classDef redis fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    classDef response fill:#fff,stroke:#333,stroke-width:2px,color:#000
     classDef memory fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
-    classDef reflect fill:#17a2b8,stroke:#17a2b8,stroke-width:2px,color:#fff
-    classDef response fill:#fff,stroke:#dc3545,stroke-width:2px,color:#212529
+    classDef nomemory fill:#e9ecef,stroke:#6c757d,stroke-width:2px,stroke-dasharray: 5 5,color:#6c757d
 
-    style stateless fill:#fefefe,stroke:#6c757d,stroke-width:2px
-    style stateful fill:#fefefe,stroke:#6c757d,stroke-width:2px
+    style stateless fill:#f8f9fa,stroke:#0d6efd,stroke-width:3px
+    style stateful fill:#f8f9fa,stroke:#dc3545,stroke-width:3px
 ```
 
 ### Four-Layer Memory Architecture
