@@ -1,8 +1,11 @@
-# Code Review Summary: LLM Tool Optimization
+# ARCHIVED: Code Review Summary - LLM Tool Optimization
+
+> **ARCHIVED**: This was an optimization experiment from October 2025. These tools were consolidated into the current 5-tool structure instead of being individually optimized. See `WARP.md` for current architecture.
 
 **Date**: October 26, 2025
-**Reviewed**: `backend/src/apple_health/query_tools/get_trends.py`
+**Reviewed**: `backend/src/apple_health/query_tools/get_trends.py` (no longer exists)
 **Reviewer**: Senior Dev
+**Status**: Superseded by tool consolidation
 
 ---
 
