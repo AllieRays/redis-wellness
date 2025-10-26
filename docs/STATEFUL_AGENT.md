@@ -138,7 +138,7 @@ flowchart TB
     style RedisVector fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
     style Loop fill:#fff,stroke:#333,stroke-width:2px
     style Store fill:#f8d7da,stroke:#dc3545,stroke-width:2px
-    style Response fill:#fff,stroke:#333,stroke-width:3px,min-width:500px
+    style Response fill:#fff,stroke:#333,stroke-width:2px,min-width:500px
 ```
 
 ### Data Sources → Tools
