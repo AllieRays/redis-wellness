@@ -62,30 +62,36 @@ flowchart TB
     subgraph stateless["🟦 Stateless Agent"]
         direction TB
         S1["User Query"]:::start
-        S2["Qwen 2.5 7B"]:::llm
-        S3{"Need Tools?"}:::decision
-        S4["Tools Query<br/>Redis Health Data Store"]:::tool
-        S5["Response"]:::response
+        S2["Intent Router<br/>(Goal Bypass Check)"]:::router
+        S3["Qwen 2.5 7B"]:::llm
+        S4{"Tool Calls?"}:::decision
+        S5["Execute Health Tools:<br/>• get_health_metrics<br/>• get_workouts<br/>• get_trends<br/>• get_activity_comparison<br/>• get_workout_patterns<br/>• get_workout_progress"]:::tool
+        S6{"Continue Loop?<br/>(Max 5 iterations)"}:::decision
+        S7["Response"]:::response
 
         S1 --> S2
-        S2 --> S3
-        S3 -->|Yes| S4
-        S4 -->|"Results"| S2
-        S3 -->|No| S5
+        S2 -->|"Normal Query"| S3
+        S2 -->|"Goal Bypass"| S7
+        S3 --> S4
+        S4 -->|Yes| S5
+        S5 --> S6
+        S6 -->|Yes| S3
+        S6 -->|No| S7
+        S4 -->|No| S7
     end
 
-    subgraph stateful["🔴 Stateful Agent (Triple Memory)"]
+    subgraph stateful["🔴 Stateful Agent (LangGraph + Triple Memory)"]
         direction TB
         T1["User Query"]:::start
-        T2["Load Context<br/>(Episodic + Semantic)"]:::memory
-        T3["Qwen 2.5 7B<br/>+ Full Context"]:::llm
-        T4{"Need Tools?"}:::decision
-        T5["Execute Tools<br/>(Health + Memory)"]:::tool
-        T6{"Continue?"}:::decision
-        T7["Extract Facts"]:::reflect
-        T8["Update Semantic Memory"]:::memory
-        T9["Update Procedural Memory"]:::memory
-        T10["Contextual Response"]:::response
+        T2["LangGraph Checkpointer<br/>(Load Conversation)"]:::memory
+        T3["Qwen 2.5 7B"]:::llm
+        T4{"Tool Calls?"}:::decision
+        T5["Execute Tools:<br/><b>Health (6):</b><br/>• get_health_metrics<br/>• get_workouts<br/>• get_trends<br/>• get_activity_comparison<br/>• get_workout_patterns<br/>• get_workout_progress<br/><br/><b>Memory (2):</b><br/>• get_my_goals<br/>• get_tool_suggestions"]:::tool
+        T6{"Continue Loop?"}:::decision
+        T7["Reflect<br/>(Evaluate Success)"]:::reflect
+        T8["Store Episodic<br/>(Extract Goals)"]:::memory
+        T9["Store Procedural<br/>(Save Patterns)"]:::memory
+        T10["Response"]:::response
 
         T1 --> T2
         T2 --> T3
@@ -101,9 +107,10 @@ flowchart TB
     end
 
     classDef start fill:#fff,stroke:#dc3545,stroke-width:2px,color:#212529
+    classDef router fill:#fff,stroke:#fd7e14,stroke-width:2px,color:#212529
     classDef llm fill:#fff,stroke:#0d6efd,stroke-width:2px,color:#212529
     classDef decision fill:#fff,stroke:#ffc107,stroke-width:2px,color:#212529
-    classDef tool fill:#fff,stroke:#198754,stroke-width:2px,color:#fff
+    classDef tool fill:#198754,stroke:#198754,stroke-width:2px,color:#fff
     classDef memory fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
     classDef reflect fill:#17a2b8,stroke:#17a2b8,stroke-width:2px,color:#fff
     classDef response fill:#fff,stroke:#dc3545,stroke-width:2px,color:#212529
