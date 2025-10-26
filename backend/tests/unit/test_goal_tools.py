@@ -5,6 +5,7 @@ Tests goal component extraction and validation logic without Redis.
 """
 
 import pytest
+
 from src.apple_health.query_tools.goal_tools import _extract_goal_components
 
 
