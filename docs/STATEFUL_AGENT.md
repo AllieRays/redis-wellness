@@ -121,8 +121,8 @@ flowchart TB
     DataSource -->|Vector| RedisVector
     RedisStructured --> Loop
     RedisVector --> Loop
-    Loop -->|Y| LLM
-    Loop -->|N| Response
+    Loop -->|Yes| LLM
+    Loop -->|No| Response
     Response --> Store
     style Query fill:#fff,stroke:#333,stroke-width:2px
     style Router fill:#fff,stroke:#333,stroke-width:2px
