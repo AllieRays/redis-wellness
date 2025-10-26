@@ -8,8 +8,7 @@ Active Tools:
 - get_health_metrics - All non-sleep, non-workout health data (heart rate, steps, weight, etc.)
 - get_sleep_analysis - Sleep data with daily aggregation and efficiency metrics
 - get_workout_data - Consolidated workout tool (lists, patterns, progress, comparisons)
-- memory_tools - Goal and procedural memory retrieval
-- goal_tools - Goal setting (used in intent bypass)
+- memory_tools - Goal and procedural memory retrieval (get_my_goals, get_tool_suggestions)
 
 Main Entry Point:
 - create_user_bound_tools() - Creates all tools bound to a specific user

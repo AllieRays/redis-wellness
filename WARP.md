@@ -57,15 +57,11 @@ Stateless uses simple loop; stateful uses LangGraph StateGraph with checkpointin
 - `models.py` - Pydantic models (HealthRecord, WorkoutSummary, etc.)
 - `parser.py` - Secure XML parsing with validation
 - `tool_models.py` - Pydantic models for tool inputs/outputs
-- `query_tools/` - LangChain tools for AI queries:
-  - `get_health_metrics.py` - Search health records
-  - `get_workouts.py` - Search and retrieve workout data
-  - `get_activity_comparison.py` - Compare activity periods
-  - `get_workout_patterns.py` - Analyze workout patterns
-  - `get_workout_progress.py` - Track workout progress over time
-  - `get_trends.py` - Analyze health metric trends
-  - `goal_tools.py` - Goal setting and tracking
-  - `memory_tools.py` - Semantic memory search and storage
+- `query_tools/` - LangChain tools for AI queries (5 tools: 3 health + 2 memory):
+  - `get_health_metrics.py` - All non-sleep, non-workout health data (heart rate, steps, weight, BMI, trends)
+  - `get_sleep_analysis.py` - Sleep data with daily aggregation and efficiency metrics
+  - `get_workout_data.py` - ALL workout queries (lists, patterns, progress, comparisons) - consolidated tool
+  - `memory_tools.py` - Goal and procedural memory (get_my_goals, get_tool_suggestions)
 - `__init__.py` - Clean module exports
 
 **Services (`/services/`)** - Data layer and business logic:
@@ -584,7 +580,7 @@ Services communicate via `wellness-network` bridge network. Backend connects to 
 Key features of the agentic workflow:
 
 - **Tool-First Policy**: Factual queries skip semantic memory to avoid stale cache
-- **9 Specialized Tools**: Health records, workouts, patterns, comparisons, trends, progress
+- **5 Specialized Tools**: 3 health tools (metrics, sleep, workouts) + 2 memory tools (goals, patterns)
 - **Four-Layer Memory**: Short-term (checkpointing) + Episodic (goals) + Procedural (patterns) + Semantic (optional)
 - **Tool Calling**: Qwen 2.5 7B optimized for function calling
 - **Simple Loop**: Up to 8 iterations for complex multi-step queries

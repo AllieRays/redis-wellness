@@ -1,12 +1,89 @@
 # Stateful Agent Architecture
 
-This document explains the **internal architecture of the stateful agent**: how it uses **Agentic RAG** with LangGraph, Redis memory, and **autonomous tool calling** to maintain context and intelligence.
+## 1. Overview
+
+This document explains the **internal architecture of the stateful agent**: how it uses **Agentic RAG** (Retrieval-Augmented Generation with autonomous tool calling) to maintain context and intelligence.
+
+### What You'll Learn
+
+- **[Key Technologies](#2-key-technologies)** - LangGraph, Redis, RedisVL, and the 5 tools bound to the LLM
+- **[Architecture Overview](#3-architecture-overview)** - Component layers and how they interact
+- **[How It Works](#4-how-it-works)** - Workflow with intent routing, checkpointing, and vector search
+- **[Why It Matters](#5-why-it-matters)** - Benefits of stateful vs. stateless agents
+- **[Related Documentation](#6-related-documentation)** - Links to deeper dives on memory and Redis patterns
 
 ---
 
-## Architecture Overview
+## 2. Key Technologies
 
-The stateful agent uses **intent router + LangGraph StateGraph** with four-layer Redis memory:
+- **Qwen 2.5 7B**: Function-calling LLM that reads tool docstrings and autonomously decides which tools to call
+- **LangGraph**: StateGraph workflow orchestration with automatic Redis checkpointing for conversation history
+- **Redis**: Stores short-term conversation history via LangGraph's AsyncRedisSaver
+- **RedisVL**: Vector search for episodic memory (goals) and procedural memory (learned patterns)
+- **Intent Router**: Pre-LLM pattern matching for fast deterministic operations (goal CRUD)
+
+### 5 Tools Bound to LLM
+
+#### Health Data Tools
+
+1. `get_health_metrics` - Heart rate, steps, weight, BMI, etc.
+2. `get_sleep_analysis` - Sleep data with daily aggregation and efficiency metrics
+3. `get_workout_data` - All workout queries (lists, patterns, progress, comparisons)
+
+#### Memory Tools
+
+4. `get_my_goals` - Retrieve user goals and preferences (episodic memory)
+5. `get_tool_suggestions` - Retrieve learned tool-calling patterns (procedural memory)
+
+---
+
+## 3. Architecture Overview
+
+The stateful agent combines **intent routing**, **LangGraph workflow**, and **Redis memory layers**:
+
+```mermaid
+flowchart TB
+    UI["User Interface"]
+    Router["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
+
+    FastPath["Direct Redis Ops<br/>(Goal CRUD)"]
+    ComplexPath["LangGraph StateGraph<br/>• Qwen 2.5 7B LLM<br/>• Tool calling loop<br/>• Response synthesis"]
+
+    RedisShort["Redis<br/>Short-term<br/>Checkpointing"]
+    RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
+    Tools["Health Tools<br/>(3 data tools)"]
+
+    UI --> Router
+    Router -->|"Fast path"| FastPath
+    Router -->|"Complex path"| ComplexPath
+
+    ComplexPath --> RedisShort
+    ComplexPath --> RedisVL
+    ComplexPath --> Tools
+
+    style UI fill:#fff,stroke:#dc3545,stroke-width:2px,color:#000
+    style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
+    style FastPath fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style ComplexPath fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
+    style RedisShort fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
+    style RedisVL fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
+    style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
+```
+
+### Layer Responsibilities
+
+1. **Intent Router**: Pre-LLM pattern matching for fast deterministic operations (<100ms)
+2. **LangGraph**: Orchestrates LLM → tools → memory → response workflow
+3. **Memory Layer**:
+   - Redis checkpointing (short-term conversation history)
+   - RedisVL vector search (episodic goals + procedural patterns)
+4. **Tool Layer**: 5 tools for health data retrieval and memory access
+
+---
+
+## 4. How It Works
+
+The stateful agent processes queries through a multi-stage workflow:
 
 ```mermaid
 flowchart TB
@@ -53,141 +130,47 @@ flowchart TB
     style GoalOp fill:#fff,stroke:#333,stroke-width:2px,color:#000
 ```
 
-**Key Technologies:**
-- **Agentic RAG with Autonomous Tool Calling**: Qwen 2.5 7B reads tool docstrings and autonomously decides when to retrieve memory or call tools
-- **Intent Router**: Pattern-based routing for deterministic operations
-- **LangGraph**: Workflow orchestration with automatic checkpointing
-- **Redis**: All four memory layers (short-term, episodic, procedural, semantic)
-- **RedisVL**: Vector search for episodic/procedural memory
+### Key Components
 
-**5 Tools Bound to LLM:**
+#### Intent Router (Fast Path)
 
-**Health Data Tools (3):**
-1. `get_health_metrics` - All non-sleep, non-workout health data (heart rate, steps, weight, BMI, etc.)
-2. `get_sleep_analysis` - Sleep data with daily aggregation and efficiency metrics
-3. `get_workout_data` - ALL workout queries (lists, patterns, progress, comparisons)
+Pattern-based routing for deterministic operations. Bypasses LLM for goal setting/retrieval.
 
-**Memory Tools (2):**
-4. `get_my_goals` - Retrieve user goals and preferences (episodic memory)
-5. `get_tool_suggestions` - Retrieve learned tool-calling patterns (procedural memory)
+**Example:** "My goal is to run 3x per week" → Direct Redis storage (<100ms, zero tokens)
 
----
+#### LangGraph Checkpointing (Short-term Memory)
 
-## How Stateful Agentic RAG Works
+Automatically loads conversation history before each LLM call via `AsyncRedisSaver`.
 
-The agent uses three Redis-powered components to maintain intelligence:
-
-**Component 1:** [Intent Router](#component-1-intent-router) - Direct Redis operations (bypass LLM)
-**Component 2:** [LangGraph Checkpointing](#component-2-langgraph-checkpointing) - Automatic conversation memory
-**Component 3:** [RedisVL Vector Search](#component-3-redisvl-vector-search) - Semantic goal retrieval
-
-**Plus:** [Real Example](#real-example-is-that-good) showing all three working together.
-
-### Component 1: Intent Router
-
-Go straight to Redis to reduce latency when handling deterministic statements like “this is my goal,” as no tool call is needed.
-
+**Example conversation state:**
 ```python
-# From backend/src/agents/stateful_rag_agent.py
-if intent_router.is_goal_setting(query):
-    # "My goal is to never skip leg day" → Direct Redis storage
-    goal = extract_goal_from_query(query)
-    await episodic_memory.store_goal(user_id, goal)
-    return success_response(goal)  # <100ms, zero tokens
-```
-
-**Why this matters:**
-- 10x faster (<100ms vs. 2-3s)
-- No hallucination risk
-
-| Query Type | Path | Speed |
-|------------|------|-------|
-| "My goal is to never skip leg day" | Direct Redis | <100ms |
-| "What are my goals?" | Redis vector search | <100ms |
-
----
-
-### Component 2: LangGraph Checkpointing
-
-**Redis loads conversation history before the LLM even runs.**
-
-```python
-# From backend/src/services/redis_connection.py
-checkpointer = AsyncRedisSaver(redis_url="redis://localhost:6379")
-
-# LangGraph automatically:
-# 1. Loads previous messages from Redis
-# 2. Provides full context to LLM
-# 3. Saves new messages after response
-
-config = {"configurable": {"thread_id": session_id}}
-result = await graph.ainvoke(state, config)
-```
-
-**What the LLM sees:**
-
-```python
-state["messages"] = [
+messages = [
     HumanMessage("What was my heart rate?"),
     AIMessage("72 bpm average"),
-    HumanMessage("Is that good?")  # ← Current query
+    HumanMessage("Is that good?")  # LLM understands "that" = 72 bpm
 ]
-# LLM understands "that" = 72 bpm
 ```
 
-**Redis storage (automatic):**
-- Key: `langgraph:checkpoint:{session_id}:*`
-- TTL: 7 months
-- You never manually call `redis.get()` or `redis.set()`
+**Redis keys:** `langgraph:checkpoint:{session_id}:*` (TTL: 7 months)
 
----
+#### RedisVL Vector Search (Episodic + Procedural Memory)
 
-### Component 3: RedisVL Vector Search
+Goals and patterns stored with embeddings for semantic retrieval.
 
-**Goals stored with embeddings for intelligent matching.**
-
+**Example goal storage:**
 ```python
-# From backend/src/services/episodic_memory_manager.py
-await episodic_memory.store_goal(
-    user_id="wellness_user",
-    metric="HeartRate",
-    value=82.5,
-    unit="bpm"
-)
-```
-
-**Redis stores:**
-```python
-# Key: episodic:wellness_user:goal:1729962000
-{
-    "text": "User's target heart rate is 80-85 bpm",
+episodic:user:goal:1729962000 → {
+    "text": "Target heart rate is 80-85 bpm",
     "embedding": [0.234, -0.123, ...],  # 1024-dim
-    "metric": "HeartRate",
-    "value": 82.5,
-    "unit": "bpm"
+    "metric": "HeartRate"
 }
 ```
 
-**LLM retrieves when needed:**
+**LLM retrieves via `get_my_goals` tool** when needed for context.
 
-```python
-# From backend/src/apple_health/query_tools/memory_tools.py
-@tool
-async def get_my_goals(query: str) -> str:
-    """Get your stored goals and preferences."""
-    result = await episodic_memory.retrieve_goals(
-        user_id="wellness_user",
-        query=query,  # Semantic search
-        top_k=3
-    )
-    return result["context"]
-```
+### Real Example: "Is that good?"
 
----
-
-## Real Example: "Is that good?"
-
-### User asks follow-up question
+Demonstrates all three components working together:
 
 ```
 User: "What was my heart rate last week?"
@@ -195,149 +178,69 @@ Agent: "87 bpm average"
 User: "Is that good?"  ← Needs context + goals
 ```
 
-### Step 1: LangGraph loads conversation from Redis
-
+**Step 1: LangGraph loads conversation**
 ```python
-# Automatic checkpointing
 messages = [
     HumanMessage("What was my heart rate last week?"),
     AIMessage("87 bpm average"),
-    HumanMessage("Is that good?")  # Current
+    HumanMessage("Is that good?")  # Current query
 ]
 ```
 
-### Step 2: Autonomous tool calling (Qwen reads docstrings)
+**Step 2: LLM autonomously calls `get_my_goals` tool**
 
-**The LLM autonomously decides to call `get_my_goals` tool:**
-
+Qwen reads the tool docstring and decides to retrieve goals:
 ```python
-# From backend/src/apple_health/query_tools/memory_tools.py
-@tool
-async def get_my_goals(query: str) -> str:
-    """Get your stored goals and preferences.
-
-    USE WHEN user asks:
-    - "What's my goal?"
-    - "What did I say my target was?"
-    """
+{"tool_calls": [{"name": "get_my_goals", "args": {"query": "heart rate goal"}}]}
 ```
 
-### Step 3: Agentic RAG (LLM decides memory is needed)
-
+**Step 3: RedisVL retrieves goal**
 ```python
-# Qwen generates:
-{
-    "tool_calls": [{
-        "name": "get_my_goals",
-        "args": {"query": "heart rate goal"}
-    }]
-}
-```
-
-### Step 4: RedisVL retrieves goal
-
-```python
-# From Redis episodic memory
 goals = [{"metric": "HeartRate", "target": "80-85 bpm"}]
 ```
 
-### Step 5: LLM synthesizes intelligent response
+**Step 4: LLM synthesizes response**
 
-```python
-# LLM now has:
-# - Context: 87 bpm (from checkpointed conversation)
-# - Goal: 80-85 bpm (from episodic memory)
+Combines conversation context (87 bpm) + episodic memory (goal: 80-85 bpm):
 
-"87 bpm is slightly above your target range of 80-85 bpm."
-```
+> "87 bpm is slightly above your target range of 80-85 bpm."
 
 ---
 
-## Why This Matters
+## 5. Why It Matters
+
+### Comparison: Stateless vs. Stateful
 
 | Without Redis | With Redis + LangGraph |
 |---------------|------------------------|
-| ❌ Forgets conversation | ✅ Checkpointing loads automatically |
-| ❌ Can't answer follow-ups | ✅ Understands "that", "it", "them" |
-| ❌ Doesn't know user goals | ✅ Vector search retrieves goals |
-| ❌ Repeats mistakes | ✅ Learns successful patterns |
+| ❌ Forgets conversation | ✅ Checkpointing loads conversation automatically |
+| ❌ Can't answer follow-ups | ✅ Understands "that", "it", "them" references |
+| ❌ Doesn't know user goals | ✅ Vector search retrieves goals semantically |
+| ❌ Repeats mistakes | ✅ Learns successful tool-calling patterns |
 
-**Memory types serve different purposes:**
-- **Short-term** (session): "What did I just ask?"
-- **Episodic** (permanent): "What's my goal from 2 weeks ago?"
-- **Procedural** (permanent): "Which tools worked for similar queries?"
+### Four-Layer Memory Architecture
 
----
+- **Short-term** (session): Conversation context for follow-ups
+- **Episodic** (permanent): User goals and preferences
+- **Procedural** (permanent): Learned tool-calling patterns
+- **Semantic** (optional): Health knowledge base
 
-## Performance
+### Performance
 
-| Operation | Time | Notes |
-|-----------|------|-------|
-| First turn | 2.8s | 0.5s checkpoint load + 2.3s LLM |
-| Follow-up | 1.9s | Context already loaded |
-| Goal recall | 1.2s | Vector search only |
-| Intent router | <100ms | Direct Redis |
-
-**Memory overhead (100 turns + 10 goals):**
-- Short-term: 100 KB
-- Episodic: 40 KB
-- Procedural: 30 KB
-- **Total: ~170 KB** (negligible for Redis)
+- Intent router: <100ms (direct Redis)
+- First turn: ~2.8s (0.5s checkpoint + 2.3s LLM)
+- Follow-up: ~1.9s (context preloaded)
+- Memory overhead: ~170 KB per user (100 turns + 10 goals)
 
 ---
 
-## Try It Yourself
+## 6. Related Documentation
 
-### Via Frontend
-
-```bash
-make dev
-# Open http://localhost:3000
-# Use right-side chat (Redis Memory Chat)
-```
-
-### Via API
-
-```bash
-# First message
-curl -X POST http://localhost:8000/api/chat/stateful \
-  -H "Content-Type: application/json" \
-  -d '{"message": "What was my average heart rate last week?", "session_id": "test123"}'
-
-# Follow-up (should understand "it")
-curl -X POST http://localhost:8000/api/chat/stateful \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Is it good?", "session_id": "test123"}'
-```
-
-### Verify Memory in Redis
-
-```bash
-redis-cli KEYS "langgraph:checkpoint:*"  # Short-term
-redis-cli KEYS "episodic:*"              # Goals
-redis-cli KEYS "procedural:pattern:*"    # Patterns
-```
+- **[02_THE_DEMO.md](02_THE_DEMO.md)** - Side-by-side stateless vs. stateful comparison in the UI
+- **[03_MEMORY_ARCHITECTURE.md](03_MEMORY_ARCHITECTURE.md)** - Deep dive into four-layer memory system
+- **[04_AUTONOMOUS_AGENTS.md](04_AUTONOMOUS_AGENTS.md)** - Tool-calling and agentic workflow patterns
+- **[05_REDIS_PATTERNS.md](05_REDIS_PATTERNS.md)** - Redis usage patterns and best practices
 
 ---
 
-## Related Documentation
-
-- **[02_THE_DEMO.md](02_THE_DEMO.md)** - Side-by-side stateless vs. stateful comparison
-- **[03_MEMORY_ARCHITECTURE.md](03_MEMORY_ARCHITECTURE.md)** - Deep dive into memory types
-- **[REDIS_USAGE_PATTERNS.md](REDIS_USAGE_PATTERNS.md)** - How Redis powers each layer
-
----
-
-## Key Takeaway
-
-**Agentic RAG with Redis + LangGraph transforms agents from stateless calculators into intelligent assistants.**
-
-The agent **autonomously decides**:
-- When to retrieve memory (via tool calling)
-- Which tools to use for health data
-- How to synthesize context + data + goals
-
-**Without Redis**: "What are you referring to?"
-**With Redis + Agentic RAG**: "87 bpm is slightly above your target of 80-85 bpm."
-
-Memory + autonomous tool calling is the difference between AI that *computes* and AI that *understands*.
+**Key takeaway:** Redis + LangGraph transforms stateless chat into context-aware AI that remembers, learns, and understands user intent through autonomous tool calling and multi-layer memory.
