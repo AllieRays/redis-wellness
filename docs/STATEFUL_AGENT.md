@@ -140,7 +140,7 @@ Each tool accesses specific Redis data sources:
 | `langgraph:checkpoint:*` | Redis (LangGraph) | *(automatic)* | Conversation history for context |
 | `episodic:*` | RedisVL (vector) | `get_my_goals` | User goals and targets |
 | `procedural:*` | RedisVL (vector) | `get_tool_suggestions` | Learned tool-calling patterns |
-| `semantic:*` | RedisVL (vector) | *(not implemented)* | General health knowledge base |
+| `semantic:*` | RedisVL (vector) | `get_my_goals` *(optional)* | General health knowledge base |
 | `health:*` | Redis (hash/JSON) | `get_health_metrics`<br/>`get_sleep_analysis` | Heart rate, steps, weight, BMI, sleep |
 | `workout:*` | Redis (hash/JSON) | `get_workout_data` | Workout records and indexes |
 
