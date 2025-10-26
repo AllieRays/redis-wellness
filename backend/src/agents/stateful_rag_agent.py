@@ -577,17 +577,18 @@ class StatefulRAGAgent:
         }
 
         # Add config for checkpointing with recursion limit to prevent infinite loops
+        # recursion_limit=16 allows ~8 tool-calling cycles (each cycle = llm + tools = 2 nodes)
         config = (
-            {"configurable": {"thread_id": session_id}, "recursion_limit": 10}
+            {"configurable": {"thread_id": session_id}, "recursion_limit": 16}
             if self.checkpointer
-            else {"recursion_limit": 10}
+            else {"recursion_limit": 16}
         )
 
         if self.checkpointer:
             logger.info(f"📝 Using checkpoint thread_id: {session_id}")
-        logger.info("⚠️ Recursion limit: 10 iterations")
+        logger.info("⚠️ Recursion limit: 16 iterations (~8 tool cycles)")
 
-        # Use ainvoke with recursion limit (max 10 iterations = 5 tool-calling cycles)
+        # Use ainvoke with recursion limit (max 16 iterations = ~8 tool-calling cycles)
         final_state = await self.graph.ainvoke(input_state, config)
         logger.info(f"📊 Final state has {len(final_state['messages'])} messages")
 
