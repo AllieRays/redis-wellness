@@ -274,7 +274,7 @@ def create_get_workouts_tool(user_id: str):
 
         Args:
             days_back: Days to search back (default: 90)
-                      ⚠️ IMPORTANT: For specific dates like "October 17th", ALWAYS use default (90) or higher!
+                      IMPORTANT: For specific dates like "October 17th", ALWAYS use default (90) or higher!
                       Only use days_back=1 if user explicitly says "today" or "in the past day".
                       For "recent" or "last week", use 7-30 days.
 
