@@ -88,7 +88,7 @@ flowchart TB
 The stateful agent processes queries through a multi-stage workflow:
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px', 'edgeLabelBackground':'#f8f9fa'}, 'flowchart': {'nodeSpacing': 40, 'rankSpacing': 40}}}%%
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px', 'edgeLabelBackground':'#f8f9fa'}, 'flowchart': {'nodeSpacing': 25, 'rankSpacing': 25}}}%%
 flowchart TB
     Query["User Query"]
     Router{"Intent Router"}
