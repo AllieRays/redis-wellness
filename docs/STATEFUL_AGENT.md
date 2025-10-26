@@ -104,7 +104,7 @@ flowchart TB
     RedisVector["RedisVL<br/>(Vector Search)<br/>Ollama Embeddings"]
     Loop{"More data?"}
     Store["Store Memories<br/>(if worth remembering)<br/>episodic:* or procedural:*"]
-    Response["======================= Response ================="]
+    Response["&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Response&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"]
     Query --> Router
     Router -->|"Simple"| GoalOp
     Router -->|"Complex"| Memory
