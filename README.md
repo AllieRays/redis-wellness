@@ -73,49 +73,51 @@ Bot: "87 bpm is within normal range for your age group..." ✅
 ### Side-by-Side Comparison
 
 ```mermaid
-flowchart TB
-    subgraph stateless["🔴 Stateless Agent"]
+flowchart LR
+    subgraph stateless[" "]
         direction TB
-        A1["📨 User Query"]:::input
-        B1["🤖 Qwen 2.5 7B\n(Ollama)"]:::llm
-        C1["🔧 Tool Calling\n9 Health Tools"]:::tools
-        D1["📊 Redis Health Data\n(read-only)"]:::dataonly
-        E1["❌ NO MEMORY\nForgets Everything"]:::nomem
-        F1["💬 Response"]:::output
+        S1["User Query"]:::start
+        S2["Qwen 2.5 7B"]:::agent
+        S3["Tool Calling"]:::tool
+        S4["Redis Health Data"]:::data
+        S5["Response"]:::end
+        S6["NO MEMORY"]:::nomem
 
-        A1 --> B1
-        B1 --> C1
-        C1 --> D1
-        D1 --> F1
-        E1 -."No persistence".-> B1
+        S1 --> S2
+        S2 --> S3
+        S3 --> S4
+        S4 --> S5
+        S6 -."Forgets everything".-> S2
     end
 
-    subgraph stateful["✅ Stateful Agent (LangGraph)"]
+    subgraph stateful[" "]
         direction TB
-        A2["📨 User Query"]:::input
-        B2["🤖 Qwen 2.5 7B\n(Ollama)"]:::llm
-        C2["🔧 Tool Calling\n9 Health Tools"]:::tools
-        D2["📊 Redis Health Data"]:::dataonly
-        E2["🧠 Redis Memory\nConversation History"]:::redismem
-        F2["🔍 RedisVL\nVector Search"]:::redisvl
-        G2["💬 Contextual Response"]:::output
+        T1["User Query"]:::start
+        T2["Qwen 2.5 7B"]:::agent
+        T3["Redis Memory"]:::memory
+        T4["RedisVL Search"]:::memory
+        T5["Tool Calling"]:::tool
+        T6["Redis Health Data"]:::data
+        T7["Contextual Response"]:::end
 
-        A2 --> B2
-        B2 <-->|"Short-term"| E2
-        B2 <-->|"Long-term"| F2
-        B2 --> C2
-        C2 --> D2
-        D2 --> G2
+        T1 --> T2
+        T2 <-->|"Short-term"| T3
+        T2 <-->|"Long-term"| T4
+        T2 --> T5
+        T5 --> T6
+        T6 --> T7
     end
 
-    classDef input fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529
-    classDef llm fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529
-    classDef tools fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529
-    classDef dataonly fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529
-    classDef nomem fill:#dc3545,stroke:#495057,stroke-width:2px,color:#fff
-    classDef redismem fill:#dc3545,stroke:#495057,stroke-width:2px,color:#fff
-    classDef redisvl fill:#dc3545,stroke:#495057,stroke-width:2px,color:#fff
-    classDef output fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529
+    classDef start fill:#fff,stroke:#dc3545,stroke-width:2px,color:#212529
+    classDef agent fill:#fff,stroke:#6c757d,stroke-width:2px,color:#212529
+    classDef tool fill:#fff,stroke:#6c757d,stroke-width:2px,color:#212529
+    classDef data fill:#fff,stroke:#6c757d,stroke-width:2px,color:#212529
+    classDef end fill:#fff,stroke:#dc3545,stroke-width:2px,color:#212529
+    classDef nomem fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
+    classDef memory fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
+
+    style stateless fill:#fefefe,stroke:#6c757d,stroke-width:2px
+    style stateful fill:#fefefe,stroke:#6c757d,stroke-width:2px
 ```
 
 ### Redis Memory Architecture
