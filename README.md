@@ -29,30 +29,24 @@ You can chat with two versions of the same agent:
 
 ## 🎯 The Difference
 
-### Memory & Context
-
-| Feature | ❌ Stateless Agent | ✅ Stateful Agent | Technology |
-|---------|-------------------|-------------------|------------|
-| **Conversation Memory** | None - forgets everything | 7-month history | Redis LIST |
-| **Semantic Memory** | None | Contextual recall | RedisVL vector search (1024-dim) |
-| **Follow-up Questions** | ❌ "What are you referring to?" | ✅ Understands context & pronouns | Message history + embeddings |
-| **Context Awareness** | ❌ Every query is isolated | ✅ Remembers past interactions | Redis persistence |
-| **Learning** | ❌ Cannot learn patterns | ✅ Learns from conversation | Vector similarity search |
-| **Response Quality** | Basic facts only | Context-rich, personalized | Dual memory system |
-
-### Shared Capabilities
-
-| Feature | Both Agents |
-|---------|-------------|
-| **Tool Calling** | 9 specialized health tools |
-| **LLM** | Qwen 2.5 7B (Ollama) |
-| **Health Data** | Redis read-only access |
-
-### Example Conversation
-
-| ❌ Stateless Agent | ✅ Stateful Agent |
-|-------------------|-------------------|
-| **You:** "What was my average heart rate last week?"<br>**Bot:** "87 bpm"<br><br>**You:** "Is that good?"<br>**Bot:** "What are you referring to?" ❌ | **You:** "What was my average heart rate last week?"<br>**Bot:** "87 bpm"<br><br>**You:** "Is that good?"<br>**Bot:** "87 bpm is within normal range for your age group..." ✅ |
+| Component | Stateless Agent | Stateful Agent | Technology |
+|-----------|-----------------|----------------|------------|
+| **LLM** | Qwen 2.5 7B | Qwen 2.5 7B | Ollama (local inference) |
+| **Orchestration** | Simple tool loop | LangGraph state machine | LangGraph with Redis checkpointing |
+| **Short-term Memory** | None | Conversation history (7-month TTL) | Redis LIST (`LPUSH conversation:{session_id}`) |
+| **Long-term Memory** | None | Semantic context retrieval | RedisVL (HNSW index, 1024-dim embeddings) |
+| **Vector Search** | N/A | Cosine similarity search | `FT.SEARCH` with KNN queries |
+| **Embeddings** | N/A | Cached in Redis | Ollama (`mxbai-embed-large`) |
+| **Message Persistence** | Ephemeral (request-scoped) | Durable across sessions | Redis checkpoint saver |
+| **Context Window** | Single message only | Full conversation history | O(n) LIST retrieval |
+| **Health Data** | Redis read-only access | Redis read-only access | Redis Hashes + JSON (O(1) lookups) |
+| **Tool Calling** | 9 specialized health tools | 9 specialized health tools | LangChain tool integration |
+| **Follow-up Questions** | Treats each as new query | Maintains conversation flow | Prior exchanges in LLM prompt |
+| **Pronoun Resolution** | Cannot resolve "it", "that", "those" | Resolves references from context | Message history retrieval |
+| **Pattern Learning** | No memory of past patterns | Learns from interactions | Vector similarity retrieval |
+| **Personalization** | Generic responses only | Context-aware insights | User-specific memory indexing |
+| **Multi-turn Reasoning** | Isolated single-turn | Coherent multi-turn conversations | State persistence via LangGraph |
+| **Example** | **You:** "What was my average heart rate last week?"<br>**Bot:** "87 bpm"<br><br>**You:** "Is that good?"<br>**Bot:** "What are you referring to?" | **You:** "What was my average heart rate last week?"<br>**Bot:** "87 bpm"<br><br>**You:** "Is that good?"<br>**Bot:** "87 bpm is within normal range for your age group..." | Stateful uses conversation history + semantic memory |
 
 ---
 
