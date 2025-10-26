@@ -45,16 +45,15 @@ What runs where and why. Paths are relative to `backend/src/`.
 ```mermaid path=null start=null
 sequenceDiagram
   autonumber
-  participant UI as Frontend (3000)
-  participant API as FastAPI (8000)
-  participant AG as Agent (Qwen via LangChain)
-  participant R as Redis Stack (6379)
-  participant OL as Ollama (11434)
-
-  UI->>API: POST /api/chat/stateless|stateful
-  API->>AG: Build prompt + bind tools
-  AG->>R: Short-term/episodic/procedural/semantic as needed
-  AG->>OL: LLM + embeddings
-  AG-->>API: response + tools_used + memory_stats
-  API-->>UI: JSON / SSE stream
+  participant UI as Frontend<br/>(3000)
+  participant API as FastAPI<br/>(8000)
+  participant AG as Agent<br/>(Qwen)
+  participant R as Redis<br/>(6379)
+  participant OL as Ollama<br/>(11434)
+  UI->>API: POST /api/chat
+  API->>AG: Build prompt+tools
+  AG->>R: Memory fetch
+  AG->>OL: LLM+embeddings
+  AG-->>API: response+stats
+  API-->>UI: JSON/SSE
 ```

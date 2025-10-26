@@ -100,7 +100,7 @@ class StatelessHealthAgent:
         self,
         message: str,
         user_id: str,
-        max_tool_calls: int = 5,
+        max_tool_calls: int = 8,
     ) -> dict[str, Any]:
         """Non-streaming chat (original implementation)."""
         result = None
@@ -115,7 +115,7 @@ class StatelessHealthAgent:
         self,
         message: str,
         user_id: str,
-        max_tool_calls: int = 5,
+        max_tool_calls: int = 8,
     ):
         """Streaming chat that yields tokens as they arrive."""
         async for chunk in self._chat_impl(
@@ -127,7 +127,7 @@ class StatelessHealthAgent:
         self,
         message: str,
         user_id: str,
-        max_tool_calls: int = 5,
+        max_tool_calls: int = 8,
         stream: bool = False,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """
@@ -340,12 +340,14 @@ class StatelessHealthAgent:
                         logger.warning(f"Tool {tool_name} not found")
 
             # If we exited the loop because of max iterations with pending tool results,
-            # call LLM one more time to generate final response
+            # call LLM one more time WITHOUT tools to generate final response
             final_message = conversation[-1]
             if not isinstance(final_message, AIMessage):
-                logger.info("Generating final response after max iterations...")
-                llm_with_tools = self.llm.bind_tools(user_tools)
-                final_response = await llm_with_tools.ainvoke(conversation)
+                logger.info(
+                    "Generating final response after max iterations (no tools)..."
+                )
+                # Call LLM WITHOUT tools to force a final text response
+                final_response = await self.llm.ainvoke(conversation)
                 conversation.append(final_response)
                 response_text = final_response.content
             else:

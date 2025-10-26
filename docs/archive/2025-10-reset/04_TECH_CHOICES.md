@@ -29,14 +29,13 @@
 ```mermaid path=null start=null
 flowchart LR
   subgraph Localhost
-    A[Ollama\nQwen 2.5 7B]:::svc
-    E[Ollama\nEmbeddings]:::svc
+    A[Ollama<br/>Qwen 2.5 7B]:::svc
+    E[Ollama<br/>Embeddings]:::svc
     R[(Redis Stack)]:::svc
   end
-  B[FastAPI + LangGraph]:::svc --> R
+  B[FastAPI+LangGraph]:::svc --> R
   B --> A
   B --> E
   UI[Frontend]:::svc --> B
-
   classDef svc fill:#0b74de,stroke:#0b74de,color:#fff
 ```

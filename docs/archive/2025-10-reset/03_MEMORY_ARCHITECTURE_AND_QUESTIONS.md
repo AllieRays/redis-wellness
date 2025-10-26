@@ -39,23 +39,21 @@ We use four complementary memory types. All data lives in your local Redis.
 ```mermaid path=null start=null
 flowchart TB
   subgraph Agent
-    Q[Qwen 2.5 7B via Ollama]
-    P[Planner + Tools]
+    Q[Qwen 2.5 7B]:::agent
+    P[Planner+Tools]:::agent
   end
-
   UI[[User Query]] --> Q --> P
-
   subgraph Redis Stack
-    ST[(Short‑term LIST)]
-    EP[(Episodic RedisVL)]
-    PR[(Procedural RedisVL)]
-    SE[(Semantic RedisVL)]
+    ST[(Short-term)]:::mem
+    EP[(Episodic)]:::mem
+    PR[(Procedural)]:::mem
+    SE[(Semantic)]:::mem
   end
-
-  P <-- history --> ST
-  P <-- goals/context --> EP
-  P <-- tool plans --> PR
-  P <-- facts --> SE
-
+  P <--> ST
+  P <--> EP
+  P <--> PR
+  P <--> SE
   P --> Q --> UI
+  classDef agent fill:#0b74de,stroke:#0b74de,color:#fff
+  classDef mem fill:#2d9f5e,stroke:#2d9f5e,color:#fff
 ```

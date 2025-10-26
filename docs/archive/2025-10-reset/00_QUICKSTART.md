@@ -62,17 +62,16 @@ curl -s -X POST http://localhost:8000/api/chat/stateful \
 
 ```mermaid path=null start=null
 flowchart LR
-    UI[Frontend (Vite, TS):3000]
-    API[FastAPI Backend:8000]
-    R[(Redis Stack:6379)]
-    O[Ollama:11434\nQwen 2.5 7B + mxbai-embed-large]
-
+    UI[Frontend<br/>:3000]:::svc
+    API[FastAPI<br/>:8000]:::svc
+    R[(Redis<br/>:6379)]:::svc
+    O[Ollama<br/>:11434]:::svc
     UI -- HTTP --> API
-    API <---> R
-    API <---> O
-
+    API <--> R
+    API <--> O
     subgraph Memory
       R ---|Short-term| R
-      R ---|Episodic/Procedural/Semantic via RedisVL| R
+      R ---|RedisVL| R
     end
+    classDef svc fill:#0b74de,stroke:#0b74de,color:#fff
 ```
