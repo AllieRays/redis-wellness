@@ -5,7 +5,7 @@ Tests goal component extraction and validation logic without Redis.
 """
 
 import pytest
-from backend.src.apple_health.query_tools.goal_tools import _extract_goal_components
+from src.apple_health.query_tools.goal_tools import _extract_goal_components
 
 
 class TestGoalComponentExtraction:
@@ -141,7 +141,7 @@ class TestGoalStorageErrors:
         """Empty descriptions should be rejected."""
         import json
 
-        from backend.src.apple_health.query_tools.goal_tools import store_user_goal
+        from src.apple_health.query_tools.goal_tools import store_user_goal
 
         # Test empty string
         result_str = await store_user_goal.ainvoke(
@@ -155,7 +155,7 @@ class TestGoalStorageErrors:
         """Whitespace-only descriptions should be rejected."""
         import json
 
-        from backend.src.apple_health.query_tools.goal_tools import store_user_goal
+        from src.apple_health.query_tools.goal_tools import store_user_goal
 
         result_str = await store_user_goal.ainvoke(
             {"goal_description": "   ", "user_id": "test_user"}
