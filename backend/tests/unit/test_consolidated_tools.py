@@ -102,9 +102,9 @@ class TestToolConsolidation:
 
         for tool in all_tools:
             # All tools should start with "get_"
-            assert tool.name.startswith(
-                "get_"
-            ), f"Tool {tool.name} doesn't follow get_* naming convention"
+            assert tool.name.startswith("get_"), (
+                f"Tool {tool.name} doesn't follow get_* naming convention"
+            )
 
     def test_no_duplicate_tool_names(self):
         """Test that all tool names are unique."""

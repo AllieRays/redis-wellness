@@ -1,7 +1,7 @@
 repos:
   # Python Backend
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.7
+    rev: v0.14.2
     hooks:
       - id: ruff
         args: [--fix]
@@ -11,7 +11,7 @@ repos:
 
   # TypeScript Frontend
   - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v8.54.0
+    rev: v9.38.0
     hooks:
       - id: eslint
         files: ^frontend/src/.*\.(ts|tsx)$
@@ -25,14 +25,14 @@ repos:
         args: [--fix]
 
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.1.0
+    rev: v4.0.0-alpha.8
     hooks:
       - id: prettier
         files: ^frontend/src/.*\.(ts|tsx|js|jsx|json|css|md)$
 
   # General
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -48,7 +48,7 @@ repos:
 
   # Security - prevent committing sensitive data
   - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.4.0
+    rev: v1.5.0
     hooks:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
