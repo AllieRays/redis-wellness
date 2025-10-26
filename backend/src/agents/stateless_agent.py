@@ -246,6 +246,7 @@ class StatelessHealthAgent:
             tool_calls_made = 0
             tools_used_list = []
             tool_results = []
+            tool_call_history = []  # Track tool calls to prevent duplicates
 
             # Simple tool loop (same as stateful agent, but no memory)
             for iteration in range(max_tool_calls):
@@ -304,8 +305,26 @@ class StatelessHealthAgent:
 
                 # Execute tools
                 for tool_call in response.tool_calls:
-                    tool_calls_made += 1
                     tool_name = tool_call.get("name", "unknown")
+                    tool_args = str(tool_call.get("args", {}))
+
+                    # Check if this exact tool call was already made
+                    tool_signature = f"{tool_name}:{tool_args}"
+                    if tool_signature in tool_call_history:
+                        logger.warning(
+                            f"⚠️ Skipping duplicate tool call: {tool_name} with same args"
+                        )
+                        # Add a message saying we already have this data
+                        tool_msg = ToolMessage(
+                            content="Data already retrieved in previous tool call. Use the existing results.",
+                            tool_call_id=tool_call.get("id", ""),
+                            name=tool_name,
+                        )
+                        conversation.append(tool_msg)
+                        continue
+
+                    tool_call_history.append(tool_signature)
+                    tool_calls_made += 1
                     tools_used_list.append(tool_name)
 
                     logger.info(f"Tool call #{tool_calls_made}: {tool_name}")
