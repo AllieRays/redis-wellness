@@ -83,26 +83,24 @@ flowchart TB
 
 ## 4. How It Works
 
-The stateful agent processes queries through a multi-stage workflow with intelligent tool selection and memory retrieval:
+### Workflow
+
+The stateful agent processes queries through a multi-stage workflow:
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}, 'flowchart': {'nodeSpacing': 30, 'rankSpacing': 30}}}%%
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px', 'edgeLabelBackground':'#f8f9fa'}, 'flowchart': {'nodeSpacing': 40, 'rankSpacing': 40}}}%%
 flowchart TB
     Query["User Query"]
     Router{"Intent Router"}
     GoalOp["Goal CRUD"]
     GoalRedis["Redis<br/>procedural:*"]
-    Memory["LangGraph Checkpointer<br/>langgraph:checkpoint:*"]
+    Memory["LangGraph Checkpointer<br/>(loads conversation history)<br/>langgraph:checkpoint:*"]
     LLM["Qwen 2.5 7B"]
     Decision{"Which tool?"}
-    MT["Memory Tools<br/>get_my_goals<br/>get_tool_suggestions"]
-    HT["Health Tools<br/>get_health_metrics<br/>get_workout_data<br/>get_sleep_analysis"]
-    VectorDB["RedisVL Vector Search<br/>episodic:* (goals)<br/>procedural:* (patterns)"]
-    SemanticDB["Semantic Knowledge<br/>semantic:* (health facts)<br/>(optional)"]
-    HealthDB["Redis Health Data Store<br/>health:*, workout:*"]
+    Tools["Execute Tools<br/>(See table below)"]
     Loop{"More data?"}
-    Store["Store to Redis<br/>episodic:* (goals)<br/>procedural:* (patterns)"]
-    Response["Response"]
+    Store["Store Memories<br/>(if worth remembering)<br/>episodic:* or procedural:*"]
+    Response["=== Response ==="]
     Query --> Router
     Router -->|Simple| GoalOp
     Router -->|Complex| Memory
@@ -110,19 +108,12 @@ flowchart TB
     GoalRedis --> Response
     Memory --> LLM
     LLM --> Decision
-    Decision -->|Context| MT
-    Decision -->|Data| HT
-    Decision -->|Done| Response
-    MT --> VectorDB
-    MT -.-> SemanticDB
-    HT --> HealthDB
-    HT -.-> VectorDB
-    VectorDB --> Loop
-    SemanticDB -.-> Loop
-    HealthDB --> Loop
+    Decision -->|Call tool| Tools
+    Decision -->|No tools needed| Response
+    Tools --> Loop
     Loop -->|Yes| LLM
-    Loop -->|No| Store
-    Store --> Response
+    Loop -->|No| Response
+    Response --> Store
     style Query fill:#fff,stroke:#333,stroke-width:2px
     style Router fill:#fff,stroke:#333,stroke-width:2px
     style GoalOp fill:#fff,stroke:#333,stroke-width:2px
@@ -130,15 +121,29 @@ flowchart TB
     style Memory fill:#f8d7da,stroke:#dc3545,stroke-width:2px
     style LLM fill:#fff,stroke:#333,stroke-width:2px
     style Decision fill:#fff,stroke:#333,stroke-width:2px
-    style MT fill:#f8d7da,stroke:#dc3545,stroke-width:2px
-    style HT fill:#fff,stroke:#333,stroke-width:2px
-    style VectorDB fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
-    style SemanticDB fill:#f8d7da,stroke:#dc3545,stroke-width:2px,stroke-dasharray: 5 5
-    style HealthDB fill:#fff,stroke:#333,stroke-width:2px
+    style Tools fill:#fff,stroke:#333,stroke-width:2px
     style Loop fill:#fff,stroke:#333,stroke-width:2px
     style Store fill:#f8d7da,stroke:#dc3545,stroke-width:2px
-    style Response fill:#fff,stroke:#333,stroke-width:2px
+    style Response fill:#fff,stroke:#333,stroke-width:3px,min-width:300px
 ```
+
+### Data Sources → Tools
+
+Each Redis data source is accessed by specific tools:
+
+| Data Source | Storage Type | Tools That Use It | What's Stored |
+|-------------|--------------|-------------------|---------------|
+| `langgraph:checkpoint:*` | Redis (LangGraph) | *(automatic)* | Conversation history for context |
+| `episodic:*` | RedisVL (vector) | `get_my_goals`<br/>`get_health_metrics` (context) | User goals and targets |
+| `procedural:*` | RedisVL (vector) | `get_tool_suggestions`<br/>`get_workout_data` (patterns) | Learned tool-calling patterns |
+| `semantic:*` | RedisVL (vector) | `get_my_goals` *(optional)* | General health knowledge base |
+| `health:*` | Redis (hash/JSON) | `get_health_metrics`<br/>`get_sleep_analysis` | Heart rate, steps, weight, BMI, sleep |
+| `workout:*` | Redis (hash/JSON) | `get_workout_data` | Workout records and indexes |
+
+**Storage Types:**
+- **Redis** = Structured data (hashes, JSON) for O(1) lookups
+- **RedisVL** = Vector search (1024-dim embeddings) for semantic retrieval
+- **LangGraph** = Automatic checkpointing for conversation state
 
 ### Key Components
 
