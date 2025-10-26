@@ -92,59 +92,53 @@ The stateful agent processes queries through a multi-stage workflow:
 flowchart TB
     Query["User Query"]
     Router{"Intent Router"}
-    GoalOp["Goal CRUD"]
+    GoalOp["Simple Query"]
     GoalRedis["Redis<br/>procedural:*"]
-    Memory["LangGraph Checkpointer<br/>(loads conversation history)<br/>langgraph:checkpoint:*"]
-    LLM["Qwen 2.5 7B"]
+    Memory["LangGraph Checkpointer<br/>(loads conversation history)"]
+    LLM["Qwen 2.5 7B<br/>(Ollama LLM)"]
     Decision{"Which tool?"}
     MemoryTools["Memory Tools<br/>get_my_goals<br/>get_tool_suggestions"]
     HealthTools["Health Data Tools<br/>get_health_metrics<br/>get_sleep_analysis<br/>get_workout_data"]
-    MemoryData["Episodic/Procedural<br/>episodic:*<br/>procedural:*"]
-    HealthData["Health/Workout/Sleep<br/>health:*<br/>workout:*"]
     DataSource{"Data Source<br/>Decision"}
     RedisStructured["Redis<br/>(Structured)"]
-    RedisVector["RedisVL<br/>(Vector Search)"]
+    RedisVector["RedisVL<br/>(Vector Search)<br/>Ollama Embeddings"]
     Loop{"More data?"}
     Store["Store Memories<br/>(if worth remembering)<br/>episodic:* or procedural:*"]
     Response["=== Response ==="]
     Query --> Router
-    Router -->|Simple| GoalOp
-    Router -->|Complex| Memory
+    Router -->|"Simple"| GoalOp
+    Router -->|"Complex"| Memory
     GoalOp --> GoalRedis
     GoalRedis --> Response
     Memory --> LLM
     LLM --> Decision
-    Decision -->|Memory| MemoryTools
-    Decision -->|Health Data| HealthTools
+    Decision --> MemoryTools
+    Decision --> HealthTools
     Decision -->|No tools| Response
-    MemoryTools --> MemoryData
-    HealthTools --> HealthData
-    MemoryData --> DataSource
-    HealthData --> DataSource
+    MemoryTools --> DataSource
+    HealthTools --> DataSource
     DataSource -->|Structured| RedisStructured
     DataSource -->|Vector| RedisVector
     RedisStructured --> Loop
     RedisVector --> Loop
-    Loop -->|Yes| LLM
-    Loop -->|No| Response
+    Loop -->|Y| LLM
+    Loop -->|N| Response
     Response --> Store
     style Query fill:#fff,stroke:#333,stroke-width:2px
     style Router fill:#fff,stroke:#333,stroke-width:2px
     style GoalOp fill:#fff,stroke:#333,stroke-width:2px
-    style GoalRedis fill:#fff,stroke:#333,stroke-width:2px
+    style GoalRedis fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
     style Memory fill:#f8d7da,stroke:#dc3545,stroke-width:2px
     style LLM fill:#fff,stroke:#333,stroke-width:2px
     style Decision fill:#fff,stroke:#333,stroke-width:2px
-    style MemoryTools fill:#fff,stroke:#333,stroke-width:2px
-    style HealthTools fill:#fff,stroke:#333,stroke-width:2px
-    style MemoryData fill:#fff,stroke:#333,stroke-width:2px
-    style HealthData fill:#fff,stroke:#333,stroke-width:2px
+    style MemoryTools fill:#fff,stroke:#dc3545,stroke-width:2px
+    style HealthTools fill:#fff,stroke:#dc3545,stroke-width:2px
     style DataSource fill:#fff,stroke:#333,stroke-width:2px
     style RedisStructured fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
     style RedisVector fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
     style Loop fill:#fff,stroke:#333,stroke-width:2px
     style Store fill:#f8d7da,stroke:#dc3545,stroke-width:2px
-    style Response fill:#fff,stroke:#333,stroke-width:3px,min-width:300px
+    style Response fill:#fff,stroke:#333,stroke-width:3px,min-width:500px
 ```
 
 ### Data Sources → Tools
