@@ -339,12 +339,17 @@ class StatelessHealthAgent:
                     if not tool_found:
                         logger.warning(f"Tool {tool_name} not found")
 
-            # Extract final response
-            final_response = conversation[-1]
-            if isinstance(final_response, AIMessage):
+            # If we exited the loop because of max iterations with pending tool results,
+            # call LLM one more time to generate final response
+            final_message = conversation[-1]
+            if not isinstance(final_message, AIMessage):
+                logger.info("Generating final response after max iterations...")
+                llm_with_tools = self.llm.bind_tools(user_tools)
+                final_response = await llm_with_tools.ainvoke(conversation)
+                conversation.append(final_response)
                 response_text = final_response.content
             else:
-                response_text = str(final_response)
+                response_text = final_message.content
 
             # Validate response (numeric + date validation)
             numeric_validator = get_numeric_validator()

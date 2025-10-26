@@ -16,17 +16,14 @@ import logging
 from typing import Any
 
 from langchain_core.tools import tool
-from pydantic import Field
 
 logger = logging.getLogger(__name__)
 
 
 @tool
 async def get_my_goals(
-    query: str = Field(
-        description="Query to search for goals (e.g., 'weight goal', 'fitness goal')"
-    ),
-    top_k: int = Field(default=3, description="Number of goals to retrieve"),
+    query: str,
+    top_k: int = 3,
 ) -> str:
     """
     Get your stored goals and preferences.
@@ -40,8 +37,8 @@ async def get_my_goals(
     - Factual health data → use get_health_metrics instead
 
     Args:
-        query: What goal to search for
-        top_k: Number of goals to return
+        query: Query to search for goals (e.g., 'weight goal', 'fitness goal')
+        top_k: Number of goals to return (default: 3)
 
     Returns:
         Your stored goals, or message if none found
@@ -87,10 +84,8 @@ async def get_my_goals(
 
 @tool
 async def get_tool_suggestions(
-    query: str = Field(
-        description="Query to get tool suggestions for (e.g., 'weight trend analysis')"
-    ),
-    top_k: int = Field(default=3, description="Number of suggestions to retrieve"),
+    query: str,
+    top_k: int = 3,
 ) -> str:
     """
     Get tool suggestions based on learned successful patterns.
@@ -103,8 +98,8 @@ async def get_tool_suggestions(
     - Reasoning for the suggestions
 
     Args:
-        query: What workflow pattern to search for
-        top_k: Number of patterns to return
+        query: Query to get tool suggestions for (e.g., 'weight trend analysis')
+        top_k: Number of patterns to return (default: 3)
 
     Returns:
         Formatted string with tool suggestions and reasoning, or empty if none found
