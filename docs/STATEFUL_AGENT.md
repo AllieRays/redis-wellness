@@ -45,29 +45,48 @@ The stateful agent combines **intent routing**, **LangGraph workflow**, and **Re
 flowchart TB
     UI["User Interface"]
     Router["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
-
     FastPath["Direct Redis Ops<br/>(Goal CRUD)"]
-    ComplexPath["LangGraph StateGraph<br/>• Qwen 2.5 7B LLM<br/>• Tool calling loop<br/>• Response synthesis"]
 
-    RedisShort["Redis<br/>Short-term<br/>Checkpointing"]
-    RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
-    Tools["Health Tools<br/>(3 data tools)"]
+    Qwen["Qwen 2.5 7B<br/>Tool Decision"]
+
+    MemoryTools["Memory Tools<br/>get_my_goals<br/>get_tool_suggestions"]
+    HealthTools["Health Data Tools<br/>get_health_metrics<br/>get_sleep_analysis<br/>get_workout_data"]
+
+    MemoryData["Episodic/Procedural<br/>episodic:*<br/>procedural:*"]
+    HealthData["Health/Workout/Sleep<br/>health:*<br/>workout:*"]
+
+    DataSource{"Data Source<br/>Decision"}
+
+    RedisStructured["Redis<br/>(Structured)<br/>Hash/JSON"]
+    RedisVector["RedisVL<br/>(Vector Search)<br/>1024-dim embeddings"]
 
     UI --> Router
     Router -->|"Fast path"| FastPath
-    Router -->|"Complex path"| ComplexPath
+    Router -->|"Complex path"| Qwen
 
-    ComplexPath --> RedisShort
-    ComplexPath --> RedisVL
-    ComplexPath --> Tools
+    Qwen --> MemoryTools
+    Qwen --> HealthTools
+
+    MemoryTools --> MemoryData
+    HealthTools --> HealthData
+
+    MemoryData --> DataSource
+    HealthData --> DataSource
+
+    DataSource -->|"Structured queries"| RedisStructured
+    DataSource -->|"Semantic search"| RedisVector
 
     style UI fill:#fff,stroke:#dc3545,stroke-width:2px,color:#000
     style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
     style FastPath fill:#fff,stroke:#333,stroke-width:2px,color:#000
-    style ComplexPath fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
-    style RedisShort fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
-    style RedisVL fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
-    style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style Qwen fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
+    style MemoryTools fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style HealthTools fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style MemoryData fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style HealthData fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style DataSource fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
+    style RedisStructured fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
+    style RedisVector fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
 ```
 
 ### Layer Responsibilities
@@ -129,58 +148,16 @@ flowchart TB
 
 ### Data Sources → Tools
 
-Each data source is accessed by specific tools:
+Each Redis data source is accessed by specific tools:
 
-```mermaid
-flowchart LR
-    subgraph Redis["Redis (Structured Data)"]
-        direction TB
-        Checkpoint["langgraph:checkpoint:*<br/>Conversation history<br/><i>Auto-loaded</i>"]
-        Health["health:*<br/>Heart rate, steps,<br/>weight, BMI, sleep"]
-        Workout["workout:*<br/>Workout records<br/>and indexes"]
-    end
-
-    subgraph RedisVL["RedisVL (Vector Search)"]
-        direction TB
-        Episodic["episodic:*<br/>User goals<br/>and targets"]
-        Procedural["procedural:*<br/>Learned tool-calling<br/>patterns"]
-        Semantic["semantic:*<br/>Health knowledge base<br/><i>(optional)</i>"]
-    end
-
-    subgraph Tools["5 LLM Tools"]
-        direction TB
-        GetHealth["get_health_metrics"]
-        GetSleep["get_sleep_analysis"]
-        GetWorkout["get_workout_data"]
-        GetGoals["get_my_goals"]
-        GetSuggestions["get_tool_suggestions"]
-    end
-
-    Checkpoint -.->|LangGraph auto-loads| Tools
-    Health --> GetHealth
-    Health --> GetSleep
-    Workout --> GetWorkout
-    Episodic --> GetGoals
-    Episodic -.->|context| GetHealth
-    Procedural --> GetSuggestions
-    Procedural -.->|patterns| GetWorkout
-    Semantic -.->|optional| GetGoals
-
-    style Redis fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
-    style RedisVL fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
-    style Tools fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
-    style Checkpoint fill:#fff,stroke:#333,stroke-width:1px,color:#000
-    style Health fill:#fff,stroke:#333,stroke-width:1px,color:#000
-    style Workout fill:#fff,stroke:#333,stroke-width:1px,color:#000
-    style Episodic fill:#fff,stroke:#333,stroke-width:1px,color:#000
-    style Procedural fill:#fff,stroke:#333,stroke-width:1px,color:#000
-    style Semantic fill:#fff,stroke:#333,stroke-width:1px,color:#000
-    style GetHealth fill:#fff,stroke:#333,stroke-width:1px,color:#000
-    style GetSleep fill:#fff,stroke:#333,stroke-width:1px,color:#000
-    style GetWorkout fill:#fff,stroke:#333,stroke-width:1px,color:#000
-    style GetGoals fill:#fff,stroke:#333,stroke-width:1px,color:#000
-    style GetSuggestions fill:#fff,stroke:#333,stroke-width:1px,color:#000
-```
+| Data Source | Storage Type | Tools That Use It | What's Stored |
+|-------------|--------------|-------------------|---------------|
+| `langgraph:checkpoint:*` | Redis (LangGraph) | *(automatic)* | Conversation history for context |
+| `episodic:*` | RedisVL (vector) | `get_my_goals`<br/>`get_health_metrics` (context) | User goals and targets |
+| `procedural:*` | RedisVL (vector) | `get_tool_suggestions`<br/>`get_workout_data` (patterns) | Learned tool-calling patterns |
+| `semantic:*` | RedisVL (vector) | `get_my_goals` *(optional)* | General health knowledge base |
+| `health:*` | Redis (hash/JSON) | `get_health_metrics`<br/>`get_sleep_analysis` | Heart rate, steps, weight, BMI, sleep |
+| `workout:*` | Redis (hash/JSON) | `get_workout_data` | Workout records and indexes |
 
 **Storage Types:**
 - **Redis** = Structured data (hashes, JSON) for O(1) lookups
