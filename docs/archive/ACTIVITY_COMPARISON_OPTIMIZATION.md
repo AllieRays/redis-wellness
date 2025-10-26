@@ -1,11 +1,14 @@
-# Activity Comparison Tool Optimization
+# ARCHIVED: Activity Comparison Tool Optimization
+
+> **ARCHIVED**: Activity comparison functionality is now part of the consolidated `get_workout_data.py` tool. This standalone tool no longer exists. See `WARP.md` for current tool structure.
 
 **Date**: October 26, 2025
-**File**: `backend/src/apple_health/query_tools/get_activity_comparison.py`
+**File**: `backend/src/apple_health/query_tools/get_activity_comparison.py` (no longer exists)
+**Status**: Consolidated into `get_workout_data.py`
 
 ## Summary
 
-Optimized the `get_activity_comparison` tool to provide cleaner, more LLM-friendly data with better performance and maintainability.
+This document describes optimization work on a standalone activity comparison tool that has since been consolidated into the main workout tool.
 
 ---
 

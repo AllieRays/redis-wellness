@@ -83,51 +83,64 @@ flowchart TB
 
 ## 4. How It Works
 
-The stateful agent processes queries through a multi-stage workflow:
+The stateful agent processes queries through a multi-stage workflow with intelligent tool selection and memory retrieval:
 
 ```mermaid
 flowchart TB
-    Start(["🔴 Stateful Agent"])
     Query["User Query"]
 
-    Router{"Intent Router<br/>(Pre-LLM)"}
-    GoalOp["Direct Redis<br/>Goal Operation"]
+    Router{"Intent Router"}
+    GoalOp["Fast Path: Goal CRUD<br/><i>Why: <100ms, zero tokens</i>"]
 
-    LLM["Qwen 2.5 7B<br/>LLM Node"]
+    Memory["Load Checkpointed History<br/><i>Why: Resolve 'it', 'that'</i>"]
 
-    ShortTerm["Redis Memory<br/>(Checkpointing)"]
-    LongTerm["RedisVL Search<br/>(Goals + Patterns)"]
+    LLM["Qwen 2.5 7B<br/><i>Decides which tools to call</i>"]
 
-    Tools["Tool Calling<br/>(Health Data)"]
-    HealthData["Redis Health Data<br/>(Metrics + Workouts)"]
+    Decision{"Tool Selection"}
 
-    Response["Contextual Response"]
+    MT["Memory Tools<br/>get_my_goals<br/>get_tool_suggestions<br/><i>Why: Need user context</i>"]
+    HT["Health Tools<br/>get_health_metrics<br/>get_workout_data<br/>get_sleep_analysis<br/><i>Why: Need health data</i>"]
 
-    Start --> Query
+    VectorDB["RedisVL Search<br/><i>Goals + Patterns</i>"]
+    HealthDB["Redis Health Data<br/><i>Metrics + Workouts</i>"]
+
+    Loop{"Continue?"}
+    Store["Store Memories<br/><i>Episodic + Procedural</i>"]
+    Response["Response"]
+
     Query --> Router
+    Router -->|"Goal query"| GoalOp
+    Router -->|"Complex"| Memory
+    Memory --> LLM
+    LLM --> Decision
 
-    Router -->|"Goal setting/<br/>retrieval"| GoalOp
-    Router -->|"Complex<br/>query"| LLM
+    Decision -->|"Context"| MT
+    Decision -->|"Data"| HT
+    Decision -->|"None"| Response
 
-    ShortTerm -."Short-term".-> LLM
-    LongTerm -."Long-term".-> LLM
+    MT --> VectorDB
+    HT --> HealthDB
+    VectorDB --> Loop
+    HealthDB --> Loop
 
-    LLM --> Tools
-    Tools --> HealthData
-    HealthData --> Response
-
+    Loop -->|"Yes"| LLM
+    Loop -->|"No"| Store
+    Store --> Response
     GoalOp --> Response
 
-    style Start fill:#dc3545,stroke:#dc3545,stroke-width:3px,color:#fff
-    style Query fill:#fff,stroke:#dc3545,stroke-width:2px,color:#000
-    style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
-    style LLM fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
-    style ShortTerm fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
-    style LongTerm fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
-    style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
-    style HealthData fill:#fff,stroke:#333,stroke-width:2px,color:#000
-    style Response fill:#fff,stroke:#dc3545,stroke-width:2px,color:#000
-    style GoalOp fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style Query fill:#fff,stroke:#dc3545,stroke-width:2px
+    style Router fill:#fff3cd,stroke:#ffc107,stroke-width:2px
+    style GoalOp fill:#d1ecf1,stroke:#0dcaf0,stroke-width:2px
+    style Memory fill:#f8d7da,stroke:#dc3545,stroke-width:2px
+    style LLM fill:#cfe2ff,stroke:#0d6efd,stroke-width:2px
+    style Decision fill:#fff3cd,stroke:#ffc107,stroke-width:2px
+    style MT fill:#f8d7da,stroke:#dc3545,stroke-width:2px
+    style HT fill:#d1e7dd,stroke:#198754,stroke-width:2px
+    style VectorDB fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
+    style HealthDB fill:#198754,stroke:#198754,stroke-width:2px,color:#fff
+    style Loop fill:#fff3cd,stroke:#ffc107,stroke-width:2px
+    style Store fill:#f8d7da,stroke:#dc3545,stroke-width:2px
+    style Response fill:#fff,stroke:#dc3545,stroke-width:2px
 ```
 
 ### Key Components
