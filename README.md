@@ -82,34 +82,24 @@ You can chat with two versions of the same agent:
 
 <table>
 <tr>
-<td width="50%">
+<td width="50%" style="vertical-align: top; min-height: 800px;">
 
 #### 🟦 Stateless Agent
 
 ```mermaid
 flowchart TD
-    S1["User Query"]:::query
-    S2[" "]:::spacer
-    S3["Qwen 2.5 7B"]:::llm
-    S4[" "]:::spacer
-    S5["Health Tools<br/>(3 tools)"]:::tool
-    S6[" "]:::spacer
-    S7["Redis<br/>(Health Data)"]:::redis
-    S8[" "]:::spacer
-    S9["Response"]:::response
-    S10[" "]:::spacer
-    S11["❌ No Memory"]:::nomemory
+    S1["<br/><br/>User Query<br/><br/>"]:::query
+    S2["<br/><br/>Qwen 2.5 7B<br/><br/>"]:::llm
+    S3["<br/><br/>Health Tools<br/>(3 tools)<br/><br/>"]:::tool
+    S4["<br/><br/>Redis<br/>(Health Data)<br/><br/>"]:::redis
+    S5["<br/><br/>Response<br/><br/>"]:::response
+    S6["<br/><br/>❌ No Memory<br/><br/>"]:::nomemory
 
     S1 --> S2
     S2 --> S3
     S3 --> S4
     S4 --> S5
-    S5 --> S6
-    S6 --> S7
-    S7 --> S8
-    S8 --> S9
-    S9 --> S10
-    S10 -.-> S11
+    S5 -.-> S6
 
     classDef query fill:#fff,stroke:#333,stroke-width:2px,color:#000
     classDef llm fill:#fff,stroke:#0d6efd,stroke-width:2px,color:#000
@@ -117,29 +107,22 @@ flowchart TD
     classDef redis fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     classDef response fill:#fff,stroke:#333,stroke-width:2px,color:#000
     classDef nomemory fill:#e9ecef,stroke:#6c757d,stroke-width:2px,stroke-dasharray: 5 5,color:#6c757d
-    classDef spacer fill:none,stroke:none,color:transparent
 ```
 
 </td>
-<td width="50%">
+<td width="50%" style="vertical-align: top; min-height: 800px;">
 
 #### 🔴 Stateful Agent
 
 ```mermaid
 flowchart TD
-    T1["User Query"]:::query
-    T2[" "]:::spacer
-    T3["LangGraph<br/>Checkpointing"]:::memory
-    T4[" "]:::spacer
-    T5["Qwen 2.5 7B"]:::llm
-    T6[" "]:::spacer
-    T7["Health + Memory Tools<br/>(5 tools)"]:::tool
-    T8[" "]:::spacer
-    T9["Redis + RedisVL<br/>(Health Data + Vector Search)"]:::redis
-    T10[" "]:::spacer
-    T11["Response"]:::response
-    T12[" "]:::spacer
-    T13["✅ Store Memory<br/>(Goals & Patterns)"]:::memory
+    T1["<br/><br/>User Query<br/><br/>"]:::query
+    T2["<br/><br/>LangGraph<br/>Checkpointing<br/><br/>"]:::memory
+    T3["<br/><br/>Qwen 2.5 7B<br/><br/>"]:::llm
+    T4["<br/><br/>Health + Memory Tools<br/>(5 tools)<br/><br/>"]:::tool
+    T5["<br/><br/>Redis + RedisVL<br/>(Health Data + Vector Search)<br/><br/>"]:::redis
+    T6["<br/><br/>Response<br/><br/>"]:::response
+    T7["<br/><br/>✅ Store Memory<br/>(Goals & Patterns)<br/><br/>"]:::memory
 
     T1 --> T2
     T2 --> T3
@@ -147,13 +130,7 @@ flowchart TD
     T4 --> T5
     T5 --> T6
     T6 --> T7
-    T7 --> T8
-    T8 --> T9
-    T9 --> T10
-    T10 --> T11
-    T11 --> T12
-    T12 --> T13
-    T13 -.-> T3
+    T7 -.-> T2
 
     classDef query fill:#fff,stroke:#333,stroke-width:2px,color:#000
     classDef llm fill:#fff,stroke:#0d6efd,stroke-width:2px,color:#000
@@ -161,7 +138,6 @@ flowchart TD
     classDef redis fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     classDef response fill:#fff,stroke:#333,stroke-width:2px,color:#000
     classDef memory fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
-    classDef spacer fill:none,stroke:none,color:transparent
 ```
 
 </td>

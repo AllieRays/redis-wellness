@@ -1,4 +1,8 @@
-"""Utility functions for health data processing, validation, and analysis."""
+"""Utility functions for health data processing, validation, and analysis.
+
+Internal modules (not exported):
+- intent_router.py: Used internally by intent_bypass_handler.py
+"""
 
 # Agent helpers
 from .agent_helpers import (
