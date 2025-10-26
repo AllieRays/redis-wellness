@@ -1,114 +1,249 @@
 # Quickstart
 
-Get the demo running in 5 minutes.
+## 1. Overview
 
-## Prerequisites
+Get the Redis Wellness demo running in under 5 minutes using simple Make commands. This guide assumes you've completed [00_PREREQUISITES.md](00_PREREQUISITES.md).
 
-- Docker & Docker Compose
-- Ollama installed and running
-
-## 1. Install Ollama & Pull Models
+### Quick Start (TL;DR)
 
 ```bash
-# Install Ollama (macOS)
-brew install ollama
+# 1. Start all services
+make up
 
-# Or download from https://ollama.ai
+# 2. Import your health data
+make import
 
-# Start Ollama service
-ollama serve
-
-# In another terminal, pull required models
-ollama pull qwen2.5:7b              # LLM for chat (4.7 GB)
-ollama pull mxbai-embed-large       # Embeddings for memory (669 MB)
+# 3. Open http://localhost:3000
 ```
 
-> **Note**: First run downloads ~5.4 GB total. Subsequent runs are instant.
+That's it! Continue reading for detailed steps and troubleshooting.
 
-## 2. Start the Demo
+### What You'll Learn
 
-**Option 1: Quick start script (recommended)**
+- **[Prerequisites Check](#2-prerequisites-check)** - Verify your environment is ready
+- **[Start the Application](#3-start-the-application)** - Launch all services
+- **[Import Health Data](#4-import-health-data)** - Load your Apple Health data
+- **[Try the Demo](#5-try-the-demo)** - Test the side-by-side comparison
+- **[Troubleshooting & Next Steps](#6-troubleshooting--next-steps)** - Common issues and where to go next
+
+---
+
+## 2. Prerequisites Check
+
+**Quick verification:**
 
 ```bash
-chmod +x start.sh
-./start.sh
+# Verify Docker is running
+docker --version
+
+# Verify Ollama has required models
+ollama list | grep -E "qwen2.5:7b|mxbai-embed-large"
+
+# Verify health data export exists
+ls apple_health_export/export.xml
 ```
 
-This script checks dependencies and starts all services.
+**If any check fails**, complete [00_PREREQUISITES.md](00_PREREQUISITES.md) first.
 
-**Option 2: Manual start**
+---
+
+## 3. Start the Application
 
 ```bash
-# Build and start all services
-docker compose up --build
-
-# Or run in detached mode
-docker compose up -d --build
+# Start all services
+make up
 ```
 
-## 3. Access the Demo
+This starts Frontend (3000), Backend (8000), Redis (6379), and RedisInsight (8001).
 
-Open **http://localhost:3000** in your browser.
-
-You'll see a side-by-side comparison:
-- **Left**: Stateless agent (no memory)
-- **Right**: Stateful agent (Redis-powered memory)
-
-## 4. Try the Comparison
-
-Ask both agents the same questions:
-
-```
-You: "How many workouts do I have?"
-Bot: "You have 154 workouts recorded."
-
-You: "What day do I work out most?"
-Bot: "Friday is your most common workout day (50% of recent workouts)."
-
-You: "Why did you say that?"
-❌ Stateless: "I don't have context about what I said before."
-✅ Stateful: "Based on your last 6 workouts, 3 were on Friday..."
-```
-
-Watch the **Performance Comparison** table update in real-time showing:
-- Token usage
-- Response latency
-
-## 5. Use Your Own Data (Optional)
-
-Load your Apple Health export:
+**Verify services:**
 
 ```bash
-# Export from iPhone: Health app → Profile → Export All Health Data
-# Place export.xml in apple_health_export/
-
-python import_health_data.py apple_health_export/export.xml
+# Check all services are healthy
+make health
 ```
 
-See [07_APPLE_HEALTH_DATA.md](./07_APPLE_HEALTH_DATA.md) for details.
+**Access points:**
+- **Frontend UI**: http://localhost:3000
+- **Backend API**: http://localhost:8000/docs
+- **RedisInsight**: http://localhost:8001
 
-## Troubleshooting
+---
 
-**Services not starting?**
+## 4. Import Health Data
+
 ```bash
-docker compose logs -f backend
-docker compose logs -f frontend
+# Import your Apple Health data
+make import
+
+# Verify import was successful
+make verify
+
+# (Optional) View statistics
+make stats
 ```
 
-**Ollama not running?**
+**Import time**: 1-5 minutes depending on data volume.
+
+**What gets imported**: Health metrics (heart rate, steps, weight, BMI), sleep analysis, workout records, and indexes for fast queries.
+
+---
+
+## 5. Try the Demo
+
+Open **http://localhost:3000** - you'll see a side-by-side comparison of stateless vs. stateful agents.
+
+### Test the Memory Difference
+
+Try this sequence to see memory in action:
+
+1. **"How many workouts do I have?"**
+   - Both agents answer correctly
+
+2. **"What day do I work out most?"**
+   - Both agents analyze your workout patterns
+
+3. **"Why did you say that?"** ← *This reveals the difference*
+   - ❌ **Stateless**: "I don't have context about what I said before."
+   - ✅ **Stateful**: "Based on your last 6 workouts, 3 were on Friday..."
+
+The stateful agent remembers the conversation and can reference previous responses.
+
+### Useful Commands
+
 ```bash
-curl http://localhost:11434/api/version
+make logs           # View real-time logs
+make redis-keys     # Check Redis data
+make clear-session  # Clear chat (keeps health data)
+make stats          # View health data statistics
+```
+
+See [02_THE_DEMO.md](02_THE_DEMO.md) for detailed comparison.
+
+---
+
+## 6. Troubleshooting & Next Steps
+
+### Common Issues
+
+**Services not starting:**
+```bash
+# View logs for all services
+make logs
+
+# Check service health
+make health
+```
+
+**Ollama not running:**
+```bash
+# Check Ollama is running
+curl http://localhost:11434
+
+# Verify models are downloaded
 ollama list
+
+# Restart Ollama (macOS)
+open /Applications/Ollama.app
 ```
 
-**Redis issues?**
+**Redis connection issues:**
 ```bash
+# Check Redis container
 docker compose ps redis
+
+# Test Redis connection
 redis-cli -h localhost -p 6379 ping
+# Should return: PONG
 ```
 
-## Next Steps
+**Import failed:**
+```bash
+# Check export.xml exists
+ls -lh apple_health_export/export.xml
 
-- [02_THE_DEMO.md](./02_THE_DEMO.md) - Understand what you're seeing
-- [03_MEMORY_ARCHITECTURE.md](./03_MEMORY_ARCHITECTURE.md) - Learn about Redis memory patterns
-- [04_AUTONOMOUS_AGENTS.md](./04_AUTONOMOUS_AGENTS.md) - Learn about agentic tool calling
+# View backend logs
+make logs
+
+# Try fresh import (cleans Redis and reimports)
+make fresh-start
+```
+
+**Port conflicts:**
+```bash
+# Check if ports are in use
+lsof -i :3000  # Frontend
+lsof -i :8000  # Backend
+lsof -i :6379  # Redis
+
+# Stop all services
+make down
+
+# Or change ports in docker-compose.yml and restart
+make up
+```
+
+**Need to rebuild containers:**
+```bash
+# Rebuild Docker images (preserves Redis data)
+make rebuild
+
+# Or full clean rebuild
+make down
+make clean
+make up
+```
+
+### Make Command Reference
+
+Run `make help` anytime to see all available commands:
+
+**Setup & Development:**
+- `make up` - Start all Docker containers
+- `make down` - Stop all Docker containers
+- `make logs` - View Docker logs
+- `make health` - Check all services status
+
+**Data Management:**
+- `make import` - Import Apple Health data
+- `make verify` - Verify data is loaded
+- `make stats` - Show health data statistics
+- `make import-xml` - Import from specific XML file (prompts for path)
+
+**Testing & Quality:**
+- `make test` - Run all tests
+- `make test-unit` - Run unit tests only
+- `make lint` - Run code linting
+
+**Redis Operations:**
+- `make redis-keys` - Show Redis keys
+- `make redis-clean` - Clean Redis data (FLUSHALL, prompts for confirmation)
+- `make clear-session` - Clear chat session (keeps health data)
+
+**Quick Commands:**
+- `make fresh-start` - Clean + Import + Start (full reset)
+- `make rebuild` - Rebuild Docker images (preserves data)
+- `make clean` - Clean build artifacts
+
+### Next Steps
+
+Now that the demo is running:
+
+1. **Explore the UI** - Try various health queries and compare responses
+2. **Check Redis data** - Run `make redis-keys` or open http://localhost:8001 (RedisInsight)
+3. **View API docs** - Open http://localhost:8000/docs for Swagger documentation
+4. **Monitor logs** - Run `make logs` to watch service activity in real-time
+
+---
+
+## Related Documentation
+
+- **[00_PREREQUISITES.md](00_PREREQUISITES.md)** - Prerequisites setup guide
+- **[02_THE_DEMO.md](02_THE_DEMO.md)** - Detailed demo walkthrough and comparison
+- **[03_MEMORY_ARCHITECTURE.md](03_MEMORY_ARCHITECTURE.md)** - Four-layer memory system explained
+- **[04_AUTONOMOUS_AGENTS.md](04_AUTONOMOUS_AGENTS.md)** - How agentic tool calling works
+- **[07_APPLE_HEALTH_DATA.md](07_APPLE_HEALTH_DATA.md)** - Apple Health data pipeline details
+
+---
+
+**Key takeaway:** Three commands (`make up`, `make import`, open browser) gets you a working demo comparing stateless vs. stateful AI agents powered by Redis memory.

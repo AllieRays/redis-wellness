@@ -429,154 +429,112 @@ FT.SEARCH procedural_idx
 
 ---
 
-## 🚀 How to Run
+## 🚀 Quick Start
+
+### TL;DR (Under 5 Minutes)
+
+```bash
+# 1. Start all services
+make up
+
+# 2. Import your health data
+make import
+
+# 3. Open http://localhost:3000
+```
+
+**That's it!** See the side-by-side comparison of stateless vs. stateful AI agents.
 
 ### Prerequisites
 
-1. **Docker & Docker Compose** - For running services
-2. **Ollama** - For local LLM inference
+Before starting, you need:
 
-### Step 1: Install Ollama & Models
+1. **Docker & Docker Compose** - Container runtime
+2. **Ollama with models** - Qwen 2.5 7B + mxbai-embed-large
+3. **Apple Health export** - Your health data in `apple_health_export/export.xml`
 
-**Why Ollama + Qwen?**
-- 🔒 **100% Privacy**: Runs locally, no cloud APIs
-- ⚡ **Fast Setup**: One-command install
-- 🧠 **Smart Tool Calling**: Qwen 2.5 7B excels at function calling
-- 📊 **Reasonable Size**: 4.7 GB model, runs on most laptops
+**Complete setup guide**: See **[docs/00_PREREQUISITES.md](docs/00_PREREQUISITES.md)** for detailed installation instructions.
 
-```bash
-# Install Ollama (macOS)
-brew install ollama
+### Detailed Steps
 
-# Or download from https://ollama.ai
-
-# Start Ollama service
-ollama serve
-
-# Pull required models (in another terminal)
-ollama pull qwen2.5:7b              # Main LLM (4.7 GB)
-ollama pull mxbai-embed-large       # Embeddings (669 MB)
-```
-
-### Step 2: Start the Application
-
-**Quick Start (Recommended):**
+**1. Clone and Start Services:**
 
 ```bash
-# 1. Clone the repo
 git clone https://github.com/AllieRays/redis-wellness.git
 cd redis-wellness
 
-# 2. Run the startup script
-chmod +x start.sh
-./start.sh
-```
+# Start all services (Frontend, Backend, Redis, RedisInsight)
+make up
 
-The script automatically:
-- ✅ Checks Docker and Ollama are running
-- ✅ Verifies models are installed
-- ✅ Starts all services
-- ✅ Opens UI at http://localhost:3000
-
-**Manual Start:**
-
-```bash
-# Install dependencies
-make install
-
-# Start Redis
-make redis-start
-
-# Start development servers (backend + frontend)
-make dev
-```
-
-### Step 3: Import Health Data
-
-**Using Make commands:**
-
-```bash
-# Import Apple Health data
-make import
-
-# Verify data loaded correctly
-make verify
-
-# View statistics
-make stats
-
-# Run health check
+# Verify services are healthy
 make health
 ```
 
-**Manual import:**
+**2. Import Health Data:**
 
 ```bash
-# From XML export
-uv run --directory backend import-health apple_health_export/export.xml
+# Import your Apple Health export
+make import
 
-# From pre-parsed JSON (faster)
-uv run --directory backend import-health parsed_health_data.json
+# Verify import was successful
+make verify
+
+# (Optional) View statistics
+make stats
 ```
 
-### Step 4: Try the Demo
+**3. Try the Demo:**
 
-1. **Open the UI**: http://localhost:3000
-2. **Ask both agents**: "What was my average heart rate last week?"
-3. **Follow up with**: "Is that good?"
-4. **Watch the difference**:
-   - ❌ Stateless: "What are you referring to?"
-   - ✅ Stateful: "87 bpm is within normal range..."
+Open http://localhost:3000 and test the memory difference:
 
-### Available Commands
+1. **"What was my average heart rate last week?"** - Both agents answer
+2. **"Is that good?"** - Only stateful agent remembers context
+
+See **[docs/01_QUICKSTART.md](docs/01_QUICKSTART.md)** for detailed walkthrough.
+
+### Essential Make Commands
 
 ```bash
-make help              # Show all available commands
-make install           # Install dependencies
-make dev               # Start development servers
-make health            # Check all services
-make import            # Import Apple Health data
-make verify            # Verify data is indexed
-make stats             # Show health data statistics
-make test              # Run all tests
-make lint              # Run code linting
-make redis-start       # Start Redis
-make redis-stop        # Stop Redis
-make redis-clean       # Clear Redis data
-make fresh-start       # Clean + reimport + dev
-make demo              # Prepare for demo
+make help         # Show all available commands
+make up           # Start all Docker containers
+make down         # Stop all containers
+make logs         # View real-time logs
+make import       # Import health data
+make verify       # Verify data loaded
+make stats        # Show health statistics
+make health       # Check all services
+make fresh-start  # Full reset + reimport
 ```
 
 ### Access Points
 
 - **Frontend UI**: http://localhost:3000
-- **API Swagger Docs**: http://localhost:8000/docs
-- **API ReDoc**: http://localhost:8000/redoc
-- **Health Check**: http://localhost:8000/api/health/check
-- **Demo Info**: http://localhost:8000/api/chat/demo/info
-- **RedisInsight** (optional): http://localhost:8001
+- **API Docs**: http://localhost:8000/docs
+- **RedisInsight**: http://localhost:8001
 
 ---
 
-## 📚 Learn More
+## 📚 Documentation
 
-### Documentation
+### Getting Started (Start Here)
 
-#### Getting Started
-- **[01_QUICKSTART.md](./docs/01_QUICKSTART.md)** - Get running in 5 minutes
-- **[02_THE_DEMO.md](./docs/02_THE_DEMO.md)** - Understand the side-by-side comparison
-- **[07_APPLE_HEALTH_DATA.md](./docs/07_APPLE_HEALTH_DATA.md)** - Import your own health data
+- **[00_PREREQUISITES.md](docs/00_PREREQUISITES.md)** - Install Docker, Ollama, and export health data
+- **[01_QUICKSTART.md](docs/01_QUICKSTART.md)** - Get the demo running in under 5 minutes
+- **[02_THE_DEMO.md](docs/02_THE_DEMO.md)** - Understand the side-by-side comparison
 
-#### Redis + AI Patterns
-- **[03_MEMORY_ARCHITECTURE.md](./docs/03_MEMORY_ARCHITECTURE.md)** - How Redis powers agent memory
-- **[04_AUTONOMOUS_AGENTS.md](./docs/04_AUTONOMOUS_AGENTS.md)** - Autonomous tool calling patterns
-- **[05_REDIS_PATTERNS.md](./docs/05_REDIS_PATTERNS.md)** - Redis data structures for AI
-- **[06_ARCHITECTURE_DECISIONS.md](./docs/06_ARCHITECTURE_DECISIONS.md)** - Design decisions explained
+### Architecture Deep Dives
 
-#### Advanced Topics
-- **[08_EXTENDING.md](./docs/08_EXTENDING.md)** - Build on this demo
-- **[TEST_PLAN.md](./backend/TEST_PLAN.md)** - Testing strategy
-- **[WARP.md](./WARP.md)** - Development workflow guide
+- **[STATELESS_AGENT.md](docs/STATELESS_AGENT.md)** - How the stateless agent works
+- **[STATEFUL_AGENT.md](docs/STATEFUL_AGENT.md)** - How the stateful agent uses Redis memory
+- **[03_MEMORY_ARCHITECTURE.md](docs/03_MEMORY_ARCHITECTURE.md)** - Four-layer memory system explained
+- **[04_AUTONOMOUS_AGENTS.md](docs/04_AUTONOMOUS_AGENTS.md)** - Autonomous tool calling patterns
+
+### Redis + AI Patterns
+
+- **[05_REDIS_PATTERNS.md](docs/05_REDIS_PATTERNS.md)** - Redis data structures for AI agents
+- **[06_ARCHITECTURE_DECISIONS.md](docs/06_ARCHITECTURE_DECISIONS.md)** - Design decisions and rationale
+- **[07_APPLE_HEALTH_DATA.md](docs/07_APPLE_HEALTH_DATA.md)** - Apple Health data pipeline
+- **[08_QWEN_BEST_PRACTICES.md](docs/08_QWEN_BEST_PRACTICES.md)** - Qwen tool calling best practices
 
 ### API Documentation
 
@@ -614,65 +572,30 @@ GET /api/memory/{thread_id}/stats
 
 ## 🐛 Troubleshooting
 
-### Services not starting?
-
+**Services not starting:**
 ```bash
-# Check logs
-docker compose logs -f backend
-docker compose logs -f frontend
-
-# Check service status
-docker compose ps
-make health
+make logs    # View logs
+make health  # Check service status
 ```
 
-### Ollama issues?
-
+**Ollama not running:**
 ```bash
-# Check Ollama is running
-curl http://localhost:11434/api/version
-
-# List installed models
+curl http://localhost:11434
 ollama list
-
-# Restart Ollama
-brew services restart ollama
 ```
 
-### Redis issues?
-
+**Import failed:**
 ```bash
-# Check Redis status
-docker compose ps redis
-redis-cli -h localhost -p 6379 ping
-
-# View Redis data
-make redis-keys
-make verify
+make fresh-start  # Full reset + reimport
 ```
 
-### Port conflicts?
-
+**Port conflicts:**
 ```bash
-# Check what's using ports
-lsof -i :3000 :8000 :6379 :11434
-
-# Stop conflicting services
-docker compose down
+lsof -i :3000 :8000 :6379
+make down
 ```
 
-### Import issues?
-
-```bash
-# Verify Redis has data
-make verify
-
-# Check import status
-make stats
-
-# Re-import from scratch
-make fresh-start
-```
+See **[docs/01_QUICKSTART.md#troubleshooting](docs/01_QUICKSTART.md#6-troubleshooting--next-steps)** for detailed troubleshooting.
 
 ---
 
@@ -689,24 +612,6 @@ This is a **fully local AI system** - perfect for sensitive health data.
 
 ---
 
-## 📚 Learn More
-
-Dive deeper into the architecture and patterns:
-
-### Getting Started
-- **[01_QUICKSTART.md](./docs/01_QUICKSTART.md)** - Get running in 5 minutes
-- **[02_THE_DEMO.md](./docs/02_THE_DEMO.md)** - Understand what you're seeing
-- **[07_APPLE_HEALTH_DATA.md](./docs/07_APPLE_HEALTH_DATA.md)** - Import your own health data
-
-### Deep Dives
-- **[03_MEMORY_ARCHITECTURE.md](./docs/03_MEMORY_ARCHITECTURE.md)** - How Redis powers agent memory
-- **[04_AUTONOMOUS_AGENTS.md](./docs/04_AUTONOMOUS_AGENTS.md)** - Agentic tool calling patterns
-- **[05_REDIS_PATTERNS.md](./docs/05_REDIS_PATTERNS.md)** - Redis data structures for AI
-- **[06_ARCHITECTURE_DECISIONS.md](./docs/06_ARCHITECTURE_DECISIONS.md)** - Why we made each choice
-
-### Extending
-- **[08_EXTENDING.md](./docs/08_EXTENDING.md)** - Build on this demo
-- **[WARP.md](./WARP.md)** - Full development guide
 
 ---
 
