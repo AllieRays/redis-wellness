@@ -19,11 +19,14 @@ Usage:
 
 import argparse
 import json
+import logging
 import sys
 from datetime import datetime
 from pathlib import Path
 
 import redis
+
+logger = logging.getLogger(__name__)
 
 
 def import_from_json(
@@ -38,10 +41,10 @@ def import_from_json(
     else:
         # Load from JSON file
         if json_file is None:
-            print("❌ No JSON file or data provided")
+            logger.error("❌ No JSON file or data provided")
             return False
 
-        print(
+        logger.info(
             f"\n📄 Loading JSON: {json_file.name} ({json_file.stat().st_size / 1024 / 1024:.1f} MB)"
         )
 
@@ -49,7 +52,7 @@ def import_from_json(
             with open(json_file) as f:
                 data = json.load(f)
         except Exception as e:
-            print(f"❌ Failed to read JSON: {e}")
+            logger.error(f"❌ Failed to read JSON: {e}")
             return False
 
     # CRITICAL: Enrich workout data - REQUIRED for tools to work
@@ -60,7 +63,9 @@ def import_from_json(
         # REQUIRED: day_of_week field (used by workout analysis tools)
         start_date_str = workout.get("startDate", "")
         if not start_date_str:
-            print(f"⚠️  Workout missing startDate: {workout.get('type', 'unknown')}")
+            logger.warning(
+                f"⚠️  Workout missing startDate: {workout.get('type', 'unknown')}"
+            )
             failed_count += 1
             continue
 
@@ -76,7 +81,7 @@ def import_from_json(
                 workout["date"] = dt.strftime("%Y-%m-%d")
 
         except Exception as e:
-            print(f"⚠️  Failed to parse date '{start_date_str}': {e}")
+            logger.warning(f"⚠️  Failed to parse date '{start_date_str}': {e}")
             # Fallback to prevent "Unknown"
             workout["day_of_week"] = workout.get("day_of_week", "Monday")
             workout["date"] = workout.get("date", "2020-01-01")
@@ -92,31 +97,31 @@ def import_from_json(
             workout["calories"] = workout["totalEnergyBurned"]
 
     if enriched_count > 0:
-        print(f"✅ Enriched {enriched_count} workouts with computed fields")
+        logger.info(f"✅ Enriched {enriched_count} workouts with computed fields")
     if failed_count > 0:
-        print(f"⚠️  {failed_count} workouts had date parsing issues")
+        logger.warning(f"⚠️  {failed_count} workouts had date parsing issues")
 
-    print(f"✅ Parsed {data.get('record_count', 0):,} records")
+    logger.info(f"✅ Parsed {data.get('record_count', 0):,} records")
 
     # Store in Redis
-    print("\n💾 Storing in Redis...")
+    logger.info("\n💾 Storing in Redis...")
     try:
         # Main data
         main_key = RedisKeys.health_data(user_id)
         redis_client.set(main_key, json.dumps(data))
-        print(f"✅ Stored: {main_key}")
+        logger.info(f"✅ Stored: {main_key}")
 
         # Metric indexes
         if "metrics_summary" in data:
             for metric_type, summary in data["metrics_summary"].items():
                 index_key = RedisKeys.health_metric(user_id, metric_type)
                 redis_client.setex(index_key, 210 * 24 * 60 * 60, json.dumps(summary))
-            print(f"✅ Created {len(data['metrics_summary'])} metric indices")
+            logger.info(f"✅ Created {len(data['metrics_summary'])} metric indices")
 
         # Workout indexes - Create Redis hash sets for fast queries and deduplication
         if "workouts" in data and data["workouts"]:
-            print(f"\n📊 Indexing {len(data['workouts'])} workouts...")
-            print("   (Creating Redis hashes for O(1) lookups + deduplication)")
+            logger.info(f"\n📊 Indexing {len(data['workouts'])} workouts...")
+            logger.info("   (Creating Redis hashes for O(1) lookups + deduplication)")
 
             try:
                 from src.services.redis_workout_indexer import WorkoutIndexer
@@ -126,27 +131,26 @@ def import_from_json(
                 stats = indexer.index_workouts(user_id, data["workouts"])
 
                 if "error" in stats:
-                    print(f"⚠️  Indexing had issues: {stats['error']}")
-                    print(
+                    logger.warning(f"⚠️  Indexing had issues: {stats['error']}")
+                    logger.warning(
                         "   Workouts are still in JSON, queries will work (just slower)"
                     )
                 else:
-                    print(
+                    logger.info(
                         f"✅ Created {stats['workouts_indexed']} workout hashes ({stats['keys_created']} Redis keys)"
                     )
-                    print(f"   TTL: {stats['ttl_days']} days")
+                    logger.info(f"   TTL: {stats['ttl_days']} days")
 
             except Exception as e:
-                print(f"⚠️  Warning: Could not create workout indexes: {e}")
-                print("   Workouts are in JSON, queries will work (just slower)")
+                logger.warning(f"⚠️  Warning: Could not create workout indexes: {e}")
+                logger.warning(
+                    "   Workouts are in JSON, queries will work (just slower)"
+                )
 
         return True
 
     except Exception as e:
-        print(f"❌ Storage failed: {e}")
-        import traceback
-
-        traceback.print_exc()
+        logger.error(f"❌ Storage failed: {e}", exc_info=True)
         return False
 
 
@@ -155,41 +159,38 @@ def import_from_xml(xml_file: Path, user_id: str, redis_client) -> bool:
     try:
         from src.apple_health.parser import AppleHealthParser
     except ImportError as e:
-        print(f"❌ Import error: {e}")
-        print(
+        logger.error(f"❌ Import error: {e}")
+        logger.error(
             "   Make sure you're running from the project root with backend/src in PYTHONPATH"
         )
         return False
 
-    print(
+    logger.info(
         f"\n📱 Parsing XML: {xml_file.name} ({xml_file.stat().st_size / 1024 / 1024:.1f} MB)"
     )
-    print("⏳ This may take several minutes for large files...")
+    logger.info("⏳ This may take several minutes for large files...")
 
     try:
         parser = AppleHealthParser(allowed_directories=[str(xml_file.parent)])
 
         if not parser.validate_xml_structure(str(xml_file)):
-            print("❌ Not a valid Apple Health export file")
+            logger.error("❌ Not a valid Apple Health export file")
             return False
 
         health_data = parser.parse_file(str(xml_file))
 
         if not health_data or health_data.record_count == 0:
-            print("❌ No health records found")
+            logger.error("❌ No health records found")
             return False
 
-        print(f"✅ Parsed {health_data.record_count:,} health records")
+        logger.info(f"✅ Parsed {health_data.record_count:,} health records")
 
     except Exception as e:
-        print(f"❌ Parsing failed: {e}")
-        import traceback
-
-        traceback.print_exc()
+        logger.error(f"❌ Parsing failed: {e}", exc_info=True)
         return False
 
     # Convert to JSON format
-    print("\n🔄 Converting to storage format...")
+    logger.info("\n🔄 Converting to storage format...")
     data = {
         "record_count": health_data.record_count,
         "export_date": health_data.export_date.isoformat(),
@@ -252,7 +253,7 @@ def import_from_xml(xml_file: Path, user_id: str, redis_client) -> bool:
             }
         )
 
-    print("✅ Conversion complete")
+    logger.info("✅ Conversion complete")
 
     # Now store using same logic as JSON import
     return import_from_json(None, user_id, redis_client, data_dict=data)

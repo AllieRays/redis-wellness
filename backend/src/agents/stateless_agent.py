@@ -252,6 +252,9 @@ class StatelessHealthAgent:
             for iteration in range(max_tool_calls):
                 # Bind tools and call LLM
                 llm_with_tools = self.llm.bind_tools(user_tools)
+                logger.info(
+                    f"Iteration {iteration + 1}: conversation has {len(conversation)} messages"
+                )
 
                 # If streaming and first iteration, use astream directly
                 if stream and iteration == 0:
