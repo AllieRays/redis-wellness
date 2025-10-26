@@ -232,9 +232,9 @@ class TestToolConsolidation:
 
         for tool in all_tools:
             # All tools should start with "get_" or be memory tools
-            assert (
-                tool.name.startswith("get_") or tool.name == "store_user_goal"
-            ), f"Tool {tool.name} doesn't follow get_* naming convention"
+            assert tool.name.startswith("get_") or tool.name == "store_user_goal", (
+                f"Tool {tool.name} doesn't follow get_* naming convention"
+            )
 
     def test_no_duplicate_tool_names(self):
         """Test that all tool names are unique."""
@@ -287,14 +287,14 @@ class TestDocstringQualityForQwen:
             docstring = tool.description
 
             # Must have DO NOT USE section
-            assert (
-                "DO NOT USE" in docstring
-            ), f"{tool.name} missing 'DO NOT USE' guidance"
+            assert "DO NOT USE" in docstring, (
+                f"{tool.name} missing 'DO NOT USE' guidance"
+            )
 
             # Must mention at least one alternative with arrow
-            assert (
-                "→" in docstring or "->" in docstring
-            ), f"{tool.name} doesn't point to alternatives"
+            assert "→" in docstring or "->" in docstring, (
+                f"{tool.name} doesn't point to alternatives"
+            )
 
     def test_no_emojis_in_any_docstrings(self):
         """Test that no tools use emojis in docstrings (Qwen clarity)."""
@@ -310,9 +310,9 @@ class TestDocstringQualityForQwen:
         for tool in all_tools:
             docstring = tool.description
             for emoji in emoji_chars:
-                assert (
-                    emoji not in docstring
-                ), f"{tool.name} contains emoji {emoji} in docstring"
+                assert emoji not in docstring, (
+                    f"{tool.name} contains emoji {emoji} in docstring"
+                )
 
 
 @pytest.mark.unit
