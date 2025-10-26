@@ -45,48 +45,29 @@ The stateful agent combines **intent routing**, **LangGraph workflow**, and **Re
 flowchart TB
     UI["User Interface"]
     Router["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
+
     FastPath["Direct Redis Ops<br/>(Goal CRUD)"]
+    ComplexPath["LangGraph StateGraph<br/>• Qwen 2.5 7B LLM<br/>• Tool calling loop<br/>• Response synthesis"]
 
-    Qwen["Qwen 2.5 7B<br/>Tool Decision"]
-
-    MemoryTools["Memory Tools<br/>get_my_goals<br/>get_tool_suggestions"]
-    HealthTools["Health Data Tools<br/>get_health_metrics<br/>get_sleep_analysis<br/>get_workout_data"]
-
-    MemoryData["Episodic/Procedural<br/>episodic:*<br/>procedural:*"]
-    HealthData["Health/Workout/Sleep<br/>health:*<br/>workout:*"]
-
-    DataSource{"Data Source<br/>Decision"}
-
-    RedisStructured["Redis<br/>(Structured)<br/>Hash/JSON"]
-    RedisVector["RedisVL<br/>(Vector Search)<br/>1024-dim embeddings"]
+    RedisShort["Redis<br/>Short-term<br/>Checkpointing"]
+    RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
+    Tools["Health Tools<br/>(3 data tools)"]
 
     UI --> Router
     Router -->|"Fast path"| FastPath
-    Router -->|"Complex path"| Qwen
+    Router -->|"Complex path"| ComplexPath
 
-    Qwen --> MemoryTools
-    Qwen --> HealthTools
-
-    MemoryTools --> MemoryData
-    HealthTools --> HealthData
-
-    MemoryData --> DataSource
-    HealthData --> DataSource
-
-    DataSource -->|"Structured queries"| RedisStructured
-    DataSource -->|"Semantic search"| RedisVector
+    ComplexPath --> RedisShort
+    ComplexPath --> RedisVL
+    ComplexPath --> Tools
 
     style UI fill:#fff,stroke:#dc3545,stroke-width:2px,color:#000
     style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
     style FastPath fill:#fff,stroke:#333,stroke-width:2px,color:#000
-    style Qwen fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
-    style MemoryTools fill:#fff,stroke:#333,stroke-width:2px,color:#000
-    style HealthTools fill:#fff,stroke:#333,stroke-width:2px,color:#000
-    style MemoryData fill:#fff,stroke:#333,stroke-width:2px,color:#000
-    style HealthData fill:#fff,stroke:#333,stroke-width:2px,color:#000
-    style DataSource fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
-    style RedisStructured fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
-    style RedisVector fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
+    style ComplexPath fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
+    style RedisShort fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
+    style RedisVL fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
+    style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ### Layer Responsibilities
@@ -116,7 +97,13 @@ flowchart TB
     Memory["LangGraph Checkpointer<br/>(loads conversation history)<br/>langgraph:checkpoint:*"]
     LLM["Qwen 2.5 7B"]
     Decision{"Which tool?"}
-    Tools["Execute Tools<br/>(See table below)"]
+    MemoryTools["Memory Tools<br/>get_my_goals<br/>get_tool_suggestions"]
+    HealthTools["Health Data Tools<br/>get_health_metrics<br/>get_sleep_analysis<br/>get_workout_data"]
+    MemoryData["Episodic/Procedural<br/>episodic:*<br/>procedural:*"]
+    HealthData["Health/Workout/Sleep<br/>health:*<br/>workout:*"]
+    DataSource{"Data Source<br/>Decision"}
+    RedisStructured["Redis<br/>(Structured)"]
+    RedisVector["RedisVL<br/>(Vector Search)"]
     Loop{"More data?"}
     Store["Store Memories<br/>(if worth remembering)<br/>episodic:* or procedural:*"]
     Response["=== Response ==="]
@@ -127,9 +114,17 @@ flowchart TB
     GoalRedis --> Response
     Memory --> LLM
     LLM --> Decision
-    Decision -->|Call tool| Tools
-    Decision -->|No tools needed| Response
-    Tools --> Loop
+    Decision -->|Memory| MemoryTools
+    Decision -->|Health Data| HealthTools
+    Decision -->|No tools| Response
+    MemoryTools --> MemoryData
+    HealthTools --> HealthData
+    MemoryData --> DataSource
+    HealthData --> DataSource
+    DataSource -->|Structured| RedisStructured
+    DataSource -->|Vector| RedisVector
+    RedisStructured --> Loop
+    RedisVector --> Loop
     Loop -->|Yes| LLM
     Loop -->|No| Response
     Response --> Store
@@ -140,7 +135,13 @@ flowchart TB
     style Memory fill:#f8d7da,stroke:#dc3545,stroke-width:2px
     style LLM fill:#fff,stroke:#333,stroke-width:2px
     style Decision fill:#fff,stroke:#333,stroke-width:2px
-    style Tools fill:#fff,stroke:#333,stroke-width:2px
+    style MemoryTools fill:#fff,stroke:#333,stroke-width:2px
+    style HealthTools fill:#fff,stroke:#333,stroke-width:2px
+    style MemoryData fill:#fff,stroke:#333,stroke-width:2px
+    style HealthData fill:#fff,stroke:#333,stroke-width:2px
+    style DataSource fill:#fff,stroke:#333,stroke-width:2px
+    style RedisStructured fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
+    style RedisVector fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
     style Loop fill:#fff,stroke:#333,stroke-width:2px
     style Store fill:#f8d7da,stroke:#dc3545,stroke-width:2px
     style Response fill:#fff,stroke:#333,stroke-width:3px,min-width:300px
