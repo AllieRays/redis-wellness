@@ -16,24 +16,12 @@ This document explains the **internal architecture of the stateful agent**: how 
 
 ## 2. Key Technologies
 
-- **Qwen 2.5 7B**: Function-calling LLM that reads tool docstrings and autonomously decides which tools to call
+- **Qwen 2.5 7B**: Function-calling LLM (via Ollama) that reads tool docstrings and autonomously decides which tools to call
+- **Ollama Embeddings**: `mxbai-embed-large` model generates 1024-dim vectors for semantic search
 - **LangGraph**: StateGraph workflow orchestration with automatic Redis checkpointing for conversation history
-- **Redis**: Stores short-term conversation history via LangGraph's AsyncRedisSaver
+- **Redis**: Stores short-term conversation history via LangGraph's AsyncRedisSaver and structured health data
 - **RedisVL**: Vector search for episodic memory (goals) and procedural memory (learned patterns)
-- **Intent Router**: Pre-LLM pattern matching for fast deterministic operations (simple queries)
-
-### 5 Tools Bound to LLM
-
-#### Health Data Tools
-
-1. `get_health_metrics` - Heart rate, steps, weight, BMI, etc.
-2. `get_sleep_analysis` - Sleep data with daily aggregation and efficiency metrics
-3. `get_workout_data` - All workout queries (lists, patterns, progress, comparisons)
-
-#### Memory Tools
-
-4. `get_my_goals` - Retrieve user goals and preferences (episodic memory)
-5. `get_tool_suggestions` - Retrieve learned tool-calling patterns (procedural memory)
+- **Intent Router**: Pre-LLM pattern matching for fast CRUD operations on goals
 
 ---
 
@@ -51,7 +39,7 @@ flowchart TB
 
     RedisShort["Redis<br/>Short-term<br/>Checkpointing"]
     RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
-    Tools["Health Tools<br/>(3 data tools)"]
+    Tools["LLM Tools<br/>(5 total: 3 health + 2 memory)"]
 
     UI --> Router
     Router -->|"Fast path"| FastPath
@@ -77,7 +65,9 @@ flowchart TB
 3. **Memory Layer**:
    - Redis checkpointing (short-term conversation history)
    - RedisVL vector search (episodic goals + procedural patterns)
-4. **Tool Layer**: 5 tools for health data retrieval and memory access
+4. **Tool Layer**: 5 LLM-callable tools
+   - **Health data**: `get_health_metrics`, `get_sleep_analysis`, `get_workout_data`
+   - **Memory**: `get_my_goals`, `get_tool_suggestions`
 
 ---
 
@@ -85,15 +75,15 @@ flowchart TB
 
 ### Workflow
 
-The stateful agent processes queries through a multi-stage workflow:
+The stateful agent routes queries through: intent routing → LangGraph checkpointing → LLM tool selection → data retrieval → memory storage:
 
 ```mermaid
 %%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px', 'edgeLabelBackground':'#f8f9fa'}, 'flowchart': {'nodeSpacing': 25, 'rankSpacing': 25}}}%%
 flowchart TB
     Query["User Query"]
     Router{"Intent Router"}
-    GoalOp["Simple Query"]
-    GoalRedis["Redis<br/>procedural:*"]
+    GoalOp["Simple Query<br/>(Goal CRUD)"]
+    GoalRedis["Redis<br/>(CRUD ops)"]
     Memory["LangGraph Checkpointer<br/>(loads conversation history)"]
     LLM["Qwen 2.5 7B<br/>(Ollama LLM)"]
     Decision{"Which tool?"}
@@ -114,11 +104,11 @@ flowchart TB
     LLM --> Decision
     Decision --> MemoryTools
     Decision --> HealthTools
-    Decision -->|No tools| Response
+    Decision -->|"Has answer"| Response
     MemoryTools --> DataSource
     HealthTools --> DataSource
-    DataSource -->|Structured| RedisStructured
-    DataSource -->|Vector| RedisVector
+    DataSource --> RedisStructured
+    DataSource --> RedisVector
     RedisStructured --> Loop
     RedisVector --> Loop
     Loop -->|Yes| LLM
@@ -141,16 +131,16 @@ flowchart TB
     style Response fill:#fff,stroke:#333,stroke-width:2px,min-width:500px
 ```
 
-### Data Sources → Tools
+### Tool → Data Source Mapping
 
-Each Redis data source is accessed by specific tools:
+Each tool accesses specific Redis data sources:
 
 | Data Source | Storage Type | Tools That Use It | What's Stored |
 |-------------|--------------|-------------------|---------------|
 | `langgraph:checkpoint:*` | Redis (LangGraph) | *(automatic)* | Conversation history for context |
-| `episodic:*` | RedisVL (vector) | `get_my_goals`<br/>`get_health_metrics` (context) | User goals and targets |
-| `procedural:*` | RedisVL (vector) | `get_tool_suggestions`<br/>`get_workout_data` (patterns) | Learned tool-calling patterns |
-| `semantic:*` | RedisVL (vector) | `get_my_goals` *(optional)* | General health knowledge base |
+| `episodic:*` | RedisVL (vector) | `get_my_goals` | User goals and targets |
+| `procedural:*` | RedisVL (vector) | `get_tool_suggestions` | Learned tool-calling patterns |
+| `semantic:*` | RedisVL (vector) | *(not implemented)* | General health knowledge base |
 | `health:*` | Redis (hash/JSON) | `get_health_metrics`<br/>`get_sleep_analysis` | Heart rate, steps, weight, BMI, sleep |
 | `workout:*` | Redis (hash/JSON) | `get_workout_data` | Workout records and indexes |
 
@@ -163,9 +153,15 @@ Each Redis data source is accessed by specific tools:
 
 #### Intent Router (Fast Path)
 
-Pattern-based routing for deterministic operations. Bypasses LLM for simple queries like goal setting.
+Pattern-based routing for goal CRUD operations. Bypasses LLM entirely.
 
-**Example:** "My goal is to run 3x per week" → Direct Redis storage (<100ms, zero tokens)
+**What are "simple queries"?**
+- Goal CRUD operations: "My goal is X", "What are my goals?", "Delete my goals"
+- Pattern matching on keywords: "goal", "target", "my goals"
+- Direct Redis hash operations (no LLM, no vector search)
+- Benefits: <100ms response, zero tokens, zero LLM cost
+
+**Example:** "My goal is to run 3x per week" → Direct Redis HSET (<100ms, zero tokens)
 
 #### LangGraph Checkpointing (Short-term Memory)
 
@@ -199,7 +195,7 @@ episodic:user:goal:1729962000 → {
 
 ### Real Example: "Is that good?"
 
-Demonstrates all three components working together:
+Demonstrates memory components working together (checkpointing + episodic retrieval):
 
 ```
 User: "What was my heart rate last week?"
@@ -234,6 +230,20 @@ Combines conversation context (72 bpm) + episodic memory (goal: 60-75 bpm):
 
 > "72 bpm is within your target range of 60-75 bpm. That's a healthy resting heart rate."
 
+**Step 5: Store procedural pattern (if successful)**
+
+After generating the response, the agent evaluates workflow success:
+```python
+if success_score >= 0.7:  # Success = useful answer (not error/empty/hallucination)
+    store_procedural_pattern(
+        query_embedding,
+        tools_used=["get_my_goals"],  # Only tool used in this example
+        success_score=0.9
+    )
+```
+
+Future similar queries will retrieve this pattern via `get_tool_suggestions`, helping the LLM choose the right tools faster.
+
 ---
 
 ## 5. Why It Matters
@@ -256,10 +266,10 @@ Combines conversation context (72 bpm) + episodic memory (goal: 60-75 bpm):
 
 ### Performance
 
-- Intent router: <100ms (direct Redis)
-- First turn: ~2.8s (0.5s checkpoint + 2.3s LLM)
-- Follow-up: ~1.9s (context preloaded)
-- Memory overhead: ~170 KB per user (100 turns + 10 goals)
+- Intent router: <100ms (direct Redis CRUD, no LLM)
+- First turn: ~2.8s (0.5s checkpoint load + 2.3s LLM inference) - *typical for local 7B models*
+- Follow-up: ~1.9s (conversation context already loaded)
+- Memory overhead: ~170 KB per user (100 messages + 10 goals with embeddings)
 
 ---
 
