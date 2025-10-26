@@ -86,39 +86,39 @@ flowchart TB
 The stateful agent processes queries through a multi-stage workflow with intelligent tool selection and memory retrieval:
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}}}%%
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}, 'flowchart': {'nodeSpacing': 30, 'rankSpacing': 30}}}%%
 flowchart TB
     Query["User Query"]
     Router{"Intent Router"}
-    subgraph Simple["Simple Path"]
-        GoalOp["Goal CRUD"]
-        Redis1["Redis"]
-    end
-    subgraph Complex["Complex Path"]
-        Memory["Load History"]
-        LLM["Qwen 2.5 7B"]
-        Decision{"Which tool?"}
-        MT["Memory Tools<br/>get_my_goals<br/>get_tool_suggestions"]
-        HT["Health Tools<br/>get_health_metrics<br/>get_workout_data<br/>get_sleep_analysis"]
-        VectorDB["RedisVL<br/>Vector search"]
-        HealthDB["Redis<br/>Health data"]
-        Loop{"More data?"}
-        Store["Store memories"]
-    end
+    GoalOp["Goal CRUD"]
+    GoalRedis["Redis<br/>procedural:*"]
+    Memory["LangGraph Checkpointer<br/>langgraph:checkpoint:*"]
+    LLM["Qwen 2.5 7B"]
+    Decision{"Which tool?"}
+    MT["Memory Tools<br/>get_my_goals<br/>get_tool_suggestions"]
+    HT["Health Tools<br/>get_health_metrics<br/>get_workout_data<br/>get_sleep_analysis"]
+    VectorDB["RedisVL Vector Search<br/>episodic:* (goals)<br/>procedural:* (patterns)"]
+    SemanticDB["Semantic Knowledge<br/>semantic:* (health facts)<br/>(optional)"]
+    HealthDB["Redis Health Data Store<br/>health:*, workout:*"]
+    Loop{"More data?"}
+    Store["Store to Redis<br/>episodic:* (goals)<br/>procedural:* (patterns)"]
     Response["Response"]
     Query --> Router
-    Router -->|"'Set goal...'"| GoalOp
-    Router -->|"Health query"| Memory
-    GoalOp --> Redis1
-    Redis1 --> Response
+    Router -->|Simple| GoalOp
+    Router -->|Complex| Memory
+    GoalOp --> GoalRedis
+    GoalRedis --> Response
     Memory --> LLM
     LLM --> Decision
     Decision -->|Context| MT
     Decision -->|Data| HT
     Decision -->|Done| Response
     MT --> VectorDB
+    MT -.-> SemanticDB
     HT --> HealthDB
+    HT -.-> VectorDB
     VectorDB --> Loop
+    SemanticDB -.-> Loop
     HealthDB --> Loop
     Loop -->|Yes| LLM
     Loop -->|No| Store
@@ -126,19 +126,18 @@ flowchart TB
     style Query fill:#fff,stroke:#333,stroke-width:2px
     style Router fill:#fff,stroke:#333,stroke-width:2px
     style GoalOp fill:#fff,stroke:#333,stroke-width:2px
-    style Redis1 fill:#fff,stroke:#333,stroke-width:2px
+    style GoalRedis fill:#fff,stroke:#333,stroke-width:2px
     style Memory fill:#f8d7da,stroke:#dc3545,stroke-width:2px
     style LLM fill:#fff,stroke:#333,stroke-width:2px
     style Decision fill:#fff,stroke:#333,stroke-width:2px
     style MT fill:#f8d7da,stroke:#dc3545,stroke-width:2px
     style HT fill:#fff,stroke:#333,stroke-width:2px
     style VectorDB fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
+    style SemanticDB fill:#f8d7da,stroke:#dc3545,stroke-width:2px,stroke-dasharray: 5 5
     style HealthDB fill:#fff,stroke:#333,stroke-width:2px
     style Loop fill:#fff,stroke:#333,stroke-width:2px
     style Store fill:#f8d7da,stroke:#dc3545,stroke-width:2px
     style Response fill:#fff,stroke:#333,stroke-width:2px
-    style Simple fill:#f8f9fa,stroke:#6c757d,stroke-width:1px
-    style Complex fill:#f8f9fa,stroke:#6c757d,stroke-width:1px
 ```
 
 ### Key Components
@@ -171,7 +170,7 @@ Goals and patterns stored with embeddings for semantic retrieval.
 **Example goal storage:**
 ```python
 episodic:user:goal:1729962000 → {
-    "text": "Target heart rate is 80-85 bpm",
+    "text": "Target resting heart rate is 60-75 bpm",
     "embedding": [0.234, -0.123, ...],  # 1024-dim
     "metric": "HeartRate"
 }
@@ -185,7 +184,7 @@ Demonstrates all three components working together:
 
 ```
 User: "What was my heart rate last week?"
-Agent: "87 bpm average"
+Agent: "72 bpm average"
 User: "Is that good?"  ← Needs context + goals
 ```
 
@@ -193,7 +192,7 @@ User: "Is that good?"  ← Needs context + goals
 ```python
 messages = [
     HumanMessage("What was my heart rate last week?"),
-    AIMessage("87 bpm average"),
+    AIMessage("72 bpm average"),
     HumanMessage("Is that good?")  # Current query
 ]
 ```
@@ -207,14 +206,14 @@ Qwen reads the tool docstring and decides to retrieve goals:
 
 **Step 3: RedisVL retrieves goal**
 ```python
-goals = [{"metric": "HeartRate", "target": "80-85 bpm"}]
+goals = [{"metric": "HeartRate", "target": "60-75 bpm"}]
 ```
 
 **Step 4: LLM synthesizes response**
 
-Combines conversation context (87 bpm) + episodic memory (goal: 80-85 bpm):
+Combines conversation context (72 bpm) + episodic memory (goal: 60-75 bpm):
 
-> "87 bpm is slightly above your target range of 80-85 bpm."
+> "72 bpm is within your target range of 60-75 bpm. That's a healthy resting heart rate."
 
 ---
 
