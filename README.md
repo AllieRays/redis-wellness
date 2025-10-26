@@ -10,10 +10,12 @@
 
 # Redis Wellness 🧠
 
-
 Can AI agents be intelligent without memory?
+
 This project compares **Stateless** and **Stateful (Redis-powered)** AI agents using **Apple Health data**, showing how memory transforms reasoning, recall, and conversation quality.
+
 Built with **FastAPI**, **TypeScript**, **Redis**, **RedisVL**, and **Ollama (Qwen 2.5 7B)**, all running **100% locally** for privacy.
+
 🔒 *Your health data never leaves your machine.*
 
 ## Why This Demo?
@@ -29,23 +31,24 @@ You can chat with two versions of the same agent:
 
 ## 🎯 The Difference
 
+### Core Architecture
+
 | Component | Stateless Agent | Stateful Agent | Technology |
 |-----------|-----------------|----------------|------------|
 | **LLM** | Qwen 2.5 7B | Qwen 2.5 7B | Ollama (local inference) |
 | **Orchestration** | Simple tool loop | LangGraph state machine | LangGraph with Redis checkpointing |
 | **Short-term Memory** | None | Conversation history (7-month TTL) | Redis LIST (`LPUSH conversation:{session_id}`) |
 | **Long-term Memory** | None | Semantic context retrieval | RedisVL (HNSW index, 1024-dim embeddings) |
-| **Vector Search** | N/A | Cosine similarity search | `FT.SEARCH` with KNN queries |
-| **Embeddings** | N/A | Cached in Redis | Ollama (`mxbai-embed-large`) |
-| **Message Persistence** | Ephemeral (request-scoped) | Durable across sessions | Redis checkpoint saver |
-| **Context Window** | Single message only | Full conversation history | O(n) LIST retrieval |
 | **Health Data** | Redis read-only access | Redis read-only access | Redis Hashes + JSON (O(1) lookups) |
 | **Tool Calling** | 9 specialized health tools | 9 specialized health tools | LangChain tool integration |
+
+### Conversation Capabilities
+
+| Capability | Stateless Agent | Stateful Agent | How It Works |
+|------------|-----------------|----------------|---------------|
 | **Follow-up Questions** | Treats each as new query | Maintains conversation flow | Prior exchanges in LLM prompt |
 | **Pronoun Resolution** | Cannot resolve "it", "that", "those" | Resolves references from context | Message history retrieval |
-| **Pattern Learning** | No memory of past patterns | Learns from interactions | Vector similarity retrieval |
-| **Personalization** | Generic responses only | Context-aware insights | User-specific memory indexing |
-| **Multi-turn Reasoning** | Isolated single-turn | Coherent multi-turn conversations | State persistence via LangGraph |
+| **Multi-turn Reasoning** | Isolated single-turn responses | Coherent multi-turn conversations | State persistence via LangGraph |
 | **Example** | **You:** "What was my average heart rate last week?"<br>**Bot:** "87 bpm"<br><br>**You:** "Is that good?"<br>**Bot:** "What are you referring to?" | **You:** "What was my average heart rate last week?"<br>**Bot:** "87 bpm"<br><br>**You:** "Is that good?"<br>**Bot:** "87 bpm is within normal range for your age group..." | Stateful uses conversation history + semantic memory |
 
 ---
@@ -55,50 +58,57 @@ You can chat with two versions of the same agent:
 ### Side-by-Side Comparison
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph stateless["🟦 Stateless Agent"]
         direction TB
         S1["User Query"]:::start
-        S2["Qwen 2.5 7B"]:::agent
-        S3["Tool Calling"]:::tool
-        S4["Redis Health Data"]:::data
+        S2["Qwen 2.5 7B"]:::llm
+        S3{"Need Tools?"}:::decision
+        S4["Tools Query<br/>Redis Health Data Store"]:::tool
         S5["Response"]:::response
-        S6["NO MEMORY"]:::nomem
 
         S1 --> S2
         S2 --> S3
-        S3 --> S4
-        S4 --> S5
-        S6 -."Forgets everything".-> S2
+        S3 -->|Yes| S4
+        S4 -->|"Results"| S2
+        S3 -->|No| S5
     end
 
-    stateless ~~~ stateful
-
-    subgraph stateful["🔴 Stateful Agent"]
+    subgraph stateful["🔴 Stateful Agent (LangGraph)"]
         direction TB
         T1["User Query"]:::start
-        T2["Qwen 2.5 7B"]:::agent
-        T3["Redis Memory"]:::memory
-        T4["RedisVL Search"]:::memory
-        T5["Tool Calling"]:::tool
-        T6["Redis Health Data"]:::data
-        T7["Contextual Response"]:::response
+        T2["Retrieve Episodic Memory<br/>(RedisVL vector search)"]:::memory
+        T3["Retrieve Procedural Memory<br/>(Redis learned patterns)"]:::memory
+        T4["Qwen 2.5 7B<br/>+ Episodic Context<br/>+ Checkpointed History"]:::llm
+        T5{"Need Tools?"}:::decision
+        T6["Tools Query<br/>Redis Health Data Store"]:::tool
+        T7["Reflect<br/>(Evaluate Success)"]:::reflect
+        T8{"Successful?"}:::decision
+        T9["Store Episodic<br/>(Extract Goals)"]:::memory
+        T10["Store Procedural<br/>(Save Pattern)"]:::memory
+        T11["Contextual Response"]:::response
 
         T1 --> T2
-        T2 <-->|"Short-term"| T3
-        T2 <-->|"Long-term"| T4
-        T2 --> T5
-        T5 --> T6
-        T6 --> T7
+        T2 --> T3
+        T3 --> T4
+        T4 --> T5
+        T5 -->|Yes| T6
+        T6 -->|"Results added<br/>to state"| T4
+        T5 -->|No| T7
+        T7 --> T8
+        T8 -->|Yes| T9
+        T8 -->|No| T11
+        T9 --> T10
+        T10 --> T11
     end
 
     classDef start fill:#fff,stroke:#dc3545,stroke-width:2px,color:#212529
-    classDef agent fill:#fff,stroke:#6c757d,stroke-width:2px,color:#212529
-    classDef tool fill:#fff,stroke:#6c757d,stroke-width:2px,color:#212529
-    classDef data fill:#fff,stroke:#6c757d,stroke-width:2px,color:#212529
-    classDef response fill:#fff,stroke:#dc3545,stroke-width:2px,color:#212529
-    classDef nomem fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
+    classDef llm fill:#fff,stroke:#0d6efd,stroke-width:2px,color:#212529
+    classDef decision fill:#fff,stroke:#ffc107,stroke-width:2px,color:#212529
+    classDef tool fill:#fff,stroke:#198754,stroke-width:2px,color:#fff
     classDef memory fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
+    classDef reflect fill:#17a2b8,stroke:#17a2b8,stroke-width:2px,color:#fff
+    classDef response fill:#fff,stroke:#dc3545,stroke-width:2px,color:#212529
 
     style stateless fill:#fefefe,stroke:#6c757d,stroke-width:2px
     style stateful fill:#fefefe,stroke:#6c757d,stroke-width:2px
