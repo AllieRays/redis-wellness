@@ -20,7 +20,7 @@ This document explains the **internal architecture of the stateful agent**: how 
 - **LangGraph**: StateGraph workflow orchestration with automatic Redis checkpointing for conversation history
 - **Redis**: Stores short-term conversation history via LangGraph's AsyncRedisSaver
 - **RedisVL**: Vector search for episodic memory (goals) and procedural memory (learned patterns)
-- **Intent Router**: Pre-LLM pattern matching for fast deterministic operations (goal CRUD)
+- **Intent Router**: Pre-LLM pattern matching for fast deterministic operations (simple queries)
 
 ### 5 Tools Bound to LLM
 
@@ -46,7 +46,7 @@ flowchart TB
     UI["User Interface"]
     Router["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
 
-    FastPath["Direct Redis Ops<br/>(Goal CRUD)"]
+    FastPath["Direct Redis Ops<br/>(Simple Queries)"]
     ComplexPath["LangGraph StateGraph<br/>• Qwen 2.5 7B LLM<br/>• Tool calling loop<br/>• Response synthesis"]
 
     RedisShort["Redis<br/>Short-term<br/>Checkpointing"]
@@ -163,7 +163,7 @@ Each Redis data source is accessed by specific tools:
 
 #### Intent Router (Fast Path)
 
-Pattern-based routing for deterministic operations. Bypasses LLM for goal setting/retrieval.
+Pattern-based routing for deterministic operations. Bypasses LLM for simple queries like goal setting.
 
 **Example:** "My goal is to run 3x per week" → Direct Redis storage (<100ms, zero tokens)
 
