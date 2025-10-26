@@ -92,7 +92,7 @@ def verify_redis_checkpointer_code() -> bool:
         # Check that get_checkpointer method uses RedisSaver (can be async or sync)
         for node in ast.walk(tree):
             if (
-                isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
                 and node.name == "get_checkpointer"
             ):
                 # Convert function body to string for analysis

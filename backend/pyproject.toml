@@ -33,6 +33,10 @@ dev = [
     "ruff>=0.1.0",
 ]
 
+[project.scripts]
+wellness = "src.cli:main"
+import-health = "src.cli:import_health"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

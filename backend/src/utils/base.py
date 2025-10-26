@@ -3,7 +3,7 @@
 import functools
 import logging
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel
@@ -18,7 +18,7 @@ class ToolResult(BaseModel):
     data: dict[str, Any] | None = None
     message: str = ""
     execution_time_ms: float | None = None
-    timestamp: datetime = datetime.now()
+    timestamp: datetime = datetime.now(UTC)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -41,7 +41,7 @@ class ToolError(Exception):
         self.message = message
         self.error_code = error_code
         self.details = details or {}
-        self.timestamp = datetime.now()
+        self.timestamp = datetime.now(UTC)
 
     def to_result(self) -> ToolResult:
         """Convert to ToolResult for consistent error responses."""

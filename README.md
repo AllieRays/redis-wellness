@@ -7,46 +7,74 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Privacy](https://img.shields.io/badge/privacy-100%25%20local-success.svg)](#-privacy)
 
-> **Can AI agents be intelligent without memory?**
 
-A side-by-side demo comparing stateless chat vs. agentic RAG chat powered by **Redis + RedisVL**. Same AI, with and without memory - the difference is dramatic.
+# Redis Wellness 🧠
 
-🔒 **100% local** - Your health data never leaves your machine (Ollama + Redis)
 
-## 🎯 The Demo
+Can AI agents be intelligent without memory?
+This project compares **Stateless** and **Stateful (Redis-powered)** AI agents using **Apple Health data**, showing how memory transforms reasoning, recall, and conversation quality.
+Built with **FastAPI**, **TypeScript**, **Redis**, **RedisVL**, and **Ollama (Qwen 2.5 7B)**, all running **100% locally** for privacy.
+🔒 *Your health data never leaves your machine.*
 
-| Component | Stateless Chat | Stateful Chat |
-|-----------|----------------|---------------|
-| **Architecture** | Simple tool loop | LangGraph orchestration |
-| **Conversation History** | ❌ None | ✅ Redis LIST (checkpointing) |
-| **Short-term Memory** | ❌ None | ✅ Redis conversation storage |
-| **Long-term Memory** | ❌ None | ✅ RedisVL vector search (episodic) |
-| **Semantic Search** | ❌ None | ✅ 1024-dim embeddings (mxbai-embed-large) |
-| **Procedural Memory** | ❌ None | ✅ Learned tool-calling patterns |
-| **Memory Persistence** | ❌ Forgets everything | ✅ 7-month TTL |
-| **Context Awareness** | ❌ Can't answer "Is that good?" | ✅ Understands pronouns & references |
-| **Health Data Access** | ✅ Redis read-only via tools | ✅ Redis read-only via tools |
-| **Tool Calling** | ✅ 9 specialized health tools | ✅ 9 specialized health tools |
+## Why This Demo?
+
+We wanted to see how memory affects AI reasoning using real health data that changes day by day.
+
+You can chat with two versions of the same agent:
+- 🟦 **Stateless** — No memory; forgets everything each turn
+- 🔴 **Stateful (Redis)** — Remembers, recalls, and reasons over your past context
+
+
+---
+
+## 🎯 The Difference
+
+| Feature | ❌ Stateless Agent | ✅ Stateful Agent |
+|---------|-------------------|-------------------|
+| **Conversation Memory** | None - forgets everything | Redis LIST (7-month history) |
+| **Semantic Memory** | None | RedisVL vector search (1024-dim embeddings) |
+| **Follow-up Questions** | ❌ "What are you referring to?" | ✅ Understands context and pronouns |
+| **Context Awareness** | ❌ Every query is isolated | ✅ Remembers past interactions |
+| **Learning** | ❌ Cannot learn patterns | ✅ Learns from conversation history |
+| **Response Quality** | Basic facts only | Context-rich, personalized insights |
+| **Tool Calling** | ✅ 9 health tools | ✅ 9 health tools |
 | **LLM** | ✅ Qwen 2.5 7B (Ollama) | ✅ Qwen 2.5 7B (Ollama) |
-| **Response Quality** | Basic answers only | Context-rich, personalized |
+| **Health Data Access** | ✅ Redis read-only | ✅ Redis read-only |
 
-**Try it yourself:**
-```bash
+### Why Redis Makes AI Agents Smarter
+
+**Without Redis Memory (Stateless):**
+```
 You: "What was my average heart rate last week?"
 Bot: "87 bpm"
 
 You: "Is that good?"
-❌ Stateless: "What are you referring to?"
-✅ Redis RAG: "87 bpm is within normal range for your age group..."
+Bot: "What are you referring to?" ❌
 ```
 
-## 🏭 Architecture
+**With Redis Memory (Stateful):**
+```
+You: "What was my average heart rate last week?"
+Bot: "87 bpm"
 
-### Side-by-Side Agent Comparison
+You: "Is that good?"
+Bot: "87 bpm is within normal range for your age group..." ✅
+```
+
+**The Technology Behind It:**
+- **Short-term Memory**: Redis LIST stores conversation history
+- **Long-term Memory**: RedisVL vector search retrieves relevant context
+- **Health Data**: Redis Hashes for fast metric lookups
+
+---
+
+## 🏗️ Architecture
+
+### Side-by-Side Comparison
 
 ```mermaid
 flowchart TB
-    subgraph stateless["🔴 Stateless RAG Agent"]
+    subgraph stateless["🔴 Stateless Agent"]
         direction TB
         A1["📨 User Query"]:::input
         B1["🤖 Qwen 2.5 7B\n(Ollama)"]:::llm
@@ -62,15 +90,15 @@ flowchart TB
         E1 -."No persistence".-> B1
     end
 
-    subgraph stateful["✅ Stateful RAG Agent"]
+    subgraph stateful["✅ Stateful Agent (LangGraph)"]
         direction TB
         A2["📨 User Query"]:::input
         B2["🤖 Qwen 2.5 7B\n(Ollama)"]:::llm
         C2["🔧 Tool Calling\n9 Health Tools"]:::tools
         D2["📊 Redis Health Data"]:::dataonly
         E2["🧠 Redis Memory\nConversation History"]:::redismem
-        F2["🔍 RedisVL\nSemantic Search"]:::redisvl
-        G2["💬 Response + Context"]:::output
+        F2["🔍 RedisVL\nVector Search"]:::redisvl
+        G2["💬 Contextual Response"]:::output
 
         A2 --> B2
         B2 <-->|"Short-term"| E2
@@ -80,44 +108,183 @@ flowchart TB
         D2 --> G2
     end
 
-    classDef input fill:#091a23,stroke:#dcff1e,stroke-width:2px,color:#fff
-    classDef llm fill:#091a23,stroke:#fff,stroke-width:2px,color:#fff
-    classDef tools fill:#091a23,stroke:#fff,stroke-width:1px,color:#fff
-    classDef dataonly fill:#091a23,stroke:#fff,stroke-width:1px,color:#fff
-    classDef nomem fill:#ff4438,stroke:#ff4438,stroke-width:2px,color:#fff
-    classDef redismem fill:#dcff1e,stroke:#091a23,stroke-width:2px,color:#091a23
-    classDef redisvl fill:#dcff1e,stroke:#091a23,stroke-width:2px,color:#091a23
-    classDef output fill:#091a23,stroke:#dcff1e,stroke-width:2px,color:#fff
+    classDef input fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529
+    classDef llm fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529
+    classDef tools fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529
+    classDef dataonly fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529
+    classDef nomem fill:#dc3545,stroke:#495057,stroke-width:2px,color:#fff
+    classDef redismem fill:#dc3545,stroke:#495057,stroke-width:2px,color:#fff
+    classDef redisvl fill:#dc3545,stroke:#495057,stroke-width:2px,color:#fff
+    classDef output fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529
 ```
 
-**The Key Difference:** Both agents retrieve health data from Redis, but only the stateful agent stores conversation memory. The stateless agent has zero persistence - every query is like meeting for the first time.
+### Redis Memory Architecture
 
-**Tech Stack:** FastAPI • Redis • RedisVL • Ollama (Qwen 2.5 7B) • TypeScript • Docker
+The stateful agent uses **three Redis-powered memory systems**:
 
-## ✨ Features
+1. **📝 Short-term Memory (LangGraph Checkpointing)**
+   - Redis LIST for conversation history
+   - Tracks tool calls, responses, and state
+   - 7-month TTL for long-running conversations
 
-- 🤖 **Agentic tool calling** - 9 specialized health tools with autonomous selection
-- 🧠 **Dual memory system** - Short-term (Redis LIST) + long-term (RedisVL vector search)
-- 📊 **Apple Health integration** - Import and analyze your health data
-- 🔒 **100% private** - All processing local (Ollama + Redis)
-- ⚡ **Real-time streaming** - SSE streaming responses
-- 🧪 **Production-ready** - Comprehensive tests, code quality checks, Docker
+2. **🔍 Long-term Memory (RedisVL Vector Search)**
+   - Semantic search over past interactions
+   - 1024-dim embeddings (mxbai-embed-large)
+   - Retrieves relevant context from conversation history
 
-## 🚀 Quick Start
+3. **📊 Health Data Store (Redis Hashes + JSON)**
+   - Hash sets for O(1) workout lookups
+   - JSON blobs for metrics and aggregates
+   - Indexed by date, type, and user ID
+
+---
+
+## 🛠️ Tech Stack
+
+### Backend
+- **FastAPI** - High-performance async API framework
+- **Redis 7.0+** - Primary data store and memory layer
+- **RedisVL** - Vector search for semantic memory
+- **LangGraph** - Agent orchestration framework
+- **LangChain** - Tool calling and LLM integration
+- **Ollama** - Local LLM runtime (Qwen 2.5 7B)
+- **Python 3.11+** - Modern async Python with type hints
+- **uv** - Fast Python package manager
+
+### Frontend
+- **TypeScript** - Type-safe frontend code
+- **Server-Sent Events (SSE)** - Real-time streaming responses
+- **Vanilla JS** - Lightweight, no framework dependencies
+
+### Infrastructure
+- **Docker & Docker Compose** - Containerized deployment
+- **Redis** - Single source of truth for all data
+- **Ollama** - Runs on host for LLM inference
+
+### Development
+- **pytest** - Comprehensive test suite
+- **Ruff** - Lightning-fast linting and formatting
+- **pre-commit** - Git hooks for code quality
+
+---
+
+## ⚙️ How It Works
+
+### 1. Stateless Agent (Simple Tool Loop)
+
+```python
+# No memory - every query starts fresh
+while True:
+    user_input = get_user_message()
+
+    # LLM decides which tool to call
+    tool_call = llm.generate(user_input)
+
+    # Execute tool against Redis health data
+    result = execute_tool(tool_call)
+
+    # Return result (no memory saved)
+    return result
+```
+
+**Limitations:**
+- ❌ Cannot answer follow-up questions
+- ❌ Cannot understand pronouns ("that", "it", "those")
+- ❌ Cannot learn from past interactions
+- ❌ Every query is independent
+
+### 2. Stateful Agent (LangGraph with Memory)
+
+```python
+# LangGraph state machine with Redis checkpointing
+class AgentState(TypedDict):
+    messages: list[BaseMessage]
+    memory_context: str  # Retrieved from RedisVL
+
+# Build graph
+graph = StateGraph(AgentState)
+graph.add_node("agent", call_agent)
+graph.add_node("tools", execute_tools)
+graph.add_node("memory", retrieve_memory)
+
+# Redis checkpoint saver
+checkpointer = RedisSaver(redis_client)
+
+# Compile with memory persistence
+app = graph.compile(checkpointer=checkpointer)
+
+# Execute with conversation memory
+for chunk in app.stream(user_input, thread_id="user_123"):
+    yield chunk  # SSE streaming
+```
+
+**Capabilities:**
+- ✅ Remembers conversation history (Redis LIST)
+- ✅ Retrieves semantic context (RedisVL)
+- ✅ Understands references and pronouns
+- ✅ Learns tool-calling patterns over time
+
+### 3. Tool Calling System
+
+Both agents use **9 specialized health tools**:
+
+| Tool | Purpose | Redis Data Structure |
+|------|---------|---------------------|
+| `search_health_records_by_metric` | Query metrics (weight, heart rate) | Redis JSON + sorted sets |
+| `search_workouts_and_activity` | Find workouts with filters | Redis Hash (O(1) lookup) |
+| `aggregate_metrics` | Calculate stats (avg, min, max) | Redis JSON aggregation |
+| `calculate_weight_trends_tool` | Weight trend analysis | Time-series queries |
+| `compare_time_periods_tool` | Period-over-period comparison | Date-ranged queries |
+| `compare_activity_periods_tool` | Activity comparison | Multi-metric aggregation |
+| `get_workout_schedule_analysis` | Workout patterns by day | Hash field queries |
+| `analyze_workout_intensity_by_day` | Intensity by day of week | Aggregation + grouping |
+| `get_workout_progress` | Progress tracking | Time-series comparison |
+
+**Tool Selection:**
+- LLM autonomously chooses which tool to call
+- Tools return structured data from Redis
+- Agent synthesizes results into natural language
+
+### 4. Redis Data Patterns
+
+**Workout Indexing:**
+```python
+# O(1) lookup by workout ID
+HSET user:wellness_user:workout:abc123
+  type "Walking"
+  startDate "2025-10-20T14:30:00Z"
+  duration "3600"
+  calories "250"
+  day_of_week "Monday"
+```
+
+**Conversation Memory:**
+```python
+# LangGraph checkpoint
+ZADD checkpoint:wellness_user:thread_1
+  {timestamp} "{state_json}"
+
+# Vector embeddings for semantic search
+HSET memory:embeddings:msg_123
+  embedding [0.123, 0.456, ...]  # 1024-dim vector
+```
+
+---
+
+## 🚀 How to Run
 
 ### Prerequisites
 
-1. **Docker & Docker Compose** - For running all services
-2. **Ollama** - For local LLM inference (runs on host)
+1. **Docker & Docker Compose** - For running services
+2. **Ollama** - For local LLM inference
 
-### Install Ollama & Models
+### Step 1: Install Ollama & Models
 
 **Why Ollama + Qwen?**
-- 🔒 **100% Privacy**: Runs locally, your health data never leaves your machine
-- ⚡ **Fast Setup**: One-command install, no API keys or cloud accounts
-- 🧠 **Smart Tool Calling**: Qwen 2.5 7B excels at function calling for agentic workflows
-- 📊 **Reasonable Size**: 4.7 GB model runs on most modern laptops
-- 🎯 **Optimized for Tools**: Better tool selection than larger general-purpose models
+- 🔒 **100% Privacy**: Runs locally, no cloud APIs
+- ⚡ **Fast Setup**: One-command install
+- 🧠 **Smart Tool Calling**: Qwen 2.5 7B excels at function calling
+- 📊 **Reasonable Size**: 4.7 GB model, runs on most laptops
 
 ```bash
 # Install Ollama (macOS)
@@ -128,122 +295,262 @@ brew install ollama
 # Start Ollama service
 ollama serve
 
-# In another terminal, pull the models
-ollama pull qwen2.5:7b              # Main LLM - optimized for tool calling (4.7 GB)
-ollama pull mxbai-embed-large       # Embeddings - for semantic search (669 MB)
+# Pull required models (in another terminal)
+ollama pull qwen2.5:7b              # Main LLM (4.7 GB)
+ollama pull mxbai-embed-large       # Embeddings (669 MB)
 ```
 
-> **Note**: First run will download models (~5.4 GB total). Subsequent runs are instant.
+### Step 2: Start the Application
 
-### Start the Application
-
-**Option 1: Quick start (recommended)**
+**Quick Start (Recommended):**
 
 ```bash
+# 1. Clone the repo
+git clone https://github.com/AllieRays/redis-wellness.git
+cd redis-wellness
+
+# 2. Run the startup script
 chmod +x start.sh
 ./start.sh
 ```
 
-This script:
-1. Checks Docker and Ollama are running
-2. Verifies required models are installed
-3. Starts all services with `docker-compose`
-4. Opens the UI at http://localhost:3000
+The script automatically:
+- ✅ Checks Docker and Ollama are running
+- ✅ Verifies models are installed
+- ✅ Starts all services
+- ✅ Opens UI at http://localhost:3000
 
-**Option 2: Manual start**
+**Manual Start:**
 
 ```bash
-# Build and start all services
-docker-compose up --build
+# Install dependencies
+make install
 
-# Or run in detached mode
-docker-compose up -d --build
+# Start Redis
+make redis-start
+
+# Start development servers (backend + frontend)
+make dev
+```
+
+### Step 3: Import Health Data
+
+**Using Make commands:**
+
+```bash
+# Import Apple Health data
+make import
+
+# Verify data loaded correctly
+make verify
+
+# View statistics
+make stats
+
+# Run health check
+make health
+```
+
+**Manual import:**
+
+```bash
+# From XML export
+uv run --directory backend import-health apple_health_export/export.xml
+
+# From pre-parsed JSON (faster)
+uv run --directory backend import-health parsed_health_data.json
+```
+
+### Step 4: Try the Demo
+
+1. **Open the UI**: http://localhost:3000
+2. **Ask both agents**: "What was my average heart rate last week?"
+3. **Follow up with**: "Is that good?"
+4. **Watch the difference**:
+   - ❌ Stateless: "What are you referring to?"
+   - ✅ Stateful: "87 bpm is within normal range..."
+
+### Available Commands
+
+```bash
+make help              # Show all available commands
+make install           # Install dependencies
+make dev               # Start development servers
+make health            # Check all services
+make import            # Import Apple Health data
+make verify            # Verify data is indexed
+make stats             # Show health data statistics
+make test              # Run all tests
+make lint              # Run code linting
+make redis-start       # Start Redis
+make redis-stop        # Stop Redis
+make redis-clean       # Clear Redis data
+make fresh-start       # Clean + reimport + dev
+make demo              # Prepare for demo
 ```
 
 ### Access Points
 
-- **Frontend Demo UI**: http://localhost:3000 (side-by-side chat comparison)
-- **Backend API Docs (Swagger)**: http://localhost:8000/docs
-- **Backend API Docs (ReDoc)**: http://localhost:8000/redoc
-- **RedisInsight**: http://localhost:8001 (visualize Redis data)
+- **Frontend UI**: http://localhost:3000
+- **API Swagger Docs**: http://localhost:8000/docs
+- **API ReDoc**: http://localhost:8000/redoc
 - **Health Check**: http://localhost:8000/api/health/check
 - **Demo Info**: http://localhost:8000/api/chat/demo/info
+- **RedisInsight** (optional): http://localhost:8001
 
-## 📊 Using the Demo
+---
 
-Open http://localhost:3000 and try the side-by-side comparison. The UI shows memory stats in real-time.
+## 📚 Learn More
 
-**Example workflow:**
-1. Ask both agents: "What was my average heart rate last week?"
-2. Follow up with: "Is that good?"
-3. Watch stateless forget, Redis RAG remember ✅
+### Documentation
 
-**Load your Apple Health data:**
+#### Getting Started
+- **[01_QUICKSTART.md](./docs/01_QUICKSTART.md)** - Get running in 5 minutes
+- **[02_THE_DEMO.md](./docs/02_THE_DEMO.md)** - Understand the side-by-side comparison
+- **[07_APPLE_HEALTH_DATA.md](./docs/07_APPLE_HEALTH_DATA.md)** - Import your own health data
+
+#### Redis + AI Patterns
+- **[03_MEMORY_ARCHITECTURE.md](./docs/03_MEMORY_ARCHITECTURE.md)** - How Redis powers agent memory
+- **[04_AUTONOMOUS_AGENTS.md](./docs/04_AUTONOMOUS_AGENTS.md)** - Autonomous tool calling patterns
+- **[05_REDIS_PATTERNS.md](./docs/05_REDIS_PATTERNS.md)** - Redis data structures for AI
+- **[06_ARCHITECTURE_DECISIONS.md](./docs/06_ARCHITECTURE_DECISIONS.md)** - Design decisions explained
+
+#### Advanced Topics
+- **[08_EXTENDING.md](./docs/08_EXTENDING.md)** - Build on this demo
+- **[TEST_PLAN.md](./backend/TEST_PLAN.md)** - Testing strategy
+- **[WARP.md](./WARP.md)** - Development workflow guide
+
+### API Documentation
+
+Full API docs available at:
+- **Swagger UI**: http://localhost:8000/docs (interactive testing)
+- **ReDoc**: http://localhost:8000/redoc (clean reference docs)
+
+### Key Endpoints
+
 ```bash
-python import_health_data.py apple_health_export/export.xml
+# Health check
+GET /api/health/check
+
+# Demo information
+GET /api/chat/demo/info
+
+# Stateless chat
+POST /api/chat/stateless/stream
+
+# Stateful chat (LangGraph)
+POST /api/chat/stateful/stream
+
+# Memory stats
+GET /api/memory/{thread_id}/stats
 ```
 
-See [docs/07_APPLE_HEALTH_DATA.md](./docs/07_APPLE_HEALTH_DATA.md) for detailed import instructions.
+### External Resources
 
-## 📚 Documentation
+- **Redis Documentation**: https://redis.io/docs
+- **RedisVL Guide**: https://redisvl.com
+- **LangGraph Tutorial**: https://langchain-ai.github.io/langgraph
+- **Ollama Models**: https://ollama.ai/library
+
+---
+
+## 🐛 Troubleshooting
+
+### Services not starting?
+
+```bash
+# Check logs
+docker compose logs -f backend
+docker compose logs -f frontend
+
+# Check service status
+docker compose ps
+make health
+```
+
+### Ollama issues?
+
+```bash
+# Check Ollama is running
+curl http://localhost:11434/api/version
+
+# List installed models
+ollama list
+
+# Restart Ollama
+brew services restart ollama
+```
+
+### Redis issues?
+
+```bash
+# Check Redis status
+docker compose ps redis
+redis-cli -h localhost -p 6379 ping
+
+# View Redis data
+make redis-keys
+make verify
+```
+
+### Port conflicts?
+
+```bash
+# Check what's using ports
+lsof -i :3000 :8000 :6379 :11434
+
+# Stop conflicting services
+docker compose down
+```
+
+### Import issues?
+
+```bash
+# Verify Redis has data
+make verify
+
+# Check import status
+make stats
+
+# Re-import from scratch
+make fresh-start
+```
+
+---
+
+## 🔒 Privacy
+
+**Your health data never leaves your machine.**
+
+- ✅ Ollama runs locally (no OpenAI/Anthropic API calls)
+- ✅ Redis stores data locally (no cloud sync)
+- ✅ All processing happens on your computer
+- ✅ No telemetry, no tracking, no external requests
+
+This is a **fully local AI system** - perfect for sensitive health data.
+
+---
+
+## 📚 Learn More
+
+Dive deeper into the architecture and patterns:
 
 ### Getting Started
 - **[01_QUICKSTART.md](./docs/01_QUICKSTART.md)** - Get running in 5 minutes
 - **[02_THE_DEMO.md](./docs/02_THE_DEMO.md)** - Understand what you're seeing
+- **[07_APPLE_HEALTH_DATA.md](./docs/07_APPLE_HEALTH_DATA.md)** - Import your own health data
 
-### Learning Redis + AI Patterns
+### Deep Dives
 - **[03_MEMORY_ARCHITECTURE.md](./docs/03_MEMORY_ARCHITECTURE.md)** - How Redis powers agent memory
-- **[04_AUTONOMOUS_AGENTS.md](./docs/04_AUTONOMOUS_AGENTS.md)** - Autonomous tool calling patterns
-- **[05_REDIS_PATTERNS.md](./docs/05_REDIS_PATTERNS.md)** - Redis data structures for AI workloads
+- **[04_AUTONOMOUS_AGENTS.md](./docs/04_AUTONOMOUS_AGENTS.md)** - Agentic tool calling patterns
+- **[05_REDIS_PATTERNS.md](./docs/05_REDIS_PATTERNS.md)** - Redis data structures for AI
 - **[06_ARCHITECTURE_DECISIONS.md](./docs/06_ARCHITECTURE_DECISIONS.md)** - Why we made each choice
 
-### Advanced Topics
-- **[07_APPLE_HEALTH_DATA.md](./docs/07_APPLE_HEALTH_DATA.md)** - Using your own health data
+### Extending
 - **[08_EXTENDING.md](./docs/08_EXTENDING.md)** - Build on this demo
-- **[TEST_PLAN.md](./backend/TEST_PLAN.md)** - Testing strategy
-- **[WARP.md](./WARP.md)** - Development guide
+- **[WARP.md](./WARP.md)** - Full development guide
 
-## 🔧 Development
-
-### API Docs
-
-API documentation available at:
-- **Swagger**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-
-### Testing
-
-```bash
-cd backend
-uv run pytest tests/ -v              # All tests
-uv run pytest tests/unit/ -v         # Unit tests only
-```
-
-### Code Quality
-
-```bash
-./lint.sh                            # Run all linters
-```
-
-
-## 🐛 Troubleshooting
-
-```bash
-# Services not starting?
-docker-compose logs -f backend
-docker-compose logs -f frontend
-
-# Ollama not running?
-curl http://localhost:11434/api/version
-ollama list
-
-# Redis issues?
-docker-compose ps redis
-redis-cli -h localhost -p 6379 ping
-
-# Port conflicts?
-lsof -i :3000 :8000 :6379 :11434
-```
+---
 
 ## 📄 License
 

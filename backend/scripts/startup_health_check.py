@@ -14,14 +14,14 @@ import logging
 import sys
 from pathlib import Path
 
-# Add src to path
+import redis
+
+# Add src to path BEFORE importing local modules
 src_dir = str(Path(__file__).parent.parent / "src")
 if src_dir not in sys.path:
     sys.path.insert(0, src_dir)
 
-import redis
-
-from utils.redis_keys import RedisKeys
+from utils.redis_keys import RedisKeys  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -146,7 +146,7 @@ def auto_import_health_data():
 
 def main():
     """Main entry point."""
-    success = auto_import_health_data()
+    auto_import_health_data()
 
     # Always exit 0 - we want the app to start even if import fails
     # The app will just return "no data" for health queries
