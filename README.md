@@ -80,7 +80,7 @@ flowchart LR
         S2["Qwen 2.5 7B"]:::agent
         S3["Tool Calling"]:::tool
         S4["Redis Health Data"]:::data
-        S5["Response"]:::end
+        S5["Response"]:::response
         S6["NO MEMORY"]:::nomem
 
         S1 --> S2
@@ -98,7 +98,7 @@ flowchart LR
         T4["RedisVL Search"]:::memory
         T5["Tool Calling"]:::tool
         T6["Redis Health Data"]:::data
-        T7["Contextual Response"]:::end
+        T7["Contextual Response"]:::response
 
         T1 --> T2
         T2 <-->|"Short-term"| T3
@@ -112,7 +112,7 @@ flowchart LR
     classDef agent fill:#fff,stroke:#6c757d,stroke-width:2px,color:#212529
     classDef tool fill:#fff,stroke:#6c757d,stroke-width:2px,color:#212529
     classDef data fill:#fff,stroke:#6c757d,stroke-width:2px,color:#212529
-    classDef end fill:#fff,stroke:#dc3545,stroke-width:2px,color:#212529
+    classDef response fill:#fff,stroke:#dc3545,stroke-width:2px,color:#212529
     classDef nomem fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
     classDef memory fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
 
