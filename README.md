@@ -80,42 +80,57 @@ You can chat with two versions of the same agent:
 
 ### Agent Comparison
 
+<table>
+<tr>
+<td width="50%">
+
+#### 🟦 Stateless Agent
+
 ```mermaid
-flowchart LR
-    subgraph stateless["🟦 Stateless Agent"]
-        direction TB
-        S1["User Query"]:::query
-        S2["Qwen 2.5 7B"]:::llm
-        S3["Health Tools<br/>(3 tools)"]:::tool
-        S4["Redis<br/>(Health Data)"]:::redis
-        S5["Response"]:::response
-        S6["❌ No Memory"]:::nomemory
+flowchart TD
+    S1["User Query"]:::query
+    S2["Qwen 2.5 7B"]:::llm
+    S3["Health Tools<br/>(3 tools)"]:::tool
+    S4["Redis<br/>(Health Data)"]:::redis
+    S5["Response"]:::response
+    S6["❌ No Memory"]:::nomemory
 
-        S1 --> S2
-        S2 --> S3
-        S3 --> S4
-        S4 --> S5
-        S5 -.-> S6
-    end
+    S1 --> S2
+    S2 --> S3
+    S3 --> S4
+    S4 --> S5
+    S5 -.-> S6
 
-    subgraph stateful["🔴 Stateful Agent"]
-        direction TB
-        T1["User Query"]:::query
-        T2["LangGraph<br/>Checkpointing"]:::memory
-        T3["Qwen 2.5 7B"]:::llm
-        T4["Health + Memory Tools<br/>(5 tools)"]:::tool
-        T5["Redis + RedisVL<br/>(Health Data + Vector Search)"]:::redis
-        T6["Response"]:::response
-        T7["✅ Store Memory<br/>(Goals & Patterns)"]:::memory
+    classDef query fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    classDef llm fill:#fff,stroke:#0d6efd,stroke-width:2px,color:#000
+    classDef tool fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
+    classDef redis fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    classDef response fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    classDef nomemory fill:#e9ecef,stroke:#6c757d,stroke-width:2px,stroke-dasharray: 5 5,color:#6c757d
+```
 
-        T1 --> T2
-        T2 --> T3
-        T3 --> T4
-        T4 --> T5
-        T5 --> T6
-        T6 --> T7
-        T7 -.-> T2
-    end
+</td>
+<td width="50%">
+
+#### 🔴 Stateful Agent
+
+```mermaid
+flowchart TD
+    T1["User Query"]:::query
+    T2["LangGraph<br/>Checkpointing"]:::memory
+    T3["Qwen 2.5 7B"]:::llm
+    T4["Health + Memory Tools<br/>(5 tools)"]:::tool
+    T5["Redis + RedisVL<br/>(Health Data + Vector Search)"]:::redis
+    T6["Response"]:::response
+    T7["✅ Store Memory<br/>(Goals & Patterns)"]:::memory
+
+    T1 --> T2
+    T2 --> T3
+    T3 --> T4
+    T4 --> T5
+    T5 --> T6
+    T6 --> T7
+    T7 -.-> T2
 
     classDef query fill:#fff,stroke:#333,stroke-width:2px,color:#000
     classDef llm fill:#fff,stroke:#0d6efd,stroke-width:2px,color:#000
@@ -123,11 +138,11 @@ flowchart LR
     classDef redis fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     classDef response fill:#fff,stroke:#333,stroke-width:2px,color:#000
     classDef memory fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
-    classDef nomemory fill:#e9ecef,stroke:#6c757d,stroke-width:2px,stroke-dasharray: 5 5,color:#6c757d
-
-    style stateless fill:#f8f9fa,stroke:#0d6efd,stroke-width:3px
-    style stateful fill:#f8f9fa,stroke:#dc3545,stroke-width:3px
 ```
+
+</td>
+</tr>
+</table>
 
 ### Four-Layer Memory Architecture
 
