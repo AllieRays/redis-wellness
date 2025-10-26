@@ -13,7 +13,7 @@ import pytest
 
 from src.apple_health.query_tools import (
     create_get_health_metrics_tool,
-    create_get_workouts_tool,
+    create_get_workout_data_tool,
 )
 
 
@@ -159,7 +159,7 @@ class TestGetWorkoutsTool:
 
     def test_get_workouts_basic(self, sample_health_data_in_redis, test_user_id):
         """Test retrieving workouts."""
-        tool = create_get_workouts_tool(user_id=test_user_id)
+        tool = create_get_workout_data_tool(user_id=test_user_id)
 
         result = tool.invoke({"days_back": 30})
 
@@ -176,7 +176,7 @@ class TestGetWorkoutsTool:
 
     def test_get_workouts_recent(self, sample_health_data_in_redis, test_user_id):
         """Test getting recent workouts (last 7 days)."""
-        tool = create_get_workouts_tool(user_id=test_user_id)
+        tool = create_get_workout_data_tool(user_id=test_user_id)
 
         result = tool.invoke({"days_back": 7})
 
@@ -186,7 +186,7 @@ class TestGetWorkoutsTool:
 
     def test_get_workouts_no_data(self, clean_redis, test_user_id):
         """Test querying workouts when none exist."""
-        tool = create_get_workouts_tool(user_id=test_user_id)
+        tool = create_get_workout_data_tool(user_id=test_user_id)
 
         result = tool.invoke({"days_back": 30})
 
@@ -199,7 +199,7 @@ class TestGetWorkoutsTool:
         self, sample_health_data_in_redis, test_user_id
     ):
         """Test workouts include required metadata."""
-        tool = create_get_workouts_tool(user_id=test_user_id)
+        tool = create_get_workout_data_tool(user_id=test_user_id)
 
         result = tool.invoke({"days_back": 30})
 

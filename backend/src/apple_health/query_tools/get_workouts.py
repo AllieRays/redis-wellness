@@ -259,24 +259,29 @@ def create_get_workouts_tool(user_id: str):
         days_back: int = DEFAULT_WORKOUT_SEARCH_DAYS,
     ) -> dict[str, Any]:
         """
-        Get workout details with heart rate zones and comprehensive metrics.
+        List workout details from a single time period. Returns actual workout records.
 
-        USE WHEN user asks:
-        - "Did I work out on October 17th?"
-        - "When did I last work out?"
-        - "Show me my recent workouts"
-        - "What was my heart rate during workouts?"
-        - "Show my workout history"
+        ⚠️ THIS TOOL HAS ONLY ONE PARAMETER: days_back (int)
+        ⚠️ DO NOT use period1_days or period2_days - those belong to get_workout_progress!
 
-        DO NOT USE for:
-        - Workout patterns by day → use get_workout_patterns instead
-        - Progress tracking → use get_workout_progress instead
+        USE THIS TOOL WHEN user asks to VIEW or LIST workouts:
+        - "Did I work out on October 17th?" → YES, call get_workouts()
+        - "When did I last work out?" → YES, call get_workouts()
+        - "Show me my recent workouts" → YES, call get_workouts()
+        - "Tell me about my workouts" → YES, call get_workouts()
+        - "What was my heart rate during workouts?" → YES, call get_workouts()
+        - "List my workout history" → YES, call get_workouts()
+
+        DO NOT USE THIS TOOL for comparisons/progress:
+        - "Am I improving?" → NO, use get_workout_progress instead
+        - "Workout patterns by day" → NO, use get_workout_patterns instead
+        - "Progress tracking" → NO, use get_workout_progress instead
 
         Args:
-            days_back: Days to search back (default: 90)
-                      IMPORTANT: For specific dates like "October 17th", ALWAYS use default (90) or higher!
+            days_back: Days to search back (default: 30)
+                      IMPORTANT: For specific dates like "October 17th", ALWAYS use default (30) or higher!
                       Only use days_back=1 if user explicitly says "today" or "in the past day".
-                      For "recent" or "last week", use 7-30 days.
+                      For "recent" or "tell me about my workouts", use DEFAULT (30 days).
 
         Returns:
             Dict with:

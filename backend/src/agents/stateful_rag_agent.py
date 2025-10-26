@@ -31,6 +31,7 @@ from ..utils.agent_helpers import build_base_system_prompt, create_health_llm
 from ..utils.conversation_fact_extractor import get_fact_extractor
 from ..utils.intent_bypass_handler import handle_intent_bypass
 from ..utils.numeric_validator import get_numeric_validator
+from ..utils.tool_deduplication import ToolCallTracker
 from ..utils.validation_retry import build_validation_result
 from .constants import (
     CONVERSATION_HISTORY_LIMIT,
@@ -52,6 +53,7 @@ class MemoryState(TypedDict):
     procedural_patterns: list[dict] | None  # Retrieved patterns
     execution_plan: dict | None  # Planned tool sequence
     workflow_start_time: int  # For timing workflows
+    tool_call_tracker: ToolCallTracker | None  # Track duplicate tool calls
 
 
 class StatefulRAGAgent:
@@ -345,7 +347,19 @@ class StatefulRAGAgent:
         response = await llm_with_tools.ainvoke(messages)
 
         has_tool_calls = bool(getattr(response, "tool_calls", None))
-        logger.debug(f"⚙️ Stateful LLM response: tool_calls={has_tool_calls}")
+        response_content = getattr(response, "content", "")
+        tool_calls_detail = []
+        if has_tool_calls:
+            for tc in response.tool_calls:
+                tool_calls_detail.append(f"{tc.get('name')}({tc.get('args', {})})")
+
+        logger.info(
+            f"⚙️ Stateful LLM response: has_tool_calls={has_tool_calls}, "
+            f"content_length={len(response_content)}, tools={tool_calls_detail}"
+        )
+        if not has_tool_calls and not response_content:
+            logger.warning("⚠️ LLM returned empty response with no tool calls!")
+
         return {"messages": [response]}
 
     async def _tool_node(self, state: MemoryState) -> dict[str, list[ToolMessage]]:

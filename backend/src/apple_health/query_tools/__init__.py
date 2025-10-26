@@ -21,12 +21,8 @@ import logging
 from langchain_core.tools import BaseTool
 
 from ...utils.user_config import validate_user_context
-from .get_activity_comparison import create_get_activity_comparison_tool
 from .get_health_metrics import create_get_health_metrics_tool
-from .get_trends import create_get_trends_tool
-from .get_workout_patterns import create_get_workout_patterns_tool
-from .get_workout_progress import create_get_workout_progress_tool
-from .get_workouts import create_get_workouts_tool
+from .get_workout_data import create_get_workout_data_tool
 from .memory_tools import create_memory_tools
 
 logger = logging.getLogger(__name__)
@@ -34,11 +30,7 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "create_user_bound_tools",
     "create_get_health_metrics_tool",
-    "create_get_workouts_tool",
-    "create_get_trends_tool",
-    "create_get_activity_comparison_tool",
-    "create_get_workout_patterns_tool",
-    "create_get_workout_progress_tool",
+    "create_get_workout_data_tool",
     "create_memory_tools",
 ]
 
@@ -64,16 +56,12 @@ def create_user_bound_tools(
         List of LangChain tools with validated user_id injected
 
     Tool Set (Health - always included):
-        1. get_health_metrics - Health metrics with optional statistics (raw data OR aggregated)
-        2. get_workouts - Workout details with heart rate zones
-        3. get_trends - Trend analysis and period comparisons (any metric)
-        4. get_activity_comparison - Comprehensive activity comparison (steps, energy, workouts, distance)
-        5. get_workout_patterns - Workout patterns by day (schedule OR intensity)
-        6. get_workout_progress - Progress tracking between time periods
+        1. get_health_metrics - All non-workout health data (heart rate, steps, sleep, weight, etc.)
+        2. get_workout_data - ALL workout queries (lists, patterns, progress, comparisons)
 
     Tool Set (Memory - optional):
-        7. get_my_goals - Retrieve user goals and preferences
-        8. get_tool_suggestions - Retrieve learned tool-calling patterns
+        3. get_my_goals - Retrieve user goals and preferences
+        4. get_tool_suggestions - Retrieve learned tool-calling patterns
     """
     # Normalize to single user configuration
     user_id = validate_user_context(user_id)
@@ -85,12 +73,8 @@ def create_user_bound_tools(
 
     # Create all tools with user binding
     tools = [
-        create_get_health_metrics_tool(user_id),  # Health metrics (raw OR stats)
-        create_get_workouts_tool(user_id),  # Workout details with HR zones
-        create_get_trends_tool(user_id),  # Trends and period comparisons
-        create_get_activity_comparison_tool(user_id),  # Activity comparison
-        create_get_workout_patterns_tool(user_id),  # Workout patterns by day
-        create_get_workout_progress_tool(user_id),  # Progress tracking
+        create_get_health_metrics_tool(user_id),  # All non-workout health data
+        create_get_workout_data_tool(user_id),  # ALL workout queries (consolidated)
     ]
 
     # Add memory retrieval tools (for autonomous memory access)
@@ -100,11 +84,11 @@ def create_user_bound_tools(
         memory_tools = create_memory_tools()
         tools.extend(memory_tools)
         logger.info(
-            f"✅ Created {len(tools)} user-bound tools (including {len(memory_tools)} memory tools)"
+            f"✅ Created {len(tools)} TOTAL tools: 2 health (metrics + workouts) + {len(memory_tools)} memory"
         )
     else:
         logger.info(
-            f"✅ Created {len(tools)} user-bound tools (health only, no memory)"
+            f"✅ Created {len(tools)} health tools (metrics + workouts, no memory)"
         )
 
     return tools

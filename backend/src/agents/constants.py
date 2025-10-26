@@ -14,11 +14,11 @@ for substantial query complexity.
 """
 
 # LangGraph configuration (stateful agent only)
-LANGGRAPH_RECURSION_LIMIT = 16
+LANGGRAPH_RECURSION_LIMIT = 32
 """LangGraph recursion limit for stateful agent.
 
-Set to 16 to allow ~8 tool-calling cycles (each cycle = llm node + tools node = 2 steps).
-This matches MAX_TOOL_ITERATIONS for consistency between agents.
+Set to 32 to allow ~16 tool-calling cycles (each cycle = llm node + tools node = 2 steps).
+This provides headroom for complex multi-step reasoning while still preventing infinite loops.
 """
 
 # Conversation history management
