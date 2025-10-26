@@ -21,7 +21,7 @@ This document explains the **internal architecture of the stateful agent**: how 
 - **LangGraph**: StateGraph workflow orchestration with automatic Redis checkpointing for conversation history
 - **Redis**: Stores short-term conversation history via LangGraph's AsyncRedisSaver and structured health data
 - **RedisVL**: Vector search for episodic memory (goals) and procedural memory (learned patterns)
-- **Intent Router**: Pre-LLM pattern matching for fast CRUD operations on goals
+- **Intent Router**: Pre-LLM pattern matching for simple queries (goal CRUD operations)
 
 ---
 
@@ -60,7 +60,7 @@ flowchart TB
 
 ### Layer Responsibilities
 
-1. **Intent Router**: Pre-LLM pattern matching for fast deterministic operations (<100ms)
+1. **Intent Router**: Pre-LLM pattern matching for simple queries (<100ms, goal CRUD only)
 2. **LangGraph**: Orchestrates LLM → tools → memory → response workflow
 3. **Memory Layer**:
    - Redis checkpointing (short-term conversation history)
@@ -153,10 +153,10 @@ Each tool accesses specific Redis data sources:
 
 #### Intent Router (Fast Path)
 
-Pattern-based routing for goal CRUD operations. Bypasses LLM entirely.
+Pattern-based routing for simple queries. Bypasses LLM entirely.
 
 **What are "simple queries"?**
-- Goal CRUD operations: "My goal is X", "What are my goals?", "Delete my goals"
+- Simple queries: "My goal is X", "What are my goals?", "Delete my goals"
 - Pattern matching on keywords: "goal", "target", "my goals"
 - Direct Redis hash operations (no LLM, no vector search)
 - Benefits: <100ms response, zero tokens, zero LLM cost
