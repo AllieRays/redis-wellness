@@ -61,20 +61,24 @@ flowchart TB
     Router["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
     Simple["Redis<br/>(Simple Queries)"]
     
-    subgraph LangGraph["LangGraph StateGraph"]
-        Load["1. Load Checkpoint<br/>(Redis - conversation history)"]
+    subgraph LangGraph["LangGraph StateGraph (Checkpointed)"]
+        Load["1. Load Checkpoint<br/>(conversation history)"]
         LLM["2. Qwen 2.5 7B LLM<br/>(sees history + decides tools)"]
-        Tools["3. LLM Tools<br/>(5 total: 3 health + 2 memory)"]
-        Loop{"4. More tools?"}
-        Store["5. Store Memories<br/>(episodic + procedural)"]
-        Save["6. Save Checkpoint<br/>(Redis)"]
+        ToolDecision{"3. More tools?"}
+        Tools["4. Execute Tools<br/>(5 total: 3 health + 2 memory)"]
+        Reflect["5. Reflect<br/>(evaluate success)"]
+        StoreEpi["6. Store Episodic<br/>(goals)"]
+        StoreProc["7. Store Procedural<br/>(patterns)"]
+        SaveCheck["8. Save Checkpoint<br/>(conversation)"]
         
         Load --> LLM
-        LLM --> Tools
-        Tools --> Loop
-        Loop -->|Yes| LLM
-        Loop -->|No| Store
-        Store --> Save
+        LLM --> ToolDecision
+        ToolDecision -->|Yes| Tools
+        ToolDecision -->|No| Reflect
+        Tools --> LLM
+        Reflect --> StoreEpi
+        StoreEpi --> StoreProc
+        StoreProc --> SaveCheck
     end
     
     RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
@@ -87,7 +91,7 @@ flowchart TB
     Simple --> Response
     Tools <--> RedisVL
     Tools <--> RedisData
-    Save --> Response
+    SaveCheck --> Response
     Response --> UI
 
     style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
@@ -96,10 +100,12 @@ flowchart TB
     style LangGraph fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
     style Load fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style LLM fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style ToolDecision fill:#fff,stroke:#333,stroke-width:2px,color:#000
     style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
-    style Loop fill:#fff,stroke:#333,stroke-width:2px,color:#000
-    style Store fill:#fff,stroke:#28a745,stroke-width:2px,color:#28a745
-    style Save fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Reflect fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style StoreEpi fill:#fff,stroke:#28a745,stroke-width:2px,color:#28a745
+    style StoreProc fill:#fff,stroke:#28a745,stroke-width:2px,color:#28a745
+    style SaveCheck fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style RedisVL fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style RedisData fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style Response fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000

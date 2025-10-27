@@ -72,60 +72,65 @@ flowchart TB
 
 ### Workflow
 
-The stateful agent routes queries through: intent routing → LangGraph checkpointing → LLM tool selection → data retrieval → memory storage:
+The stateful agent routes queries through: intent routing → LangGraph orchestration with checkpointing → autonomous tool calling → memory storage:
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px', 'edgeLabelBackground':'#f8f9fa'}, 'flowchart': {'nodeSpacing': 25, 'rankSpacing': 25}}}%%
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px', 'edgeLabelBackground':'#f8f9fa'}, 'flowchart': {'nodeSpacing': 30, 'rankSpacing': 40}}}%%
 flowchart TB
     Query["User Query"]
     Router{"Intent Router"}
-    GoalOp["Simple Query<br/>"]
-    GoalRedis["Redis<br/>"]
-    Memory["LangGraph Checkpointer<br/>(loads conversation history)"]
-    LLM["Qwen 2.5 7B<br/>(Ollama LLM)"]
-    Decision{"Which tool?"}
-    MemoryTools["Memory Tools<br/>get_my_goals<br/>get_tool_suggestions"]
-    HealthTools["Health Data Tools<br/>get_health_metrics<br/>get_sleep_analysis<br/>get_workout_data"]
-    DataSource{"Data Source<br/>Decision"}
-    RedisStructured["Redis<br/>(Structured)"]
-    RedisVector["RedisVL<br/>(Vector Search)<br/>Ollama Embeddings"]
-    Loop{"More data?"}
-    Store["Store Memories<br/>(if worth remembering)<br/>episodic:* or procedural:*"]
-    Response["&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Response&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"]
+    Simple["Simple Query"]
+    SimpleRedis["Redis"]
+    
+    subgraph LangGraph["LangGraph StateGraph (Checkpointed)"]
+        Load["1. Load Checkpoint<br/>(conversation history)"]
+        LLM["2. Qwen 2.5 7B LLM<br/>(sees history + decides tools)"]
+        ToolDecision{"3. More tools?"}
+        Tools["4. Execute Tools<br/>(5 total: 3 health + 2 memory)"]
+        Reflect["5. Reflect<br/>(evaluate success)"]
+        StoreEpi["6. Store Episodic<br/>(goals)"]
+        StoreProc["7. Store Procedural<br/>(patterns)"]
+        SaveCheck["8. Save Checkpoint<br/>(conversation)"]
+        
+        Load --> LLM
+        LLM --> ToolDecision
+        ToolDecision -->|"Yes"| Tools
+        ToolDecision -->|"No"| Reflect
+        Tools --> LLM
+        Reflect --> StoreEpi
+        StoreEpi --> StoreProc
+        StoreProc --> SaveCheck
+    end
+    
+    RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
+    RedisData["Redis<br/>Health Data Store"]
+    Response["Response to User"]
+    
     Query --> Router
-    Router -->|"Simple"| GoalOp
-    Router -->|"Complex"| Memory
-    GoalOp --> GoalRedis
-    GoalRedis --> Response
-    Memory --> LLM
-    LLM --> Decision
-    Decision --> MemoryTools
-    Decision --> HealthTools
-    Decision -->|"Has answer"| Response
-    MemoryTools --> DataSource
-    HealthTools --> DataSource
-    DataSource --> RedisStructured
-    DataSource --> RedisVector
-    RedisStructured --> Loop
-    RedisVector --> Loop
-    Loop -->|Yes| LLM
-    Loop -->|No| Response
-    Response --> Store
+    Router -->|"Fast path"| Simple
+    Router -->|"Complex path"| LangGraph
+    Simple --> SimpleRedis
+    SimpleRedis --> Response
+    Tools <--> RedisVL
+    Tools <--> RedisData
+    SaveCheck --> Response
+    
     style Query fill:#fff,stroke:#333,stroke-width:2px
     style Router fill:#fff,stroke:#333,stroke-width:2px
-    style GoalOp fill:#fff,stroke:#333,stroke-width:2px
-    style GoalRedis fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style Memory fill:#fff,stroke:#333,stroke-width:2px
+    style Simple fill:#fff,stroke:#333,stroke-width:2px
+    style SimpleRedis fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style LangGraph fill:#f8f9fa,stroke:#333,stroke-width:2px
+    style Load fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style LLM fill:#fff,stroke:#333,stroke-width:2px
-    style Decision fill:#fff,stroke:#333,stroke-width:2px
-    style MemoryTools fill:#fff,stroke:#6c757d,stroke-width:2px
-    style HealthTools fill:#fff,stroke:#6c757d,stroke-width:2px
-    style DataSource fill:#fff,stroke:#333,stroke-width:2px
-    style RedisStructured fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style RedisVector fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style Loop fill:#fff,stroke:#333,stroke-width:2px
-    style Store fill:#fff,stroke:#333,stroke-width:2px
-    style Response fill:#fff,stroke:#333,stroke-width:2px,min-width:500px
+    style ToolDecision fill:#fff,stroke:#333,stroke-width:2px
+    style Tools fill:#fff,stroke:#333,stroke-width:2px
+    style Reflect fill:#fff,stroke:#333,stroke-width:2px
+    style StoreEpi fill:#fff,stroke:#28a745,stroke-width:2px,color:#28a745
+    style StoreProc fill:#fff,stroke:#28a745,stroke-width:2px,color:#28a745
+    style SaveCheck fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style RedisVL fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style RedisData fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Response fill:#fff,stroke:#333,stroke-width:2px
 ```
 
 ### Tool → Data Source Mapping
