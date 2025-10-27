@@ -21,7 +21,6 @@ from ..utils.exceptions import (
     InfrastructureError,
     sanitize_user_id,
 )
-from ..utils.pronoun_resolver import get_pronoun_resolver
 from ..utils.user_config import extract_user_id_from_session, get_user_session_key
 
 
@@ -223,11 +222,13 @@ class RedisChatService:
             user_id = self._extract_user_id(session_id)
 
             # Resolve pronouns in user message
-            with self.redis_manager.get_connection() as redis_client:
-                pronoun_resolver = get_pronoun_resolver(redis_client)
-                message_to_process = pronoun_resolver.resolve_pronouns(
-                    session_id=session_id, query=message
-                )
+            # TEMPORARILY DISABLED - causing incorrect topic resolution
+            # with self.redis_manager.get_connection() as redis_client:
+            #     pronoun_resolver = get_pronoun_resolver(redis_client)
+            #     message_to_process = pronoun_resolver.resolve_pronouns(
+            #         session_id=session_id, query=message
+            #     )
+            message_to_process = message  # Use original message
 
             # Process with stateful RAG agent (checkpointer handles history)
             result = await self.agent.chat(
@@ -237,14 +238,15 @@ class RedisChatService:
             )
 
             # Update pronoun context
-            with self.redis_manager.get_connection() as redis_client:
-                pronoun_resolver = get_pronoun_resolver(redis_client)
-                pronoun_resolver.update_context(
-                    session_id=session_id,
-                    query=message,
-                    response=result["response"],
-                    tools_used=result.get("tools_used", []),
-                )
+            # TEMPORARILY DISABLED - causing incorrect topic resolution
+            # with self.redis_manager.get_connection() as redis_client:
+            #     pronoun_resolver = get_pronoun_resolver(redis_client)
+            #     pronoun_resolver.update_context(
+            #         session_id=session_id,
+            #         query=message,
+            #         response=result["response"],
+            #         tools_used=result.get("tools_used", []),
+            #     )
 
             return {
                 "response": result["response"],
@@ -296,11 +298,13 @@ class RedisChatService:
             user_id = self._extract_user_id(session_id)
 
             # Resolve pronouns in user message
-            with self.redis_manager.get_connection() as redis_client:
-                pronoun_resolver = get_pronoun_resolver(redis_client)
-                message_to_process = pronoun_resolver.resolve_pronouns(
-                    session_id=session_id, query=message
-                )
+            # TEMPORARILY DISABLED - causing incorrect topic resolution
+            # with self.redis_manager.get_connection() as redis_client:
+            #     pronoun_resolver = get_pronoun_resolver(redis_client)
+            #     message_to_process = pronoun_resolver.resolve_pronouns(
+            #         session_id=session_id, query=message
+            #     )
+            message_to_process = message  # Use original message
 
             # Stream from agent (checkpointer handles history)
             response_text = ""
@@ -317,14 +321,15 @@ class RedisChatService:
                     final_data = chunk.get("data", {})
 
             # Update pronoun context
-            with self.redis_manager.get_connection() as redis_client:
-                pronoun_resolver = get_pronoun_resolver(redis_client)
-                pronoun_resolver.update_context(
-                    session_id=session_id,
-                    query=message,
-                    response=response_text,
-                    tools_used=final_data.get("tools_used", []) if final_data else [],
-                )
+            # TEMPORARILY DISABLED - causing incorrect topic resolution
+            # with self.redis_manager.get_connection() as redis_client:
+            #     pronoun_resolver = get_pronoun_resolver(redis_client)
+            #     pronoun_resolver.update_context(
+            #         session_id=session_id,
+            #         query=message,
+            #         response=response_text,
+            #         tools_used=final_data.get("tools_used", []) if final_data else [],
+            #     )
 
             # Yield final data
             if final_data:

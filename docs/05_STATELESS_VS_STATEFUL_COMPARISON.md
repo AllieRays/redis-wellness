@@ -60,33 +60,49 @@ flowchart TB
     UI["User Interface"]
     Router["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
     Simple["Redis<br/>(Simple Queries)"]
-    Complex["LangGraph StateGraph<br/>• Qwen 2.5 7B LLM<br/>• Tool calling loop<br/>• Response synthesis"]
-    RedisShort["Redis Short-term<br/>Checkpointing"]
+    
+    subgraph LangGraph["LangGraph StateGraph"]
+        Load["1. Load Checkpoint<br/>(Redis - conversation history)"]
+        LLM["2. Qwen 2.5 7B LLM<br/>(sees history + decides tools)"]
+        Tools["3. LLM Tools<br/>(5 total: 3 health + 2 memory)"]
+        Loop{"4. More tools?"}
+        Store["5. Store Memories<br/>(episodic + procedural)"]
+        Save["6. Save Checkpoint<br/>(Redis)"]
+        
+        Load --> LLM
+        LLM --> Tools
+        Tools --> Loop
+        Loop -->|Yes| LLM
+        Loop -->|No| Store
+        Store --> Save
+    end
+    
     RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
-    Tools["LLM Tools<br/>(5 total: 3 health + 2 memory)"]
+    RedisData["Redis Health Data Store"]
     Response["Response to User"]
-    Store["✅ STORE MEMORY"]
 
     UI --> Router
     Router -->|"Fast path"| Simple
-    Router -->|"Complex path"| Complex
+    Router -->|"Complex path"| LangGraph
     Simple --> Response
-    Complex --> RedisShort
-    Complex --> RedisVL
-    Complex --> Tools
-    Tools --> Response
+    Tools <--> RedisVL
+    Tools <--> RedisData
+    Save --> Response
     Response --> UI
-    Response --> Store
 
     style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
     style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
     style Simple fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style Complex fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
-    style RedisShort fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style RedisVL fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style LangGraph fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
+    style Load fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style LLM fill:#fff,stroke:#333,stroke-width:2px,color:#000
     style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style Loop fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style Store fill:#fff,stroke:#28a745,stroke-width:2px,color:#28a745
+    style Save fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style RedisVL fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style RedisData fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style Response fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
-    style Store fill:#fff,stroke:#28a745,stroke-width:2px,color:#28a745,stroke-dasharray: 5 5
 ```
 
 ### Key Differences
