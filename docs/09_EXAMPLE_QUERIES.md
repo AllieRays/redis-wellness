@@ -68,6 +68,8 @@ flowchart LR
 
 **Both agents work the same on first queries** - memory isn't needed yet.
 
+**Note:** The stateful agent IS building checkpoint state from the start (via LangGraph), but it hasn't accumulated enough context to show a difference yet. Memory becomes valuable on follow-up questions.
+
 ```
 "What was my average heart rate last week?"
 → Both: "Your average heart rate last week was 72 bpm."
@@ -132,8 +134,9 @@ Stateless: ❌ "I don't have information about your goals."
 Stateful:  ✅ "Your goal is 125 lbs by December. Current: 136.8 lbs.
                You've lost 8.2 lbs since September - excellent progress!"
 
-Tools: get_my_goals (RedisVL) → get_health_metrics
-Redis: episodic:wellness_user:goal:1729962000
+Tools: get_my_goals (episodic memory via RedisVL) → get_health_metrics
+Redis Keys: episodic:{user_id}:{event_type}:{timestamp}
+Example: episodic:wellness_user:goal:1729962000
 ```
 
 ### Step Goal
@@ -168,11 +171,14 @@ Second time:
 Stateful stores successful workflows in procedural memory:
 
 ```python
+# Redis Key: procedure:{user_id}:{query_hash}
 {
+    "query": "Compare activity this month vs last",
     "query_type": "activity_comparison",
     "tools_used": ["get_workout_data", "get_health_metrics"],
     "success_score": 0.95,
-    "execution_time_ms": 2800
+    "execution_time_ms": 2800,
+    "embedding": [...]  # 1024-dim vector for similarity search
 }
 ```
 
@@ -193,9 +199,8 @@ Stateless:
   → Stops
 
 Stateful:
-  → Calls get_workout_data (pattern analysis)
-  → Calls get_workout_data (historical comparison)
-  → Calls get_my_goals (check alignment)
+  → Calls get_workout_data(include_patterns=True, include_progress=True)
+  → Calls get_my_goals("workout frequency goal")
   → "You work out most on Fridays (24) and Mondays (18).
       Frequency up 50% this month, aligns with 3x/week goal!"
 ```
@@ -236,7 +241,11 @@ Stateful:  ✅ "Not concerning if you intensified workouts.
                which explains the higher heart rate."
 ```
 
-**Memory layers used**: Short-term (conversation), Episodic (goals), Procedural (patterns)
+**Memory layers used**: 
+- **Short-term** (LangGraph checkpointing for conversation context)
+- **Episodic** (RedisVL vector search for user goals)
+- **Procedural** (RedisVL vector search for learned tool patterns)
+- **Semantic** (optional - not actively used in this demo)
 
 ---
 

@@ -88,7 +88,7 @@ Agent: ✅ "72 bpm is in the normal range..."
 ```python
 # From: backend/src/services/redis_connection.py
 
-from langgraph.checkpoint.redis import AsyncRedisSaver
+from langgraph.checkpoint.redis.aio import AsyncRedisSaver
 
 async def get_checkpointer():
     redis_url = "redis://localhost:6379/0"
@@ -98,7 +98,7 @@ async def get_checkpointer():
 ```
 
 **Real code**:
-- Checkpointer initialization: [`redis_connection.py:255-292`](../backend/src/services/redis_connection.py#L255-L292)
+- Checkpointer initialization: [`redis_connection.py:255-300`](../backend/src/services/redis_connection.py#L255-L300)
 - Redis URL builder: [`redis_connection.py:309-330`](../backend/src/services/redis_connection.py#L309-L330)
 
 ### Integration with LangGraph
@@ -118,7 +118,7 @@ class StatefulRAGAgent:
 ```
 
 **Real code**:
-- Agent initialization: [`stateful_rag_agent.py:59-73`](../backend/src/agents/stateful_rag_agent.py#L59-L73)
+- Agent initialization: [`stateful_rag_agent.py:59-90`](../backend/src/agents/stateful_rag_agent.py#L59-L90)
 - Graph compilation: [`stateful_rag_agent.py:91-146`](../backend/src/agents/stateful_rag_agent.py#L91-L146)
 
 ---
@@ -155,11 +155,13 @@ class MemoryState(TypedDict):
     user_id: str
     episodic_context: str | None
     procedural_patterns: list[dict] | None
+    execution_plan: dict | None
     workflow_start_time: int
+    tool_call_tracker: ToolCallTracker | None
 ```
 
 **Real code**:
-- State definition: [`stateful_rag_agent.py:47-56`](../backend/src/agents/stateful_rag_agent.py#L47-L56)
+- State definition: [`stateful_rag_agent.py:47-57`](../backend/src/agents/stateful_rag_agent.py#L47-L57)
 
 ### Automatic Saving
 
@@ -180,7 +182,8 @@ await checkpointer.aput(config, new_state)
 ```
 
 **Real code**:
-- Graph execution example: [`stateful_rag_agent.py:270-296`](../backend/src/agents/stateful_rag_agent.py#L270-L296) (invoke method)
+- Graph workflow construction: [`stateful_rag_agent.py:91-146`](../backend/src/agents/stateful_rag_agent.py#L91-L146)
+- Graph execution happens via `workflow.compile(checkpointer=self.checkpointer)` (line 146)
 
 ### Redis Keys
 

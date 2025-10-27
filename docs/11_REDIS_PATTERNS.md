@@ -163,6 +163,7 @@ await checkpointer.asetup()
 # Keys created automatically by LangGraph:
 # langgraph:checkpoint:{session_id}:{step} → Serialized state
 # conversation history stored in checkpoint state
+# Note: LangGraph internally uses Redis LIST operations for checkpoint storage
 ```
 
 **Why AsyncRedisSaver**: Automatic persistence, built-in serialization, survives restarts
@@ -192,7 +193,7 @@ pipeline.hset(workout_key, mapping={
     "duration_minutes": "45.2",
     "calories": "420"
 })
-pipeline.expire(workout_key, ttl_seconds)  # 7 months TTL
+pipeline.expire(workout_key, ttl_seconds)  # 7 months TTL (uses pipeline for efficiency)
 
 # Aggregations by day (HASH with atomic increment)
 days_key = RedisKeys.workout_days("wellness_user")
@@ -209,6 +210,7 @@ pipeline.expire(days_key, ttl_seconds)
 - Workout details: [`redis_workout_indexer.py:93-106`](../backend/src/services/redis_workout_indexer.py#L93-L106) (hset individual workouts)
 - Fetching counts: [`redis_workout_indexer.py:151-178`](../backend/src/services/redis_workout_indexer.py#L151-L178) (hgetall)
 - Key generation: [`redis_keys.py:90-103,122-135`](../backend/src/utils/redis_keys.py#L90-L103)
+- Note: Indexing occurs during data import, not at query time
 
 ---
 
@@ -490,7 +492,7 @@ episodic:wellness_user:goal:1729962000 → HASH {
 
 ```python
 # Workflow pattern with embedding (HASH with vector field)
-procedural:a1b2c3d4:1729962000 → HASH {
+procedural:e8f7a9c4d2b1:1729962000 → HASH {
     "query_type": "workout_analysis",
     "timestamp": 1729962000,
     "query_description": "workout_analysis: compare activity levels",
@@ -504,7 +506,8 @@ procedural:a1b2c3d4:1729962000 → HASH {
 # Vector search powered by HNSW index
 # Index name: procedural_memory_idx
 # Prefix: procedural:
-# Hash: SHA256 of query + tools (first 12 chars)
+# Key Generation: SHA256 hash of (query + sorted tools), first 12 hex chars
+# Redis Type: HASH data structure with vector field for semantic search
 ```
 
 **Real code**:
@@ -512,6 +515,7 @@ procedural:a1b2c3d4:1729962000 → HASH {
 - Pattern retrieval: [`procedural_memory_manager.py:394-474`](../backend/src/services/procedural_memory_manager.py#L394-L474) (retrieve_patterns)
 - Workflow evaluation: [`procedural_memory_manager.py:476-497`](../backend/src/services/procedural_memory_manager.py#L476-L497)
 - Tool usage: [`memory_tools.py:118-187`](../backend/src/apple_health/query_tools/memory_tools.py#L118-L187) (get_tool_suggestions)
+- Note: Keys built directly via `PROCEDURAL_PREFIX` (not `RedisKeys.procedural_memory()` helper)
 
 ---
 
@@ -524,4 +528,4 @@ procedural:a1b2c3d4:1729962000 → HASH {
 
 ---
 
-**Key takeaway:** Redis provides five data structures (STRING, LIST, HASH, ZSET, Vector) that together enable fast health data storage, conversation history, and semantic memory search - all in one in-memory system.
+**Key takeaway:** Redis provides five data structures (STRING, LIST, HASH, ZSET, Vector) that together enable fast health data storage, conversation history, and semantic memory search - **all in one unified in-memory system**, eliminating the need for multiple databases and complex caching layers.

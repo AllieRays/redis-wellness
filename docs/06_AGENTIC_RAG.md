@@ -37,7 +37,7 @@ Let's compare the two approaches:
 ### ❌ Traditional RAG (Hardcoded)
 
 **Code Approach:**
-```python
+```python path=null start=null
 # BAD: Hardcoded logic
 if "weight" in query:
     tool = search_health_records
@@ -57,7 +57,7 @@ elif "workout" in query:
 ### ✅ Agentic RAG (Autonomous)
 
 **Code Approach:**
-```python
+```python path=null start=null
 # GOOD: LLM decides
 llm_with_tools = llm.bind_tools([
     get_health_metrics,
@@ -85,25 +85,34 @@ response = await llm_with_tools.ainvoke(user_query)
 
 Qwen 2.5 7B reads tool docstrings to understand what each tool does. For comprehensive best practices on tool calling with Qwen, see [08_QWEN_BEST_PRACTICES.md](08_QWEN_BEST_PRACTICES.md).
 
-```python
+```python path=null start=null
 @tool
-def get_health_metrics(metric: str, days: int):
+def get_health_metrics(
+    metric_types: list[str],
+    time_period: str = "recent",
+    aggregations: list[str] | None = None,
+) -> dict[str, Any]:
     """
-    🔢 RETRIEVE health metrics: heart rate, steps, weight, BMI.
+    Get health metrics with optional statistics (raw data OR aggregated).
 
-    ⚠️ USE THIS TOOL WHEN USER ASKS FOR:
-    - "heart rate", "pulse", "bpm"
-    - "steps", "walking", "distance"
-    - "weight", "mass", "lbs", "kg"
-    - "BMI", "body mass index"
-    - Statistics: "average", "min", "max", "total"
+    USE WHEN user asks:
+    - "What was my weight in September?" (raw data)
+    - "What was my average heart rate last week?" (statistics)
+    - "Show me my BMI trend" (raw data over time)
+    - "Total steps this month" (statistics)
+    - "Minimum/maximum values" (statistics)
 
-    ❌ DO NOT USE for:
-    - Sleep data (use get_sleep_analysis)
-    - Workouts (use get_workout_data)
-    - Goals (use get_my_goals)  # Stateful only
+    DO NOT USE for:
+    - Trend analysis → use get_trends instead
+    - Period comparisons → use get_trends instead
+    - Workout data → use get_workouts instead
 
-    Returns health metrics with statistics.
+    Args:
+        metric_types: List of metric types (e.g., ["BodyMass"], ["HeartRate"])
+        time_period: Natural language time period (default: "recent")
+        aggregations: Optional statistics to compute (default: None = raw data)
+
+    Returns health metrics with statistics or raw data.
     """
 ```
 
@@ -163,32 +172,37 @@ flowchart TD
 
 **Pattern**: Tool 2 needs Tool 1's result - sequential execution required.
 
-```python
+```python path=null start=null
 # LLM autonomously chains 2 tools:
 1. get_my_goals(query="steps goal")
    → Returns: {"goal": "10,000 steps daily"}
 
-2. get_health_metrics(metric="StepCount", days=1)
-   → Returns: {"today": 8432}
+2. get_health_metrics(
+       metric_types=["StepCount"],
+       time_period="today",
+       aggregations=["sum"]
+   )
+   → Returns: {"sum": "8432 steps"}
 
 3. Synthesizes answer
 ```
 
 ---
 
-### Parallel Execution (Independent Tools)
+### Sequential Execution (Independent Tools)
 
 **Query**: "Show my workouts and sleep patterns this week"
 
-**Pattern**: No dependencies - execute in parallel for speed.
+**Pattern**: Tools execute sequentially in the tool loop.
 
-```python
-# LLM calls 2 independent tools:
-results = await asyncio.gather(
-    get_workout_data(days=7),
-    get_sleep_analysis(days=7)
-)
-# ~1.2s total (vs 2.4s sequential)
+```python path=null start=null
+# LLM calls 2 independent tools sequentially:
+# Iteration 1: Call get_workout_data
+# Iteration 2: Call get_sleep_analysis
+# Both complete successfully, then synthesize response
+
+# Note: Current implementation uses sequential tool execution.
+# Parallel execution (asyncio.gather) could be a future optimization.
 ```
 
 ---
@@ -199,12 +213,12 @@ results = await asyncio.gather(
 
 **Pattern**: LLM realizes it needs more data after seeing initial results.
 
-```python
+```python path=null start=null
 # LLM iteratively gathers data:
-1. get_workout_data(period="this month")
+1. get_workout_data(time_period="this month")
    → Sees need for comparison baseline
 
-2. get_workout_data(period="last month")
+2. get_workout_data(time_period="last month")
    → Sees both periods available
 
 3. Performs comparison
@@ -270,19 +284,23 @@ flowchart TD
 
 ### Implementation
 
-```python
-# From: backend/src/utils/intent_bypass_handler.py
+```python path=null start=null
+# From: backend/src/utils/intent_router.py
 
-async def handle_intent_bypass(message: str, user_id: str):
-    # Pattern matching for goals
-    if re.search(r'\bgoal\b.*\bis\b', message, re.IGNORECASE):
-        return await set_goal(user_id, message)  # <100ms
+async def should_bypass_tools(message: str) -> tuple[bool, str | None, str | None]:
+    """Determine if we should bypass tool calling and return a direct response."""
+    if is_goal_setting_statement(message):
+        goal = extract_goal_from_statement(message)
+        response = f"Got it! I've saved your goal: {goal}."
+        return True, response, "goal_setting"  # <100ms
 
-    if re.search(r'what.*goals', message, re.IGNORECASE):
-        return await get_goals(user_id)  # <100ms
+    if is_goal_retrieval_question(message):
+        goal_text = await retrieve_latest_goal()
+        response = f"Your goal: {goal_text}" if goal_text else "You haven't set a goal yet."
+        return True, response, "goal_retrieval"  # <100ms
 
     # No match → continue to LLM
-    return None
+    return False, None, None
 ```
 
 ### Benefits
@@ -300,21 +318,21 @@ async def handle_intent_bypass(message: str, user_id: str):
 ### Pattern Learning (Procedural Memory)
 
 **First Time**:
-```python
+```python path=null start=null
 Query: "Compare workouts"
 → LLM figures out tools (2.8s)
 → Stores pattern with success_score=0.95
 ```
 
 **Subsequent Times**:
-```python
+```python path=null start=null
 Query: "Compare workouts"
 → LLM calls get_tool_suggestions
 → Retrieves stored pattern (1.9s, 32% faster)
 ```
 
 **Storage**:
-```python
+```python path=null start=null
 # Redis procedural memory
 procedural:user123:compare_workouts → {
     "tools": ["get_workout_data", "get_workout_data"],
@@ -328,7 +346,7 @@ procedural:user123:compare_workouts → {
 
 **Pattern**: Stop when you have enough information.
 
-```python
+```python path=null start=null
 # Don't call more tools if answer is complete
 if response.tool_calls:
     execute_tools(response.tool_calls)
@@ -337,9 +355,9 @@ else:
 ```
 
 **Example**:
-```python
+```python path=null start=null
 Query: "How many workouts?"
-→ Tool: get_workout_data(include_summary=True)
+→ Tool: get_workout_data(time_period="all", include_summary=True)
 → Returns: {"total": 154}
 → LLM: "You have 154 workouts" (stops, no more tools)
 ```
@@ -348,9 +366,9 @@ Query: "How many workouts?"
 
 **Pattern**: Prevent infinite loops in tool calling.
 
-```python
+```python path=null start=null
 # Stateless: MAX_TOOL_ITERATIONS = 8
-# Stateful: LANGGRAPH_RECURSION_LIMIT = 50
+# Stateful: LANGGRAPH_RECURSION_LIMIT = 32
 
 for iteration in range(MAX_ITERATIONS):
     if no_tool_calls:
@@ -374,11 +392,14 @@ for iteration in range(MAX_ITERATIONS):
 
 **Tool Selected**: `get_workout_data`
 
-```python
+```python path=null start=null
 {
     "tool_calls": [{
         "name": "get_workout_data",
-        "args": {"include_summary": True}
+        "args": {
+            "time_period": "all",
+            "include_summary": True
+        }
     }]
 }
 ```
@@ -393,10 +414,10 @@ for iteration in range(MAX_ITERATIONS):
 
 **Tools Selected**: 3 tool calls
 
-```python
+```python path=null start=null
 [
-    {"name": "get_workout_data", "args": {"include_patterns": True}},
-    {"name": "get_workout_data", "args": {"include_progress": True}},
+    {"name": "get_workout_data", "args": {"time_period": "recent", "include_patterns": True}},
+    {"name": "get_workout_data", "args": {"time_period": "recent", "include_progress": True}},
     {"name": "get_my_goals", "args": {"query": "workout frequency"}}
 ]
 ```
@@ -411,10 +432,14 @@ for iteration in range(MAX_ITERATIONS):
 
 **Tools Selected** (Stateful only):
 
-```python
+```python path=null start=null
 [
     {"name": "get_my_goals", "args": {"query": "steps goal"}},
-    {"name": "get_health_metrics", "args": {"metric": "StepCount", "days": 1}}
+    {"name": "get_health_metrics", "args": {
+        "metric_types": ["StepCount"],
+        "time_period": "today",
+        "aggregations": ["sum"]
+    }}
 ]
 ```
 

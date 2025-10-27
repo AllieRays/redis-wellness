@@ -13,7 +13,7 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 - ✅ Complete test suite (unit, integration, API, LLM)
 - ✅ Apple Health data pipeline with Redis indexing
 - ✅ LangGraph checkpointing for conversation state
-- ✅ 11 LangChain tools (9 health + 2 memory)
+- ✅ 5 consolidated LangChain tools (3 health + 2 memory)
 - ✅ TypeScript frontend with SSE streaming
 - ✅ Full Docker deployment with health checks
 - ✅ Makefile with comprehensive commands

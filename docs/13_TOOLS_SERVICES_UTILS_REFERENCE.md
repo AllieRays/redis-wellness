@@ -4,6 +4,8 @@
 
 This document provides a comprehensive reference for every tool, service, and utility in the redis-wellness codebase. Each component is categorized by its role in the architecture.
 
+**Last Updated**: October 27, 2025
+
 **Key Point**: The codebase follows clean architecture principles with clear separation of concerns.
 
 ### What You'll Learn
@@ -49,8 +51,8 @@ Business logic layer between API endpoints and Redis.
 ### 3.1 Chat Services
 | Service | Purpose | Memory Layers | Key Method | Endpoint |
 |---------|---------|---------------|------------|----------|
-| **`stateless_chat`** | Baseline (NO memory) | None | `process_message(message)` | `/api/chat/stateless` |
-| **`redis_chat`** | Full RAG with 4-layer memory | Short-term (7mo TTL)<br>Episodic (goals)<br>Procedural (patterns)<br>Semantic (optional) | `process_message(message, session_id)` | `/api/chat/stateful` |
+| **`stateless_chat`** | Baseline (NO memory) | None | `chat(message)` | `/api/chat/stateless` |
+| **`redis_chat`** | Full RAG with 4-layer memory | Short-term (7mo TTL)<br>Episodic (goals)<br>Procedural (patterns)<br>Semantic (optional) | `chat(message, session_id)` | `/api/chat/stateful` |
 
 ### 3.2 Memory Services (RedisVL Vector Search)
 
@@ -287,6 +289,36 @@ flowchart TD
 ---
 
 [📄 View all source files](../backend/src/utils/)
+
+---
+
+## 6. Verification Checklist
+
+**Before using this reference, verify against the actual codebase**:
+
+```bash
+# Verify query tools exist
+ls backend/src/apple_health/query_tools/
+
+# Verify services exist
+ls backend/src/services/
+
+# Verify utils exist  
+ls backend/src/utils/
+
+# Check actual endpoint paths
+grep -n "@router.post" backend/src/api/chat_routes.py
+
+# Verify method signatures
+grep -n "async def chat" backend/src/services/redis_chat.py
+grep -n "async def chat" backend/src/services/stateless_chat.py
+```
+
+**Common pitfalls when using this doc**:
+- ❌ Assuming method names without checking source
+- ❌ Using outdated endpoint paths
+- ❌ Not verifying which utils actually exist
+- ✅ Always check actual implementation before refactoring
 
 ---
 

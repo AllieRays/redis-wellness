@@ -208,7 +208,7 @@ flowchart TB
 
 ### Tools Available to Each Agent
 
-#### Stateless Agent: 3 Health Tools
+#### Stateless Agent: 3 Health Tools (No Memory)
 
 | Tool | Purpose | Code Location |
 |------|---------|---------------|
@@ -216,7 +216,7 @@ flowchart TB
 | `get_sleep_analysis` | Sleep data and efficiency | `apple_health/query_tools/get_sleep_analysis.py` |
 | `get_workout_data` | Workout lists, patterns, progress | `apple_health/query_tools/get_workout_data.py` |
 
-**Total**: 3 tools (health data only)
+**Key Point**: NO memory tools - this agent cannot access goals or learned patterns.
 
 ---
 
@@ -230,70 +230,116 @@ flowchart TB
 | **`get_my_goals`** 🆕 | Retrieve user goals (vector search) | `apple_health/query_tools/memory_tools.py` |
 | **`get_tool_suggestions`** 🆕 | Retrieve learned patterns (vector search) | `apple_health/query_tools/memory_tools.py` |
 
-**Total**: 5 tools (health + memory)
+**Key Point**: Same 3 health tools PLUS 2 memory tools for autonomous memory retrieval.
 
-### Tool Code Example
+### The One-Line Difference
 
-```python
-# From: backend/src/apple_health/query_tools/__init__.py
+This single parameter controls whether an agent has memory:
 
-def create_user_bound_tools(user_id, include_memory_tools=True):
+```python path=/Users/allierays/Sites/redis-wellness/backend/src/apple_health/query_tools/__init__.py start=43
+def create_user_bound_tools(
+    user_id: str,
+    conversation_history=None,
+    include_memory_tools: bool = True,
+) -> list[BaseTool]:
+    """
+    Create tool instances bound to the single application user.
+    
+    Tool Set (Health - always included):
+        1. get_health_metrics - All non-sleep, non-workout health data
+        2. get_sleep_analysis - Sleep data with daily aggregation
+        3. get_workout_data - ALL workout queries (lists, patterns, progress)
+    
+    Tool Set (Memory - optional):
+        4. get_my_goals - Retrieve user goals and preferences
+        5. get_tool_suggestions - Retrieve learned tool-calling patterns
+    """
+    # Create health tools (always included)
     tools = [
         create_get_health_metrics_tool(user_id),
         create_get_sleep_analysis_tool(user_id),
         create_get_workout_data_tool(user_id),
     ]
 
-    # Memory tools (only for stateful agent)
+    # Add memory retrieval tools (for autonomous memory access)
+    # Stateless agent sets include_memory_tools=False for baseline comparison
     if include_memory_tools:
         memory_tools = create_memory_tools()
-        tools.extend(memory_tools)  # Adds get_my_goals, get_tool_suggestions
-
+        tools.extend(memory_tools)
+    
     return tools
+```
 
-# Stateless usage:
+**Usage:**
+
+```python path=null start=null
+# Stateless agent (NO memory)
 tools = create_user_bound_tools(user_id, include_memory_tools=False)
 
-# Stateful usage:
+# Stateful agent (WITH memory)
 tools = create_user_bound_tools(user_id, include_memory_tools=True)
 ```
 
----
-
-## 5. Performance Comparison
-
-### Response Times
-
-| Metric | Stateless | Stateful | Notes |
-|--------|-----------|----------|-------|
-| **First query** | 2.8s | 2.8s | Same (no prior context) |
-| **Follow-up query** | ❌ Fails | 2.1s | Stateful understands context |
-| **Goal-based query** | ❌ Fails | 3.2s | Includes vector search |
-| **Repeat similar query** | 2.8s | 1.9s | Stateful learns patterns |
-
-### Memory Overhead
-
-| Metric | Stateless | Stateful |
-|--------|-----------|----------|
-| **RAM per session** | 0 KB | ~170 KB |
-| **Redis storage** | 0 KB | ~150 KB per user |
-| **Conversation history** | None | 100 messages (7-month TTL) |
-| **Goals stored** | None | ~10 goals with embeddings |
-| **Patterns stored** | None | ~20 workflow patterns |
-
-### Token Usage
-
-| Query Type | Stateless | Stateful | Difference |
-|------------|-----------|----------|------------|
-| **Simple query** | ~150 tokens | ~150 tokens | Same |
-| **Follow-up** | ~150 tokens | ~400 tokens | +250 (conversation history) |
-| **Goal query** | ❌ Fails | ~600 tokens | +450 (vector search results) |
-
-**Key Insight**: Stateful uses more tokens but provides intelligent responses. Stateless uses fewer tokens but fails at context.
+**That's it.** Same LLM, same health tools - only memory tools differ.
 
 ---
 
-## 6. Related Documentation
+## 5. Capability Comparison
+
+### What Each Agent Can Actually Do
+
+| Capability | Stateless | Stateful | Impact |
+|------------|-----------|----------|--------|
+| **Single-turn queries** | ✅ Full | ✅ Full | Both handle factual queries equally well |
+| **Follow-up questions** | ❌ Fails | ✅ Works | Stateful remembers conversation context |
+| **Goal awareness** | ❌ No memory | ✅ Cross-session recall | Stateful retrieves stored goals via vector search |
+| **Pattern learning** | ❌ Repeats work | ✅ Learns shortcuts | Stateful gets faster on similar queries |
+| **Multi-turn reasoning** | ❌ No context | ✅ Full context | Stateful chains thoughts across messages |
+
+### Memory Storage
+
+| Memory Type | Stateless | Stateful |
+|-------------|-----------|----------|
+| **Conversation history** | None | Up to 100 messages (LangGraph checkpointing) |
+| **Goals stored** | None | RedisVL vector index (1024-dim embeddings) |
+| **Learned patterns** | None | RedisVL vector index (successful workflows) |
+| **Persistence** | None | 7-month TTL (conversation + goals + patterns) |
+
+### Token Usage Trade-offs
+
+| Query Type | Stateless | Stateful | Why the Difference? |
+|------------|-----------|----------|--------------------|
+| **Simple query** | ~150 tokens | ~150 tokens | Same - no memory needed |
+| **Follow-up** | ~150 tokens | ~400 tokens | +250 tokens for conversation history |
+| **Goal query** | ❌ Fails | ~600 tokens | +450 tokens for vector search results |
+
+**Trade-off**: Stateful uses 2-4x more tokens for context-dependent queries, but provides intelligent, context-aware responses. Stateless uses fewer tokens but cannot handle follow-ups or remember goals.
+
+---
+
+## 6. When to Use Each Agent
+
+### Use Stateless Agent When:
+
+- ✅ Building a simple Q&A system
+- ✅ No need for conversation context
+- ✅ Minimizing token usage is critical
+- ✅ Establishing baseline metrics for comparison
+- ✅ Users ask independent, single-turn questions
+
+### Use Stateful Agent When:
+
+- ✅ Users have multi-turn conversations
+- ✅ Need to remember user goals and preferences
+- ✅ Want to learn from past interactions
+- ✅ Building a personalized health assistant
+- ✅ Users ask follow-up questions like "What about yesterday?"
+
+**Key Decision**: If users say "it", "that", or "those" and expect the agent to understand, you need the stateful agent.
+
+---
+
+## 7. Related Documentation
 
 - **[03_STATELESS_AGENT.md](03_STATELESS_AGENT.md)** - Detailed stateless agent architecture
 - **[04_STATEFUL_AGENT.md](04_STATEFUL_AGENT.md)** - Detailed stateful agent architecture

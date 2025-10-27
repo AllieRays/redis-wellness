@@ -63,7 +63,7 @@ Agent: "72 bpm average"
 User: "Is that good?" ← Remembers "that" = 72 bpm
 ```
 
-**Redis Keys**: `langgraph:checkpoint:{session_id}:*`
+**Redis Keys**: Managed by `AsyncRedisSaver` (LangGraph checkpoint format)
 
 [📄 View implementation](../backend/src/agents/stateful_rag_agent.py)
 
@@ -89,7 +89,7 @@ User (Day 30): "Am I on track with my leg day goal?"
 Agent: "Your goal is to never skip leg day. You've worked out legs 8 times this month..."
 ```
 
-**Redis Keys**: `episodic:{user_id}:goal:{timestamp}`
+**Redis Keys**: `episodic:{user_id}:{event_type}:{timestamp}` (e.g., `episodic:wellness_user:goal:1729737600`)
 
 [📄 View service](../backend/src/services/episodic_memory_manager.py) | [📄 View tools](../backend/src/apple_health/query_tools/memory_tools.py)
 
@@ -115,7 +115,7 @@ Query 2: Similar comparison query
 → Retrieves pattern (32% faster)
 ```
 
-**Redis Keys**: `procedural:pattern:{timestamp}`
+**Redis Keys**: `procedural:{pattern_hash}:{timestamp}` (e.g., `procedural:a1b2c3d4e5f6:1729737600`)
 
 [📄 View service](../backend/src/services/procedural_memory_manager.py) | [📄 View tools](../backend/src/apple_health/query_tools/memory_tools.py)
 
@@ -133,7 +133,7 @@ Query 2: Similar comparison query
 
 **Example**: Medical facts like "Normal resting heart rate is 60-100 bpm"
 
-**Redis Keys**: `semantic:{category}:{timestamp}`
+**Redis Keys**: `semantic:{category}:{fact_type}:{timestamp}` (e.g., `semantic:cardio:definition:1729737600`)
 
 [📄 View service](../backend/src/services/semantic_memory_manager.py)
 
@@ -223,25 +223,42 @@ result = await graph.ainvoke(input_state, config)
 
 ---
 
-### Autonomous (Episodic & Procedural)
+### Autonomous (All Tools - Including Memory)
 
-**When**: LLM decides based on query
+**When**: LLM autonomously decides based on query
 
-**How**: LLM calls memory tools
+**How**: LLM has access to ALL tools (3 health + 2 memory) and decides which to call
 
-[📄 View tools](../backend/src/apple_health/query_tools/memory_tools.py)
+[📄 View all tools](../backend/src/apple_health/query_tools/) | [📄 View agent workflow](../backend/src/agents/stateful_rag_agent.py)
+
+**Available Tools:**
+
+*Health Tools:*
+- `get_health_metrics` - Query health data (heart rate, steps, weight, BMI, trends)
+- `get_sleep_analysis` - Query sleep data with daily aggregation
+- `get_workout_data` - Query ALL workout data (lists, patterns, progress)
+
+*Memory Tools:*
+- `get_my_goals` - Retrieve user goals via vector search
+- `get_tool_suggestions` - Retrieve successful workflow patterns
 
 ```python
-# LLM sees query mentions "goal"
+# Example: LLM sees query mentions "goal"
 # → Autonomously calls get_my_goals tool
 
 @tool
-def get_my_goals(query: str):
+async def get_my_goals(query: str, top_k: int = 3) -> str:
     """Retrieve user goals via vector search."""
-    embedding = generate_embedding(query)
-    results = episodic_index.search(embedding, top_k=3)
-    return results
+    embedding = await generate_embedding(query)
+    result = await episodic_memory.retrieve_goals(
+        user_id="wellness_user",
+        query=query,
+        top_k=top_k
+    )
+    return result.get("context", "No goals found.")
 ```
+
+**Key Point**: The LLM decides which tools (if any) to call based on the query. Memory retrieval is not forced upfront—it's autonomous like all other tool calls.
 
 ---
 
@@ -251,49 +268,84 @@ def get_my_goals(query: str):
 
 **After every response**, the stateful agent automatically:
 
-1. **Extracts facts** from conversation
-2. **Evaluates workflow** success
-3. **Stores episodic** memory (if facts found)
-4. **Stores procedural** patterns (if successful)
+1. **Reflects** on workflow success (evaluates metrics)
+2. **Extracts facts** from conversation (goals, preferences)
+3. **Stores episodic** memory if goals found
+4. **Stores procedural** patterns if `success_score >= 0.7` (70% threshold)
 
 ```python
-# LangGraph workflow nodes
+# LangGraph workflow nodes (actual implementation)
 workflow.add_node("reflect", self._reflect_node)
 workflow.add_node("store_episodic", self._store_episodic_node)
 workflow.add_node("store_procedural", self._store_procedural_node)
 
-# Flow: llm → tools → reflect → store_episodic → store_procedural
+# Flow: llm → tools (loop) → reflect → store_episodic → store_procedural → END
 ```
 
 ### Storage Logic
 
 [📄 View workflow nodes](../backend/src/agents/stateful_rag_agent.py) | [📄 View fact extractor](../backend/src/utils/conversation_fact_extractor.py)
 
+**Actual Implementation:**
+
 ```python
-async def _store_episodic_node(self, state):
-    # Extract facts from conversation
-    facts = extract_facts(state["messages"])
+# Episodic storage: Extract goals from user messages
+async def _store_episodic_node(self, state: MemoryState) -> dict[str, Any]:
+    # Find last user message
+    user_msg = None
+    for msg in reversed(state["messages"]):
+        if isinstance(msg, HumanMessage):
+            user_msg = msg
+            break
+    
+    if not user_msg:
+        return {}
+    
+    # Extract goals using regex patterns
+    facts = self.fact_extractor.extract_facts([user_msg])
+    user_id = state["user_id"]
+    
+    # Store each goal in episodic memory
+    for goal in facts.get("goals", []):
+        await self.episodic.store_goal(
+            user_id=user_id,
+            metric="weight",  # For now, assume weight goals
+            value=float(goal["value"]),
+            unit=goal["unit"],
+        )
+        logger.info(f"💾 Stored goal: {goal['value']} {goal['unit']}")
+    
+    return {}
 
-    for fact in facts:
-        if is_worth_remembering(fact):
-            embedding = generate_embedding(fact)
-            await episodic_memory.store(
-                text=fact,
-                embedding=embedding,
-                user_id=state["user_id"]
-            )
-
-async def _store_procedural_node(self, state):
-    # Store if workflow was successful
-    if success_score >= 0.7:
-        pattern = {
-            "query": user_query,
-            "tools_used": tools_used,
-            "success_score": success_score
-        }
-        embedding = generate_embedding(pattern["query"])
-        await procedural_memory.store(pattern, embedding)
+# Procedural storage: Store if success_score >= 0.7
+async def _store_procedural_node(self, state: MemoryState) -> dict[str, Any]:
+    # Evaluate workflow success
+    evaluation = self.procedural.evaluate_workflow(
+        tools_used=tools_used,
+        tool_results=tool_results,
+        response_generated=response_generated,
+        execution_time_ms=execution_time_ms,
+    )
+    
+    # Store only if successful (score >= 0.7)
+    if evaluation.get("success"):
+        await self.procedural.store_pattern(
+            query=user_msg.content,
+            tools_used=tools_used,
+            success_score=evaluation.get("success_score", 0.0),
+            execution_time_ms=execution_time_ms,
+        )
+        logger.info(f"✅ Stored procedural pattern (score: {evaluation.get('success_score'):.2%})")
+    else:
+        logger.info(f"⏭️ Skipped procedural storage (score: {evaluation.get('success_score'):.2%})")
+    
+    return {}
 ```
+
+**Key Points:**
+- Episodic storage: Only stores **goals** extracted via regex patterns (not all facts)
+- Procedural storage: Requires `success_score >= 0.7` (70% threshold) to store patterns
+- Success evaluation: Checks for tool errors, response generation, and execution time < 30s
 
 ---
 
