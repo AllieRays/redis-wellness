@@ -55,29 +55,19 @@ Built with **FastAPI**, **TypeScript**, **Redis**, **RedisVL**, and **Ollama (Qw
 
 ## 🎯 The Difference
 
-```mermaid
-flowchart LR
-    subgraph Stateless["❌ Stateless Agent (No Memory)"]
-        direction TB
-        Q1["👤 Query"] --> A1["🤖 Qwen 2.5 7B"]
-        A1 --> T1["🛠️ 3 Tools"]
-        T1 --> R1["📊 Redis Data"]
-        R1 --> Res1["💬 Response"]
-        Res1 -."forgets".-> F1["❌"]
-    end
+<table>
+<tr>
+<td width="50%" valign="top" style="min-height: 600px;">
 
-    subgraph Stateful["✅ Stateful Agent (With Memory)"]
-        direction TB
-        Q2["👤 Query"] --> A2["🤖 Qwen 2.5 7B"]
-        A2 --> C2["❤️ Checkpointing"]
-        A2 --> M2["❤️ Memory<br/>RedisVL"]
-        A2 --> T2["🛠️ 5 Tools"]
-        T2 --> R2["📊 Redis Data"]
-        C2 --> Res2["💬 Response"]
-        M2 --> Res2
-        R2 --> Res2
-        Res2 --> S2["✅ Store"]
-    end
+### ❌ Stateless (No Memory)
+
+```mermaid
+flowchart TB
+    Q1["👤 Query"] --> A1["🤖 Qwen 2.5 7B"]
+    A1 --> T1["🛠️ 3 Tools"]
+    T1 --> R1["📊 Redis Data"]
+    R1 --> Res1["💬 Response"]
+    Res1 -."forgets".-> F1["❌"]
 
     style Q1 fill:#f5f5f5,stroke:#333,stroke-width:2px
     style A1 fill:#f5f5f5,stroke:#333,stroke-width:2px
@@ -85,6 +75,24 @@ flowchart LR
     style R1 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style Res1 fill:#f5f5f5,stroke:#333,stroke-width:2px
     style F1 fill:#fff,stroke:#dc3545,stroke-width:3px,color:#dc3545
+```
+
+</td>
+<td width="50%" valign="top" style="min-height: 600px;">
+
+### ✅ Stateful (With Memory)
+
+```mermaid
+flowchart TB
+    Q2["👤 Query"] --> A2["🤖 Qwen 2.5 7B"]
+    A2 --> C2["❤️ Checkpointing"]
+    A2 --> M2["❤️ Memory<br/>RedisVL"]
+    A2 --> T2["🛠️ 5 Tools"]
+    T2 --> R2["📊 Redis Data"]
+    C2 --> Res2["💬 Response"]
+    M2 --> Res2
+    R2 --> Res2
+    Res2 --> S2["✅ Store"]
 
     style Q2 fill:#f5f5f5,stroke:#333,stroke-width:2px
     style A2 fill:#f5f5f5,stroke:#333,stroke-width:2px
@@ -94,10 +102,11 @@ flowchart LR
     style R2 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style Res2 fill:#f5f5f5,stroke:#333,stroke-width:2px
     style S2 fill:#fff,stroke:#28a745,stroke-width:3px,color:#28a745
-
-    style Stateless fill:#f8f9fa,stroke:#333,stroke-width:2px
-    style Stateful fill:#f8f9fa,stroke:#333,stroke-width:2px
 ```
+
+</td>
+</tr>
+</table>
 
 **Key difference:** Redis memory enables follow-up questions, goal recall, and pattern learning.
 
