@@ -5,17 +5,17 @@
 ```mermaid
 %%{init: {'theme':'base', 'themeVariables': { 'fontSize':'16px', 'edgeLabelBackground':'#f8f9fa'}, 'flowchart': {'rankSpacing': 80, 'nodeSpacing': 40}}}%%
 flowchart LR
-    UI[\"User Interface\"]
-    Router[\"Intent Router<br/>(Pre-LLM)<br/>Pattern matching\"]
-    Simple[\"Redis<br/>(Simple Queries)\"]
-    Complex[\"LangGraph StateGraph<br/>• Qwen 2.5 7B LLM<br/>• Tool calling loop<br/>• Response synthesis\"]
-    RedisShort[\"Redis Short-term<br/>Checkpointing\"]
-    RedisVL[\"RedisVL<br/>Episodic + Procedural<br/>Vector Search\"]
-    Tools[\"LLM Tools<br/>(5 total: 3 health + 2 memory)\"]
+    UI["User Interface"]
+    Router["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
+    Simple["Redis<br/>(Simple Queries)"]
+    Complex["LangGraph StateGraph<br/>• Qwen 2.5 7B LLM<br/>• Tool calling loop<br/>• Response synthesis"]
+    RedisShort["Redis Short-term<br/>Checkpointing"]
+    RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
+    Tools["LLM Tools<br/>(5 total: 3 health + 2 memory)"]
 
     UI --> Router
-    Router -->|\"Fast path\"| Simple
-    Router -->|\"Complex path\"| Complex
+    Router -->|"Fast path"| Simple
+    Router -->|"Complex path"| Complex
     Complex --> RedisShort
     Complex --> RedisVL
     Complex --> Tools
@@ -34,31 +34,31 @@ flowchart LR
 ```mermaid
 %%{init: {'theme':'base', 'themeVariables': { 'fontSize':'16px', 'edgeLabelBackground':'#f8f9fa'}, 'flowchart': {'rankSpacing': 60, 'nodeSpacing': 30}}}%%
 flowchart LR
-    Query[\"User Query\"]
-    Router{\"Intent Router\"}
-    GoalOp[\"Simple Query\"]
-    GoalRedis[\"Redis\"]
-    Memory[\"LangGraph<br/>Checkpointer\"]
-    LLM[\"Qwen 2.5 7B<br/>(Ollama)\"]
-    Decision{\"Which tool?\"}
-    MemoryTools[\"Memory Tools<br/>get_my_goals<br/>get_tool_suggestions\"]
-    HealthTools[\"Health Data Tools<br/>get_health_metrics<br/>get_sleep_analysis<br/>get_workout_data\"]
-    DataSource[\"Data Source\"]
-    RedisStructured[\"Redis<br/>(Structured)\"]
-    RedisVector[\"RedisVL<br/>(Vector Search)\"]
-    Response[\"Response\"]
-    Store[\"Store Memories\"]
+    Query["User Query"]
+    Router{"Intent Router"}
+    GoalOp["Simple Query"]
+    GoalRedis["Redis"]
+    Memory["LangGraph<br/>Checkpointer"]
+    LLM["Qwen 2.5 7B<br/>(Ollama)"]
+    Decision{"Which tool?"}
+    MemoryTools["Memory Tools<br/>get_my_goals<br/>get_tool_suggestions"]
+    HealthTools["Health Data Tools<br/>get_health_metrics<br/>get_sleep_analysis<br/>get_workout_data"]
+    DataSource["Data Source"]
+    RedisStructured["Redis<br/>(Structured)"]
+    RedisVector["RedisVL<br/>(Vector Search)"]
+    Response["Response"]
+    Store["Store Memories"]
     
     Query --> Router
-    Router -->|\"Simple\"| GoalOp
-    Router -->|\"Complex\"| Memory
+    Router -->|"Simple"| GoalOp
+    Router -->|"Complex"| Memory
     GoalOp --> GoalRedis
     GoalRedis --> Response
     Memory --> LLM
     LLM --> Decision
     Decision --> MemoryTools
     Decision --> HealthTools
-    Decision -->|\"Has answer\"| Response
+    Decision -->|"Has answer"| Response
     MemoryTools --> DataSource
     HealthTools --> DataSource
     DataSource --> RedisStructured
