@@ -86,44 +86,22 @@ flowchart LR
 ## Short-Term Memory: Redis Checkpointing
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'16px', 'edgeLabelBackground':'#f8f9fa'}, 'flowchart': {'rankSpacing': 80, 'nodeSpacing': 40}}}%%
-flowchart TB
-    User["User: 'How many workouts?'"]
-    Agent1["Agent Response<br/>'You have 152 workouts'"]
-    Checkpoint1["💾 Redis Checkpoint<br/>langgraph:checkpoint:session123:1"]
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}, 'flowchart': {'rankSpacing': 50, 'nodeSpacing': 30}}}%%
+flowchart LR
+    User1["Q1: How many workouts?"] --> Agent1["152 workouts"]
+    Agent1 --> CP1["💾 Checkpoint:1"]
+    CP1 --> User2["Q2: Most common type?"]
+    User2 --> Load1["📥 Load"]
+    Load1 --> Agent2["Strength Training<br/>40 workouts, 26%"]
+    Agent2 --> CP2["💾 Checkpoint:2"]
     
-    User2["User: 'What's the most common type?'"]
-    LoadCheckpoint["📥 Load Checkpoint<br/>Conversation context loaded"]
-    Agent2["Agent Response<br/>'Traditional Strength Training<br/>(40 workouts, 26%)'"]
-    Checkpoint2["💾 Redis Checkpoint<br/>langgraph:checkpoint:session123:2"]
-    
-    User3["User: 'Why did you say that?'"]
-    LoadCheckpoint2["📥 Load Checkpoint<br/>Remembers previous analysis"]
-    Agent3["Agent Response<br/>'Based on your 152 workouts,<br/>40 were Traditional Strength Training...'"]
-    Checkpoint3["💾 Redis Checkpoint<br/>langgraph:checkpoint:session123:3"]
-    
-    User --> Agent1
-    Agent1 --> Checkpoint1
-    Checkpoint1 --> User2
-    User2 --> LoadCheckpoint
-    LoadCheckpoint --> Agent2
-    Agent2 --> Checkpoint2
-    Checkpoint2 --> User3
-    User3 --> LoadCheckpoint2
-    LoadCheckpoint2 --> Agent3
-    Agent3 --> Checkpoint3
-    
-    style User fill:#e9ecef,stroke:#6c757d,stroke-width:2px,color:#000
-    style User2 fill:#e9ecef,stroke:#6c757d,stroke-width:2px,color:#000
-    style User3 fill:#e9ecef,stroke:#6c757d,stroke-width:2px,color:#000
-    style Agent1 fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000
-    style Agent2 fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000
-    style Agent3 fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000
-    style Checkpoint1 fill:#dc382d,stroke:#dc382d,stroke-width:3px,color:#fff
-    style Checkpoint2 fill:#dc382d,stroke:#dc382d,stroke-width:3px,color:#fff
-    style Checkpoint3 fill:#dc382d,stroke:#dc382d,stroke-width:3px,color:#fff
-    style LoadCheckpoint fill:#dc382d,stroke:#dc382d,stroke-width:3px,color:#fff
-    style LoadCheckpoint2 fill:#dc382d,stroke:#dc382d,stroke-width:3px,color:#fff
+    style User1 fill:#e9ecef,stroke:#6c757d,stroke-width:2px
+    style User2 fill:#e9ecef,stroke:#6c757d,stroke-width:2px
+    style Agent1 fill:#f8f9fa,stroke:#495057,stroke-width:2px
+    style Agent2 fill:#f8f9fa,stroke:#495057,stroke-width:2px
+    style CP1 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style CP2 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Load1 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
 ```
 
 ### How It Works
