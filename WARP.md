@@ -2,6 +2,35 @@
 
 This file provides guidance to WARP (warp.dev) when working with code in this repository.
 
+## Project Status
+
+**🎯 NEARING COMPLETION** - This project is in **final polish phase**. Core functionality is complete and stable.
+
+### Completed ✅
+- ✅ Full stateless vs. stateful agent comparison working
+- ✅ Four-layer memory architecture (short-term, episodic, procedural, semantic)
+- ✅ 13 comprehensive documentation files in `/docs/`
+- ✅ Complete test suite (unit, integration, API, LLM)
+- ✅ Apple Health data pipeline with Redis indexing
+- ✅ LangGraph checkpointing for conversation state
+- ✅ 11 LangChain tools (9 health + 2 memory)
+- ✅ TypeScript frontend with SSE streaming
+- ✅ Full Docker deployment with health checks
+- ✅ Makefile with comprehensive commands
+- ✅ Pre-commit and pre-push hooks
+- ✅ 100% local privacy (Ollama + Redis)
+
+### Focus Areas for Final Polish
+- 🎨 Documentation refinement (cross-references, formatting)
+- 🧪 Edge case testing and validation
+- 📊 Performance optimization (if needed)
+- 🐛 Bug fixes from user testing
+- 📝 README and doc examples verification
+
+**Primary Goal**: Production-ready demo showcasing Redis + RedisVL for AI agent memory systems.
+
+---
+
 ## Architecture Overview
 
 This is a **side-by-side demo** comparing **stateless chat** vs. **agentic RAG chat** powered by Redis and RedisVL. The system demonstrates the transformative power of memory in AI conversations through:
@@ -110,18 +139,21 @@ Stateless uses simple loop; stateful uses LangGraph StateGraph with checkpointin
   - `sanitizer.ts` - XSS protection and HTML sanitization
   - `ui.ts` - UI helper functions
 
-**Documentation (`/docs/`)**:
+**Documentation (`/docs/`)** - 13 comprehensive guides:
 
-- `01_QUICKSTART.md` - Quick start guide
-- `02_THE_DEMO.md` - Demo walkthrough and comparison
-- `03_MEMORY_ARCHITECTURE.md` - Triple memory system architecture
-- `04_AUTONOMOUS_AGENTS.md` - Agentic tool-calling system
-- `05_REDIS_PATTERNS.md` - Redis usage patterns and best practices
-- `06_ARCHITECTURE_DECISIONS.md` - Key architectural decisions and rationale
-- `07_APPLE_HEALTH_DATA.md` - Apple Health data pipeline and processing
-- `RETRIEVAL_PATTERNS_GUIDE.md` - Data retrieval patterns and strategies
-- `SERVICES.md` - Service layer documentation
-- `archive/` - Archived documentation from previous iterations
+- `01_PREREQUISITES.md` - Complete setup guide (Docker, Ollama, Apple Health)
+- `02_QUICKSTART.md` - Get running in under 5 minutes
+- `03_STATELESS_AGENT.md` - Simple tool loop without memory
+- `04_STATEFUL_AGENT.md` - LangGraph agent with four-layer memory
+- `05_STATELESS_VS_STATEFUL_COMPARISON.md` - Side-by-side comparison
+- `06_AGENTIC_RAG.md` - Autonomous RAG architecture and workflow
+- `07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md` - Data pipeline and import
+- `08_QWEN_BEST_PRACTICES.md` - Tool calling optimization for Qwen 2.5
+- `09_EXAMPLE_QUERIES.md` - Curated example queries
+- `10_MEMORY_ARCHITECTURE.md` - Four-layer memory system deep dive
+- `11_REDIS_PATTERNS.md` - Redis patterns for AI agents
+- `12_LANGGRAPH_CHECKPOINTING.md` - Conversation state management
+- `13_TOOLS_SERVICES_UTILS_REFERENCE.md` - Complete backend reference
 
 ## Development Commands
 
@@ -513,7 +545,31 @@ docker compose logs backend -f
 
 ## Development Notes
 
-### Project Structure (Updated October 2025)
+### Project Maturity
+
+**Status**: Near completion - focus on stability, documentation quality, and final testing.
+
+**Recent Changes (October 2024)**:
+- ✅ Documentation reorganization (13 structured docs)
+- ✅ Pydantic V2 migration (deprecation warnings fixed)
+- ✅ Cross-reference improvements across all docs
+- ✅ Mermaid diagram enhancements for readability
+- ✅ Terminology consistency ("simple queries" vs "goal CRUD")
+
+**What NOT to Change**:
+- ❌ Core agent logic (stateless/stateful) - stable and tested
+- ❌ Redis data structures - optimized and working
+- ❌ LangGraph workflow - validated against test suite
+- ❌ Tool calling system - Qwen-optimized and reliable
+
+**Safe to Improve**:
+- ✅ Documentation clarity and examples
+- ✅ Error messages and user feedback
+- ✅ Test coverage for edge cases
+- ✅ Performance monitoring and logging
+- ✅ README and doc formatting
+
+### Project Structure (Updated October 2024)
 
 **Consolidated Apple Health module** for clarity and maintainability:
 
@@ -598,12 +654,14 @@ Modern vanilla TypeScript with Vite featuring:
 - Tool call visualization
 - XSS protection with proper HTML escaping
 
-### Privacy Architecture
+### Privacy Architecture (Core Feature - Do NOT Modify)
 
 - All data stays local (Redis + Ollama)
 - No external API calls
 - Health data never leaves your machine
 - Self-contained Docker environment
+
+**This is a key selling point** - 100% local processing for sensitive health data.
 
 ### Development Dependencies
 
@@ -670,3 +728,147 @@ make verify
 ```
 
 The application demonstrates how Redis + RedisVL transforms stateless chat into context-aware, memory-powered health insights using **100% local processing**.
+
+---
+
+## Working with This Codebase (Important Guidelines)
+
+### Before Making Changes
+
+1. **Check Test Suite First**
+   ```bash
+   make test  # Run all tests to verify current state
+   ```
+
+2. **Review Documentation**
+   - If changing agent logic → Read `docs/03_STATELESS_AGENT.md` and `docs/04_STATEFUL_AGENT.md`
+   - If changing memory → Read `docs/10_MEMORY_ARCHITECTURE.md`
+   - If changing Redis patterns → Read `docs/11_REDIS_PATTERNS.md`
+   - If changing tools → Read `docs/13_TOOLS_SERVICES_UTILS_REFERENCE.md`
+
+3. **Understand Dependencies**
+   - Frontend changes: No rebuild needed (volume mounted)
+   - Backend changes: **MUST rebuild Docker** (`make build-backend`)
+   - Environment variables: Update `docker-compose.yml` AND `config.py`
+
+### Code Quality Requirements
+
+**All changes must pass**:
+```bash
+make lint       # Ruff + Black + ESLint
+make test       # Full test suite
+make typecheck  # TypeScript validation
+```
+
+**Pre-commit hooks** run automatically - DO NOT bypass with `--no-verify`.
+
+**Pre-push hooks** prevent CI failures - includes backend tests + Docker build.
+
+### Making Documentation Changes
+
+**Documentation is a priority** - this is a demo project meant to teach.
+
+**When updating docs**:
+- ✅ Keep examples realistic and testable
+- ✅ Maintain consistent terminology (check other docs)
+- ✅ Update cross-references if file names change
+- ✅ Verify code examples actually work
+- ✅ Keep formatting consistent across all 13 docs
+
+**Doc structure is stabilized** - major reorganization is NOT needed.
+
+### Testing Philosophy
+
+**Test pyramid** (in `/backend/tests/`):
+- **Unit tests**: Fast, no dependencies (validators, aggregators, analytics)
+- **Integration tests**: Redis-dependent (memory managers, services)
+- **API tests**: Running backend required (endpoints)
+- **LLM tests**: Ollama required (full agent workflows)
+
+**Run targeted tests**:
+```bash
+uv run pytest tests/unit/              # Fast, no setup
+uv run pytest tests/integration/       # Requires Redis
+uv run pytest tests/llm/               # Requires Ollama
+uv run pytest tests/ -k test_name      # Specific test
+```
+
+### Common Workflows
+
+**Adding a new feature**:
+1. Write tests first (`tests/unit/` or `tests/integration/`)
+2. Implement feature in appropriate module
+3. Update relevant documentation in `/docs/`
+4. Run `make lint && make test`
+5. Rebuild Docker if backend changed
+6. Manually test in UI at http://localhost:3000
+
+**Fixing a bug**:
+1. Add regression test that reproduces bug
+2. Fix bug in source code
+3. Verify test passes
+4. Check if docs need clarification
+5. Run full test suite
+
+**Improving docs**:
+1. Make changes in `/docs/`
+2. Verify cross-references still work
+3. Check formatting consistency
+4. Test any code examples locally
+5. Commit (no rebuild needed)
+
+### Known Gotchas
+
+**Field name mismatches** (silent killer):
+- Frontend TypeScript interfaces MUST match backend response keys exactly
+- Example: `semantic_hits` vs `semantic_retrieval` causes silent data loss
+- Always grep both codebases when adding new fields
+
+**Docker rebuild requirements**:
+- Backend uses `COPY` (not volumes) - rebuild after ANY `/backend/src/` change
+- Quick check: `docker compose logs backend --tail 50`
+- Bypass for emergencies: `docker cp file.py redis-wellness-backend:/app/src/path/to/file.py`
+
+**Streaming responses**:
+- SSE endpoints must yield ALL fields in "done" event
+- Missing fields in final event causes frontend to show 0/undefined
+- Check both `stateless_chat.py` and `stateful_rag_agent.py`
+
+**Environment variables**:
+- Variable names in `docker-compose.yml` must match `config.py` Field names
+- Example: `OLLAMA_BASE_URL` not `OLLAMA_URL`
+
+### Project Philosophy
+
+**This is a teaching demo** - code clarity matters more than extreme optimization.
+
+**Priorities** (in order):
+1. **Correctness** - Feature works reliably
+2. **Documentation** - Users understand how it works
+3. **Privacy** - Data stays local (non-negotiable)
+4. **Simplicity** - Clear, maintainable code
+5. **Performance** - Fast enough for demo purposes
+
+**Not priorities**:
+- Production-scale performance (this is a demo)
+- Supporting multiple LLM providers (Ollama is sufficient)
+- Cloud deployment (local-first is the feature)
+- Complex optimization (simplicity > speed)
+
+### Final Notes
+
+**This project is nearly done** - resist the urge to refactor working code.
+
+**Focus on**:
+- Bug fixes from user testing
+- Documentation improvements
+- Edge case handling
+- Error message clarity
+
+**Avoid**:
+- Major architectural changes
+- Unnecessary abstraction
+- Feature creep
+- Over-engineering
+
+**Goal**: Ship a polished, educational demo that showcases Redis + RedisVL for AI agent memory.

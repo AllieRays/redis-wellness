@@ -517,23 +517,31 @@ make fresh-start  # Full reset + reimport
 
 ### Getting Started (Start Here)
 
-- **[00_PREREQUISITES.md](docs/00_PREREQUISITES.md)** - Install Docker, Ollama, and export health data
-- **[01_QUICKSTART.md](docs/01_QUICKSTART.md)** - Get the demo running in under 5 minutes
-- **[02_THE_DEMO.md](docs/02_THE_DEMO.md)** - Understand the side-by-side comparison
+- **[01_PREREQUISITES.md](docs/01_PREREQUISITES.md)** - Install Docker, Ollama, and export health data
+- **[02_QUICKSTART.md](docs/02_QUICKSTART.md)** - Get the demo running in under 5 minutes
 
-### Architecture Deep Dives
+### Architecture & Agents
 
-- **[STATELESS_AGENT.md](docs/STATELESS_AGENT.md)** - How the stateless agent works
-- **[STATEFUL_AGENT.md](docs/STATEFUL_AGENT.md)** - How the stateful agent uses Redis memory
-- **[03_MEMORY_ARCHITECTURE.md](docs/03_MEMORY_ARCHITECTURE.md)** - Four-layer memory system explained
-- **[04_AUTONOMOUS_AGENTS.md](docs/04_AUTONOMOUS_AGENTS.md)** - Autonomous tool calling patterns
+- **[03_STATELESS_AGENT.md](docs/03_STATELESS_AGENT.md)** - How the stateless agent works
+- **[04_STATEFUL_AGENT.md](docs/04_STATEFUL_AGENT.md)** - How the stateful agent uses Redis memory
+- **[05_STATELESS_VS_STATEFUL_COMPARISON.md](docs/05_STATELESS_VS_STATEFUL_COMPARISON.md)** - Side-by-side comparison
+- **[06_AGENTIC_RAG.md](docs/06_AGENTIC_RAG.md)** - Agentic RAG architecture and workflow
 
-### Redis + AI Patterns
+### Data & Examples
 
-- **[05_REDIS_PATTERNS.md](docs/05_REDIS_PATTERNS.md)** - Redis data structures for AI agents
-- **[06_ARCHITECTURE_DECISIONS.md](docs/06_ARCHITECTURE_DECISIONS.md)** - Design decisions and rationale
-- **[07_APPLE_HEALTH_DATA.md](docs/07_APPLE_HEALTH_DATA.md)** - Apple Health data pipeline
-- **[08_QWEN_BEST_PRACTICES.md](docs/08_QWEN_BEST_PRACTICES.md)** - Qwen tool calling best practices
+- **[07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md](docs/07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md)** - Apple Health data pipeline and import process
+- **[09_EXAMPLE_QUERIES.md](docs/09_EXAMPLE_QUERIES.md)** - Example queries to try with the demo
+
+### Memory & Redis
+
+- **[10_MEMORY_ARCHITECTURE.md](docs/10_MEMORY_ARCHITECTURE.md)** - Four-layer memory system explained
+- **[11_REDIS_PATTERNS.md](docs/11_REDIS_PATTERNS.md)** - Redis data structures and patterns for AI agents
+- **[12_LANGGRAPH_CHECKPOINTING.md](docs/12_LANGGRAPH_CHECKPOINTING.md)** - LangGraph checkpointing for conversation state
+
+### Reference
+
+- **[08_QWEN_BEST_PRACTICES.md](docs/08_QWEN_BEST_PRACTICES.md)** - Qwen 2.5 tool calling best practices
+- **[13_TOOLS_SERVICES_UTILS_REFERENCE.md](docs/13_TOOLS_SERVICES_UTILS_REFERENCE.md)** - Complete backend reference
 
 ### API Documentation
 
