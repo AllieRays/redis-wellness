@@ -110,7 +110,7 @@ def get_health_metrics(metric: str, days: int):
 ### Decision Process
 
 ```mermaid
-flowchart LR
+flowchart TD
     A["👤 User: 'What was my average heart rate?'"] --> B[🤖 Qwen 2.5 7B]
     B --> C{🔍 Analyze query intent}
     C --> D["📋 Tool: get_health_metrics<br/>mentions 'heart rate' + 'average'"]
@@ -140,7 +140,7 @@ Agentic RAG enables **autonomous multi-step workflows** with different strategie
 **Stateful Agent Workflow** (Autonomous):
 
 ```mermaid
-flowchart LR
+flowchart TD
     A["👤 User: 'Am I on track for my weight goal?'"] --> B{🤖 Qwen 2.5 7B<br/>sees 'goal' keyword}
     B --> C["🎯 Tool 1: get_my_goals()"]
     C --> D["📋 Redis Memory<br/>Returns: goal '125 lbs by December'<br/>current: null"]
@@ -213,7 +213,7 @@ results = await asyncio.gather(
 **First time** (2.8s):
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph first["🔵 First Time"]
         A1[👤 User Query] --> B1[🤖 Qwen analyzes]
         B1 --> C1["⚙️ get_workout_data<br/>(this month)"]
@@ -235,7 +235,7 @@ flowchart LR
 **Subsequent times** (1.9s, 32% faster):
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph second["⚡ Second Time"]
         A2[👤 Same Query] --> B2["🧠 get_tool_suggestions<br/>(query='compare activity')"]
         B2 --> C3["📋 Redis retrieves pattern:<br/>[get_workout_data, get_workout_data]"]

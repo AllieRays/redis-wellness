@@ -2,9 +2,11 @@
 
 ## 1. Overview
 
-This document explains the **four-layer memory architecture** that transforms the stateful agent from stateless chat into an intelligent system. Based on the CoALA (Cognitive Architecture for Language Agents) framework.
+This document explains the **four-layer memory architecture** that transforms the stateful agent from stateless chat into an intelligent system. Based on the [CoALA (Cognitive Architecture for Language Agents)](https://arxiv.org/pdf/2309.02427) framework.
 
 **Key Point**: Each memory type serves a different purpose - together they enable human-like intelligence.
+
+**Further Reading**: [Build smarter AI agents: Manage short-term and long-term memory with Redis](https://redis.io/blog/build-smarter-ai-agents-manage-short-term-and-long-term-memory-with-redis/)
 
 ### What You'll Learn
 
@@ -22,7 +24,7 @@ This document explains the **four-layer memory architecture** that transforms th
 flowchart TD
     User[👤 User Query] --> Agent[🤖 Qwen 2.5 7B]
 
-    Agent --> STM["💭 Short-Term Memory<br/>(LangGraph Checkpointing)<br/><br/>Recent conversation<br/>7 months TTL<br/>Automatic load<br/><br/>Enables: Follow-ups,<br/>pronoun resolution"]
+    Agent --> STM["💭 Short-Term Memory<br/>(LangGraph Checkpointing)<br/><br/>Recent conversation<br/>Automatic load<br/><br/>Enables: Follow-ups,<br/>pronoun resolution"]
     Agent --> EM["🎯 Episodic Memory<br/>(RedisVL Vector Search)<br/><br/>Goals & facts<br/>Permanent storage<br/>Cross-session recall<br/><br/>Example: 'My goal is<br/>125 lbs by December'"]
     Agent --> PM["🔧 Procedural Memory<br/>(RedisVL Vector Search)<br/><br/>Learned patterns<br/>Permanent storage<br/>Speeds up queries<br/><br/>Example: Tool chains<br/>for comparisons (32% faster)"]
     Agent --> SM["🧠 Semantic Memory<br/>(RedisVL Vector Search)<br/><br/>Domain knowledge<br/>Permanent storage<br/>Optional<br/><br/>Example: 'Normal HR<br/>is 60-100 bpm'"]
@@ -49,8 +51,9 @@ flowchart TD
 ### 1️⃣ Short-Term Memory
 
 **Purpose**: Recent conversation within current session
+
 **Storage**: Redis via LangGraph checkpointing
-**TTL**: 7 months
+
 **Enables**: Follow-up questions, pronoun resolution
 
 **Example**:
@@ -69,8 +72,11 @@ User: "Is that good?" ← Remembers "that" = 72 bpm
 ### 2️⃣ Episodic Memory
 
 **Purpose**: Important user facts and goals
+
 **Storage**: RedisVL HNSW vector index
-**TTL**: Permanent
+
+**Persistence**: Long-term storage
+
 **Enables**: Cross-session goal recall
 
 **Example**:
@@ -92,8 +98,11 @@ Agent: "Your goal is 125 lbs. Current: 136.8 lbs..."
 ### 3️⃣ Procedural Memory
 
 **Purpose**: Successful workflow patterns
+
 **Storage**: RedisVL HNSW vector index
-**TTL**: Permanent
+
+**Persistence**: Long-term storage
+
 **Enables**: Learning which tools work for which queries
 
 **Example**:
@@ -115,8 +124,11 @@ Query 2: Similar comparison query
 ### 4️⃣ Semantic Memory (Optional)
 
 **Purpose**: General domain knowledge
+
 **Storage**: RedisVL HNSW vector index
-**TTL**: Permanent
+
+**Persistence**: Long-term storage
+
 **Enables**: Background health knowledge
 
 **Example**: Medical facts like "Normal resting heart rate is 60-100 bpm"
@@ -199,6 +211,7 @@ patterns = procedural_index.search(query_embedding, top_k=3)
 ### Automatic (Short-Term)
 
 **When**: Every request
+
 **How**: LangGraph checkpointer loads conversation history automatically
 
 ```python
@@ -213,6 +226,7 @@ result = await graph.ainvoke(input_state, config)
 ### Autonomous (Episodic & Procedural)
 
 **When**: LLM decides based on query
+
 **How**: LLM calls memory tools
 
 [📄 View tools](../backend/src/apple_health/query_tools/memory_tools.py)
@@ -285,11 +299,16 @@ async def _store_procedural_node(self, state):
 
 ## 6. Related Documentation
 
+### Internal Docs
 - **[04_STATEFUL_AGENT.md](04_STATEFUL_AGENT.md)** - How stateful agent uses memory
 - **[11_REDIS_PATTERNS.md](11_REDIS_PATTERNS.md)** - Redis data structures in detail
 - **[12_LANGGRAPH_CHECKPOINTING.md](12_LANGGRAPH_CHECKPOINTING.md)** - Short-term memory deep dive
 - **[05_STATELESS_VS_STATEFUL_COMPARISON.md](05_STATELESS_VS_STATEFUL_COMPARISON.md)** - Memory impact
 - **[09_EXAMPLE_QUERIES.md](09_EXAMPLE_QUERIES.md)** - See memory in action
+
+### External Resources
+- **[CoALA Framework Paper](https://arxiv.org/pdf/2309.02427)** - Cognitive Architecture for Language Agents (academic foundation)
+- **[Redis AI Memory Blog](https://redis.io/blog/build-smarter-ai-agents-manage-short-term-and-long-term-memory-with-redis/)** - Practical guide to agentic memory with Redis
 
 ---
 

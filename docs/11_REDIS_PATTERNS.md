@@ -18,26 +18,36 @@ Redis powers the entire memory system with five key data structures. This doc ex
 
 ```mermaid
 graph LR
-    subgraph "Traditional Stack"
-    A[PostgreSQL] -->|Slow Joins| B[Vector Extension]
-    A -->|Network I/O| C[Cache Layer]
-    B -->|Complex Setup| D[pgvector]
+    subgraph traditional ["Traditional Stack"]
+        A[PostgreSQL]
+        B[Vector Extension]
+        C[Cache Layer]
+        D[pgvector]
+        A --> B
+        A --> C
+        B --> D
     end
 
-    subgraph "Redis Stack"
-    E[Redis] -->|In-Memory| F[Instant Queries]
-    E -->|Native| G[RedisVL Vectors]
-    E -->|Built-in| H[HNSW Index]
+    subgraph redis ["Redis Stack"]
+        E[Redis]
+        F[Instant Queries]
+        G[RedisVL Vectors]
+        H[HNSW Index]
+        E --> F
+        E --> G
+        E --> H
     end
 
-    style A fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style B fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style C fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style D fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style A fill:#fff,stroke:#333,stroke-width:2px
+    style B fill:#fff,stroke:#333,stroke-width:2px
+    style C fill:#fff,stroke:#333,stroke-width:2px
+    style D fill:#fff,stroke:#333,stroke-width:2px
     style E fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
-    style F fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
-    style G fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
-    style H fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style F fill:#fff,stroke:#333,stroke-width:2px
+    style G fill:#fff,stroke:#333,stroke-width:2px
+    style H fill:#fff,stroke:#333,stroke-width:2px
+    style traditional fill:#fff,stroke:#333,stroke-width:2px
+    style redis fill:#fff,stroke:#333,stroke-width:2px
 ```
 
 ### PostgreSQL Approach (Traditional)
@@ -76,29 +86,25 @@ results = episodic_index.search(query_vector)
 
 ```mermaid
 graph TD
-    A[Redis Data Structures] --> B[STRING<br/>Health Data JSON]
-    A --> C[LIST<br/>Conversation History]
-    A --> D[HASH<br/>Workout Details]
-    A --> E[ZSET<br/>Date-Sorted Index]
-    A --> F[VECTOR<br/>Semantic Search]
+    A[Redis Data Structures]
+    B[STRING]
+    C[LIST]
+    D[HASH]
+    E[ZSET]
+    F[VECTOR]
 
-    B -->|15MB JSON| B1[O1 Retrieval]
-    C -->|LangGraph| C1[Checkpointing]
-    D -->|Structured| D1[O1 Field Access]
-    E -->|Timestamps| E1[O log N Ranges]
-    F -->|1024-dim| F1[HNSW Search]
+    A --> B
+    A --> C
+    A --> D
+    A --> E
+    A --> F
 
-    style A fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style A fill:#fff,stroke:#333,stroke-width:2px
     style B fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
     style C fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
     style D fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
     style E fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
     style F fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
-    style B1 fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style C1 fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style D1 fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style E1 fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style F1 fill:#f5f5f5,stroke:#333,stroke-width:2px
 ```
 
 ### STRING (JSON Blob)
@@ -298,30 +304,25 @@ results = episodic_index.query(vector_query)
 ## 4. Health Data Patterns
 
 ```mermaid
-flowchart TD
+flowchart LR
     A[Apple Health XML] -->|Parse| B[Redis Indexer]
+    B --> C[Individual Workouts]
+    B --> D[Day Aggregations]
+    B --> E[Date Index]
 
-    B -->|HASH| C[Individual Workouts]
-    B -->|HASH| D[Day Aggregations]
-    B -->|ZSET| E[Date Index]
+    C --> F[Query Tools]
+    D --> F
+    E --> F
 
-    C -->|user:wellness_user:workout:ID| C1[Details<br/>date, type, duration]
-    D -->|user:wellness_user:workout:days| D1[Counters<br/>Mon:18, Tue:22]
-    E -->|user:wellness_user:workout:by_date| E1[Timestamps<br/>ID → score]
-
-    F[Query Tools] -->|O1| D1
-    F -->|O log N| E1
-    F -->|Pipeline| C1
+    F --> G[Redis Health Data]
 
     style A fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
-    style B fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style B fill:#fff,stroke:#333,stroke-width:2px
     style C fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
     style D fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
     style E fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
-    style F fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style C1 fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style D1 fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style E1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style F fill:#fff,stroke:#333,stroke-width:2px
+    style G fill:#fff,stroke:#DC382C,stroke-width:2px
 ```
 
 ### Workout Storage
@@ -388,36 +389,30 @@ user:wellness_user:sleep:by_date → ZSET {
 ## 5. Memory Patterns
 
 ```mermaid
-graph TB
-    subgraph "Short-Term Memory"
-    A[LangGraph] -->|AsyncRedisSaver| B[langgraph:checkpoint:*]
-    B --> B1[Conversation State]
-    end
+graph LR
+    A[Stateful Agent]
 
-    subgraph "Episodic Memory"
-    C[User Goals] -->|Vector| D[episodic:wellness_user:*]
-    D --> D1[HNSW Search]
-    end
+    B[Short-Term Memory<br/>LangGraph]
+    C[Episodic Memory<br/>User Goals]
+    D[Procedural Memory<br/>Tool Patterns]
 
-    subgraph "Procedural Memory"
-    E[Tool Patterns] -->|Vector| F[procedural:hash:*]
-    F --> F1[Workflow Learning]
-    end
+    E[Redis Memory]
+    F[RedisVL Search]
 
-    G[Stateful Agent] --> A
-    G --> C
-    G --> E
+    A --> B
+    A --> C
+    A --> D
 
-    style A fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    B --> E
+    C --> F
+    D --> F
+
+    style A fill:#fff,stroke:#DC382C,stroke-width:2px
+    style B fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
     style C fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
-    style E fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
-    style G fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style B fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style D fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style F fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style B1 fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style D1 fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style F1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style D fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style E fill:#fff,stroke:#333,stroke-width:2px
+    style F fill:#fff,stroke:#333,stroke-width:2px
 ```
 
 ### Short-Term (LangGraph Checkpointing)

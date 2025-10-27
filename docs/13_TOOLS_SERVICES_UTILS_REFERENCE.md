@@ -151,104 +151,98 @@ Pure utilities - no side effects, no external dependencies.
 
 ### 5.1 Data Flow
 
-```
-User Query
-    ↓
-API Endpoint (chat_routes.py)
-    ↓
-Service (redis_chat.py or stateless_chat.py)
-    ↓
-Agent (stateful_rag_agent.py or stateless_agent.py)
-    ↓
-┌─────────────────────────────────────────┐
-│  Agent decides which tools to call      │
-│  - Uses intent_router.py                │
-│  - Uses pronoun_resolver.py             │
-│  - Uses tool_deduplication.py           │
-└─────────────────────────────────────────┘
-    ↓
-Query Tools (apple_health/query_tools/)
-    ↓
-┌─────────────────────────────────────────┐
-│  Tools use utils to fetch/process data  │
-│  - workout_fetchers.py                  │
-│  - metric_aggregators.py                │
-│  - health_analytics.py                  │
-│  - time_utils.py                        │
-└─────────────────────────────────────────┘
-    ↓
-Services (redis_apple_health_manager.py, redis_workout_indexer.py)
-    ↓
-Redis (via redis_connection.py)
-    ↓
-Tool returns structured data
-    ↓
-Agent synthesizes response (uses numeric_validator.py)
-    ↓
-Service adds memory stats
-    ↓
-API returns to user
+```mermaid
+flowchart TD
+    A[User Query] --> B[API Endpoint<br/>chat_routes.py]
+    B --> C[Service<br/>redis_chat.py or stateless_chat.py]
+    C --> D[Agent<br/>stateful_rag_agent.py or stateless_agent.py]
+    D --> E[Agent Decision<br/>Tools to Call]
+
+    E --> |Uses| F[intent_router.py]
+    E --> |Uses| G[pronoun_resolver.py]
+    E --> |Uses| H[tool_deduplication.py]
+
+    E --> I[Query Tools<br/>apple_health/query_tools/]
+
+    I --> J[Utils Layer]
+    J --> |Uses| K[workout_fetchers.py]
+    J --> |Uses| L[metric_aggregators.py]
+    J --> |Uses| M[health_analytics.py]
+    J --> |Uses| N[time_utils.py]
+
+    J --> O[Services<br/>redis_apple_health_manager.py<br/>redis_workout_indexer.py]
+    O --> P[Redis<br/>via redis_connection.py]
+    P --> Q[Tool returns<br/>structured data]
+    Q --> R[Agent synthesizes response<br/>uses numeric_validator.py]
+    R --> S[Service adds<br/>memory stats]
+    S --> T[API returns to user]
+
+    style E fill:#f9f,stroke:#333,stroke-width:2px
+    style J fill:#f9f,stroke:#333,stroke-width:2px
+    style P fill:#c84,stroke:#333,stroke-width:2px
 ```
 
 ---
 
 ### 5.2 Memory Flow
 
-```
-User Message
-    ↓
-redis_chat.py service
-    ↓
-┌─────────────────────────────────────────────────────┐
-│  Load Memories (before LLM sees message)            │
-│  1. Short-term: LangGraph checkpointer (automatic)  │
-│  2. Episodic: episodic_memory_manager.py            │
-│  3. Procedural: procedural_memory_manager.py        │
-│  4. Semantic: semantic_memory_manager.py (optional) │
-└─────────────────────────────────────────────────────┘
-    ↓
-Agent processes with full context
-    ↓
-Agent generates response
-    ↓
-┌─────────────────────────────────────────────────────┐
-│  Store Memories (after response generated)          │
-│  1. Short-term: LangGraph auto-saves                │
-│  2. Extract facts: conversation_fact_extractor.py   │
-│  3. Store goals: episodic_memory_manager.py         │
-│  4. Store patterns: procedural_memory_manager.py    │
-└─────────────────────────────────────────────────────┘
-    ↓
-Return response + memory_stats to user
+```mermaid
+flowchart TD
+    A[User Message] --> B[redis_chat.py service]
+
+    B --> C[Load Memories<br/>before LLM sees message]
+    C --> D1[1. Short-term<br/>LangGraph checkpointer]
+    C --> D2[2. Episodic<br/>episodic_memory_manager.py]
+    C --> D3[3. Procedural<br/>procedural_memory_manager.py]
+    C --> D4[4. Semantic<br/>semantic_memory_manager.py<br/>optional]
+
+    D1 & D2 & D3 & D4 --> E[Agent processes<br/>with full context]
+    E --> F[Agent generates response]
+
+    F --> G[Store Memories<br/>after response generated]
+    G --> H1[1. Short-term<br/>LangGraph auto-saves]
+    G --> H2[2. Extract facts<br/>conversation_fact_extractor.py]
+    G --> H3[3. Store goals<br/>episodic_memory_manager.py]
+    G --> H4[4. Store patterns<br/>procedural_memory_manager.py]
+
+    H1 & H2 & H3 & H4 --> I[Return response +<br/>memory_stats to user]
+
+    style C fill:#c84,stroke:#333,stroke-width:2px
+    style G fill:#c84,stroke:#333,stroke-width:2px
+    style E fill:#f9f,stroke:#333,stroke-width:2px
 ```
 
 ---
 
 ### 5.3 Tool Execution Flow
 
-```
-Agent receives: "What was my heart rate last week?"
-    ↓
-intent_router.py → Classifies as "health_metric_query"
-    ↓
-Agent calls: get_health_metrics(metric="HeartRate", start="2024-10-13", end="2024-10-20")
-    ↓
-get_health_metrics.py:
-    ↓
-    1. date_validator.py validates dates
-    2. metric_classifier.py normalizes "HeartRate"
-    3. redis_apple_health_manager.py fetches raw data from Redis
-    4. metric_aggregators.py calculates average
-    5. health_analytics.py detects trends
-    6. conversion_utils.py formats for display
-    ↓
-Returns: {"avg": 72, "min": 65, "max": 88, "trend": "stable"}
-    ↓
-Agent synthesizes: "Your average heart rate was 72 bpm..."
-    ↓
-numeric_validator.py verifies 72 matches tool output ✅
-    ↓
-Response sent to user
+```mermaid
+flowchart TD
+    A["Agent receives:<br/>'What was my heart rate last week?'"] --> B[intent_router.py<br/>Classifies as health_metric_query]
+
+    B --> C["Agent calls:<br/>get_health_metrics()<br/>metric='HeartRate'<br/>start='2024-10-13'<br/>end='2024-10-20'"]
+
+    C --> D[get_health_metrics.py]
+
+    D --> E1[1. date_validator.py<br/>validates dates]
+    E1 --> E2[2. metric_classifier.py<br/>normalizes HeartRate]
+    E2 --> E3[3. redis_apple_health_manager.py<br/>fetches raw data from Redis]
+    E3 --> E4[4. metric_aggregators.py<br/>calculates average]
+    E4 --> E5[5. health_analytics.py<br/>detects trends]
+    E5 --> E6[6. conversion_utils.py<br/>formats for display]
+
+    E6 --> F["Returns:<br/>{avg: 72, min: 65,<br/>max: 88, trend: 'stable'}"]
+
+    F --> G["Agent synthesizes:<br/>'Your average heart rate<br/>was 72 bpm...'"]
+
+    G --> H[numeric_validator.py<br/>verifies 72 matches<br/>tool output ✅]
+
+    H --> I[Response sent to user]
+
+    style C fill:#f9f,stroke:#333,stroke-width:2px
+    style D fill:#9cf,stroke:#333,stroke-width:2px
+    style E3 fill:#c84,stroke:#333,stroke-width:2px
+    style F fill:#9f9,stroke:#333,stroke-width:2px
 ```
 
 ---

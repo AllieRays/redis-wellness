@@ -18,6 +18,44 @@ LangGraph's **AsyncRedisSaver** provides automatic conversation persistence - th
 
 **Checkpointing** = Automatically saving agent state after each step so it can be resumed later.
 
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 60}}}%%
+flowchart LR
+    subgraph Turn1["Turn 1: First Query"]
+        U1["User:<br/>'What was my<br/>heart rate?'"]
+        L1["LangGraph<br/>Agent"]
+        R1["Redis<br/>Checkpoint"]
+        A1["Response:<br/>'72 bpm'"]
+
+        U1 --> L1
+        L1 --> A1
+        L1 -."save state".-> R1
+    end
+
+    subgraph Turn2["Turn 2: Follow-up (With Memory)"]
+        U2["User:<br/>'Is that good?'"]
+        R2["Redis<br/>Checkpoint<br/>(loads history)"]
+        L2["LangGraph<br/>Agent<br/>(sees 72 bpm)"]
+        A2["Response:<br/>'72 bpm is<br/>normal range'"]
+
+        U2 --> R2
+        R2 -."load state".-> L2
+        L2 --> A2
+        L2 -."save state".-> R2
+    end
+
+    Turn1 --> Turn2
+
+    style U1 fill:#fff,stroke:#333,stroke-width:2px
+    style U2 fill:#fff,stroke:#333,stroke-width:2px
+    style L1 fill:#0d6efd,stroke:#0d6efd,stroke-width:2px,color:#fff
+    style L2 fill:#0d6efd,stroke:#0d6efd,stroke-width:2px,color:#fff
+    style R1 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style R2 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style A1 fill:#d4edda,stroke:#198754,stroke-width:2px
+    style A2 fill:#d4edda,stroke:#198754,stroke-width:2px
+```
+
 **Without Checkpointing (Stateless)**:
 ```
 User: "What was my heart rate?"
@@ -84,6 +122,49 @@ class StatefulRAGAgent:
 ---
 
 ## 4. How It Works
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'13px'}, 'flowchart': {'nodeSpacing': 40, 'rankSpacing': 50}}}%%
+flowchart TD
+    Start["🧑 User Query"] --> Load["📥 Load Checkpoint<br/>from Redis"]
+    Load --> Check{"Checkpoint<br/>exists?"}
+
+    Check -->|"Yes"| Restore["🔄 Restore State<br/>(messages, context)"]
+    Check -->|"No"| Init["🆕 Initialize<br/>Empty State"]
+
+    Restore --> Execute["⚙️ Execute LangGraph<br/>Workflow"]
+    Init --> Execute
+
+    Execute --> Node1["Node: LLM<br/>(process query)"]
+    Node1 --> Save1["💾 Save Checkpoint 1"]
+
+    Save1 --> Node2["Node: Tools<br/>(fetch data)"]
+    Node2 --> Save2["💾 Save Checkpoint 2"]
+
+    Save2 --> Node3["Node: LLM<br/>(generate response)"]
+    Node3 --> Save3["💾 Save Checkpoint 3"]
+
+    Save3 --> Store["Node: Store Memory<br/>(goals & patterns)"]
+    Store --> Final["💾 Final Checkpoint"]
+
+    Final --> Response["✅ Return Response<br/>to User"]
+
+    style Start fill:#fff,stroke:#333,stroke-width:2px
+    style Load fill:#fff,stroke:#0d6efd,stroke-width:2px
+    style Check fill:#fff,stroke:#333,stroke-width:2px
+    style Restore fill:#cfe2ff,stroke:#0d6efd,stroke-width:2px
+    style Init fill:#fff3cd,stroke:#ffc107,stroke-width:2px
+    style Execute fill:#e7f1ff,stroke:#0d6efd,stroke-width:2px
+    style Node1 fill:#0d6efd,stroke:#0d6efd,stroke-width:2px,color:#fff
+    style Node2 fill:#0d6efd,stroke:#0d6efd,stroke-width:2px,color:#fff
+    style Node3 fill:#0d6efd,stroke:#0d6efd,stroke-width:2px,color:#fff
+    style Store fill:#0d6efd,stroke:#0d6efd,stroke-width:2px,color:#fff
+    style Save1 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Save2 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Save3 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Final fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Response fill:#d4edda,stroke:#198754,stroke-width:2px
+```
 
 ### State Structure
 
