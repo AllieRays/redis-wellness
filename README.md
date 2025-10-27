@@ -1,4 +1,4 @@
-# Redis Wellness 🧠💾
+# Redis Wellness ❤️
 
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.6+-blue.svg)](https://www.typescriptlang.org/)
@@ -56,9 +56,9 @@ Built with **FastAPI**, **TypeScript**, **Redis**, **RedisVL**, and **Ollama (Qw
 ## 🎯 The Difference
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph Stateless["❌ Stateless Agent (No Memory)"]
-        direction LR
+        direction TB
         Q1["👤 Query"] --> A1["🤖 Qwen 2.5 7B"]
         A1 --> T1["🛠️ 3 Tools"]
         T1 --> R1["📊 Redis Data"]
@@ -67,12 +67,14 @@ flowchart TB
     end
 
     subgraph Stateful["✅ Stateful Agent (With Memory)"]
-        direction LR
+        direction TB
         Q2["👤 Query"] --> A2["🤖 Qwen 2.5 7B"]
-        A2 --> M2["🧠 Memory<br/>RedisVL"]
+        A2 --> C2["❤️ Checkpointing"]
+        A2 --> M2["❤️ Memory<br/>RedisVL"]
         A2 --> T2["🛠️ 5 Tools"]
         T2 --> R2["📊 Redis Data"]
-        M2 --> Res2["💬 Response"]
+        C2 --> Res2["💬 Response"]
+        M2 --> Res2
         R2 --> Res2
         Res2 --> S2["✅ Store"]
     end
@@ -86,11 +88,15 @@ flowchart TB
 
     style Q2 fill:#f5f5f5,stroke:#333,stroke-width:2px
     style A2 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style C2 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style M2 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style T2 fill:#f5f5f5,stroke:#333,stroke-width:2px
     style R2 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style Res2 fill:#f5f5f5,stroke:#333,stroke-width:2px
     style S2 fill:#fff,stroke:#28a745,stroke-width:3px,color:#28a745
+
+    style Stateless fill:#f8f9fa,stroke:#333,stroke-width:2px
+    style Stateful fill:#f8f9fa,stroke:#333,stroke-width:2px
 ```
 
 **Key difference:** Redis memory enables follow-up questions, goal recall, and pattern learning.
@@ -175,4 +181,6 @@ MIT License - See [LICENSE](LICENSE)
 
 ---
 
-**Built to showcase Redis + RedisVL for intelligent AI agents** 🧠💾
+**Built to showcase Redis + RedisVL for intelligent AI agents** ❤️
+
+Built with ❤️ by [Allierays](https://www.linkedin.com/in/allierays/)
