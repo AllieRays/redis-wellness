@@ -60,35 +60,30 @@ flowchart TB
     UI["User Interface"]
     Router["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
     Simple["Redis<br/>(Simple Queries)"]
-    
-    subgraph LangGraph["LangGraph StateGraph (Checkpointed)"]
-        Load["1. Load Checkpoint<br/>(conversation history)"]
-        LLM["2. Qwen 2.5 7B LLM<br/>(sees history + decides tools)"]
-        ToolDecision{"3. More tools?"}
-        Tools["4. Execute Tools<br/>(5 total: 3 health + 2 memory)"]
-        Reflect["5. Reflect<br/>(evaluate success)"]
-        StoreEpi["6. Store Episodic<br/>(goals)"]
-        StoreProc["7. Store Procedural<br/>(patterns)"]
-        SaveCheck["8. Save Checkpoint<br/>(conversation)"]
-        
-        Load --> LLM
-        LLM --> ToolDecision
-        ToolDecision -->|Yes| Tools
-        ToolDecision -->|No| Reflect
-        Tools --> LLM
-        Reflect --> StoreEpi
-        StoreEpi --> StoreProc
-        StoreProc --> SaveCheck
-    end
-    
+    Load["1. Load Checkpoint<br/>(conversation history)"]
+    LLM["2. Qwen 2.5 7B LLM<br/>(sees history + decides tools)"]
+    ToolDecision{"3. More tools?"}
+    Tools["4. Execute Tools<br/>(5 total: 3 health + 2 memory)"]
+    Reflect["5. Reflect<br/>(evaluate success)"]
+    StoreEpi["6. Store Episodic<br/>(goals)"]
+    StoreProc["7. Store Procedural<br/>(patterns)"]
+    SaveCheck["8. Save Checkpoint<br/>(conversation)"]
     RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
     RedisData["Redis Health Data Store"]
     Response["Response to User"]
 
     UI --> Router
     Router -->|"Fast path"| Simple
-    Router -->|"Complex path"| LangGraph
+    Router -->|"Complex path<br/>(LangGraph)"| Load
     Simple --> Response
+    Load --> LLM
+    LLM --> ToolDecision
+    ToolDecision -->|Yes| Tools
+    ToolDecision -->|No| Reflect
+    Tools --> LLM
+    Reflect --> StoreEpi
+    StoreEpi --> StoreProc
+    StoreProc --> SaveCheck
     Tools <--> RedisVL
     Tools <--> RedisData
     SaveCheck --> Response
@@ -97,7 +92,6 @@ flowchart TB
     style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
     style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
     style Simple fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style LangGraph fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
     style Load fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style LLM fill:#fff,stroke:#333,stroke-width:2px,color:#000
     style ToolDecision fill:#fff,stroke:#333,stroke-width:2px,color:#000

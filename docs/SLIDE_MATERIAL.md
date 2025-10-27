@@ -1,5 +1,80 @@
 # Stateful Agent Architecture - Slide Deck Material
 
+## Simplified Vertical Diagrams (For Homepage Side-by-Side)
+
+### Stateless Architecture (Simple)
+
+```mermaid
+flowchart TB
+    UI1["User Interface"]
+    Router1["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
+    Simple1["Redis<br/>(Simple Queries)"]
+    Loop1["Simple Tool Loop<br/>• Qwen 2.5 7B LLM<br/>• Tool calling<br/>• Response synthesis"]
+    Tools1["Health Tools<br/>(3 tools)"]
+    RedisData1["Redis Health Data Store"]
+    Response1["Response to User"]
+    Forget["❌ FORGET EVERYTHING"]
+
+    UI1 --> Router1
+    Router1 -->|"Simple"| Simple1
+    Router1 -->|"Complex"| Loop1
+    Simple1 --> RedisData1
+    Loop1 --> Tools1
+    Tools1 --> RedisData1
+    RedisData1 --> Response1
+    Response1 --> UI1
+    Response1 --> Forget
+
+    style UI1 fill:#fff,stroke:#6c757d,stroke-width:2px
+    style Router1 fill:#f8f9fa,stroke:#333,stroke-width:2px
+    style Simple1 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Loop1 fill:#f8f9fa,stroke:#333,stroke-width:2px
+    style Tools1 fill:#fff,stroke:#333,stroke-width:2px
+    style RedisData1 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Response1 fill:#f8f9fa,stroke:#333,stroke-width:2px
+    style Forget fill:#fff,stroke:#dc3545,stroke-width:2px,color:#dc3545,stroke-dasharray: 5 5
+```
+
+### Stateful Architecture (Simple)
+
+```mermaid
+flowchart TB
+    UI2["User Interface"]
+    Router2["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
+    Simple2["Redis<br/>(Simple Queries)"]
+    LangGraph["LangGraph StateGraph<br/>• Qwen 2.5 7B LLM<br/>• Tool calling loop<br/>• Response synthesis"]
+    RedisShort["Redis Short-term<br/>Checkpointing"]
+    RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
+    Tools2["LLM Tools<br/>(5 total: 3 health + 2 memory)"]
+    Response2["Response to User"]
+    Store["✅ STORE MEMORY"]
+
+    UI2 --> Router2
+    Router2 -->|"Fast path"| Simple2
+    Router2 -->|"Complex path"| LangGraph
+    Simple2 --> Response2
+    LangGraph --> RedisShort
+    LangGraph --> RedisVL
+    LangGraph --> Tools2
+    RedisShort --> Response2
+    RedisVL --> Response2
+    Tools2 --> Response2
+    Response2 --> UI2
+    Response2 --> Store
+
+    style UI2 fill:#fff,stroke:#6c757d,stroke-width:2px
+    style Router2 fill:#f8f9fa,stroke:#333,stroke-width:2px
+    style Simple2 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style LangGraph fill:#f8f9fa,stroke:#333,stroke-width:2px
+    style RedisShort fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style RedisVL fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Tools2 fill:#fff,stroke:#333,stroke-width:2px
+    style Response2 fill:#f8f9fa,stroke:#333,stroke-width:2px
+    style Store fill:#fff,stroke:#28a745,stroke-width:2px,color:#28a745,stroke-dasharray: 5 5
+```
+
+---
+
 ## Horizontal Architecture Diagram
 
 ```mermaid
@@ -36,51 +111,52 @@ flowchart LR
 flowchart LR
     Query["User Query"]
     Router{"Intent Router"}
-    GoalOp["Simple Query"]
-    GoalRedis["Redis"]
-    Memory["LangGraph<br/>Checkpointer"]
-    LLM["Qwen 2.5 7B<br/>(Ollama)"]
-    Decision{"Which tool?"}
-    MemoryTools["Memory Tools<br/>get_my_goals<br/>get_tool_suggestions"]
-    HealthTools["Health Data Tools<br/>get_health_metrics<br/>get_sleep_analysis<br/>get_workout_data"]
-    DataSource["Data Source"]
-    RedisStructured["Redis<br/>(Structured)"]
-    RedisVector["RedisVL<br/>(Vector Search)"]
+    Simple["Simple Query"]
+    SimpleRedis["Redis"]
+    Load["1. Load<br/>Checkpoint"]
+    LLM["2. Qwen 2.5 7B<br/>(decides tools)"]
+    ToolDecision{"3. More<br/>tools?"}
+    Tools["4. Execute Tools<br/>(5 total)"]
+    Reflect["5. Reflect"]
+    StoreEpi["6. Store<br/>Episodic"]
+    StoreProc["7. Store<br/>Procedural"]
+    SaveCheck["8. Save<br/>Checkpoint"]
+    RedisVL["RedisVL<br/>(Vector Search)"]
+    RedisData["Redis<br/>(Health Data)"]
     Response["Response"]
-    Store["Store Memories"]
     
     Query --> Router
-    Router -->|"Simple"| GoalOp
-    Router -->|"Complex"| Memory
-    GoalOp --> GoalRedis
-    GoalRedis --> Response
-    Memory --> LLM
-    LLM --> Decision
-    Decision --> MemoryTools
-    Decision --> HealthTools
-    Decision -->|"Has answer"| Response
-    MemoryTools --> DataSource
-    HealthTools --> DataSource
-    DataSource --> RedisStructured
-    DataSource --> RedisVector
-    RedisStructured --> Response
-    RedisVector --> Response
-    Response --> Store
+    Router -->|"Fast path"| Simple
+    Router -->|"Complex path"| Load
+    Simple --> SimpleRedis
+    SimpleRedis --> Response
+    Load --> LLM
+    LLM --> ToolDecision
+    ToolDecision -->|"Yes"| Tools
+    ToolDecision -->|"No"| Reflect
+    Tools --> LLM
+    Reflect --> StoreEpi
+    StoreEpi --> StoreProc
+    StoreProc --> SaveCheck
+    Tools <--> RedisVL
+    Tools <--> RedisData
+    SaveCheck --> Response
     
     style Query fill:#fff,stroke:#333,stroke-width:2px
     style Router fill:#fff,stroke:#333,stroke-width:2px
-    style GoalOp fill:#fff,stroke:#333,stroke-width:2px
-    style GoalRedis fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style Memory fill:#fff,stroke:#333,stroke-width:2px
+    style Simple fill:#fff,stroke:#333,stroke-width:2px
+    style SimpleRedis fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Load fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style LLM fill:#fff,stroke:#333,stroke-width:2px
-    style Decision fill:#fff,stroke:#333,stroke-width:2px
-    style MemoryTools fill:#fff,stroke:#6c757d,stroke-width:2px
-    style HealthTools fill:#fff,stroke:#6c757d,stroke-width:2px
-    style DataSource fill:#fff,stroke:#333,stroke-width:2px
-    style RedisStructured fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style RedisVector fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style ToolDecision fill:#fff,stroke:#333,stroke-width:2px
+    style Tools fill:#fff,stroke:#333,stroke-width:2px
+    style Reflect fill:#fff,stroke:#333,stroke-width:2px
+    style StoreEpi fill:#fff,stroke:#28a745,stroke-width:2px,color:#28a745
+    style StoreProc fill:#fff,stroke:#28a745,stroke-width:2px,color:#28a745
+    style SaveCheck fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style RedisVL fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style RedisData fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style Response fill:#fff,stroke:#333,stroke-width:2px
-    style Store fill:#fff,stroke:#333,stroke-width:2px
 ```
 
 ## Short-Term Memory: Redis Checkpointing (Horizontal)
