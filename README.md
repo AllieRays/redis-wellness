@@ -169,7 +169,7 @@ make import
 This is a demo project showcasing Redis + RedisVL for AI agent memory. Feel free to:
 - Open issues for bugs or questions
 - Submit PRs for improvements
-- Use as reference for your own projects
+- Use locally with your own health data
 
 ---
 
