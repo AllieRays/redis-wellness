@@ -25,8 +25,8 @@ flowchart TD
     User[👤 User Query] --> Agent[🤖 Qwen 2.5 7B]
 
     Agent --> STM["💭 Short-Term Memory<br/>(LangGraph Checkpointing)<br/><br/>Recent conversation<br/>Automatic load<br/><br/>Enables: Follow-ups,<br/>pronoun resolution"]
-    Agent --> EM["🎯 Episodic Memory<br/>(RedisVL Vector Search)<br/><br/>Goals & facts<br/>Permanent storage<br/>Cross-session recall<br/><br/>Example: 'My goal is<br/>125 lbs by December'"]
-    Agent --> PM["🔧 Procedural Memory<br/>(RedisVL Vector Search)<br/><br/>Learned patterns<br/>Permanent storage<br/>Speeds up queries<br/><br/>Example: Tool chains<br/>for comparisons (32% faster)"]
+    Agent --> EM["🎯 Episodic Memory<br/>(RedisVL Vector Search)<br/><br/>Goals & facts<br/>Permanent storage<br/>Cross-session recall<br/><br/>Example: 'My goal is<br/>never skip leg day'"]
+    Agent --> PM["🔧 Procedural Memory<br/>(RedisVL Vector Search)<br/><br/>Learned patterns<br/>Permanent storage<br/>Speeds up queries<br/><br/>Example: 'For activity<br/>comparisons, use<br/>get_workout_data +<br/>get_health_metrics'"]
     Agent --> SM["🧠 Semantic Memory<br/>(RedisVL Vector Search)<br/><br/>Domain knowledge<br/>Permanent storage<br/>Optional<br/><br/>Example: 'Normal HR<br/>is 60-100 bpm'"]
 
     STM --> Redis[(Redis<br/>Checkpoint<br/>Storage)]
@@ -81,12 +81,12 @@ User: "Is that good?" ← Remembers "that" = 72 bpm
 
 **Example**:
 ```
-User (Day 1): "My weight goal is 125 lbs by December"
+User (Day 1): "My goal is to never skip leg day"
 → Stored with embedding
 
-User (Day 30): "Am I on track for my weight goal?"
+User (Day 30): "Am I on track with my leg day goal?"
 → Vector search retrieves goal
-Agent: "Your goal is 125 lbs. Current: 136.8 lbs..."
+Agent: "Your goal is to never skip leg day. You've worked out legs 8 times this month..."
 ```
 
 **Redis Keys**: `episodic:{user_id}:goal:{timestamp}`
@@ -172,13 +172,13 @@ checkpointer = AsyncRedisSaver(redis_url="redis://localhost:6379")
     "user_id": "wellness_user",
     "event_type": "goal",
     "timestamp": 1729962000,
-    "description": "Weight goal is 125 lbs by December",
-    "metadata": {"metric": "weight", "value": 125, "unit": "lbs"},
+    "description": "Goal is to never skip leg day",
+    "metadata": {"metric": "workout", "category": "lower_body"},
     "embedding": <1024 floats from mxbai-embed-large>
 }
 
 # Vector search for retrieval
-query_embedding = generate_embedding("weight goal")
+query_embedding = generate_embedding("leg day goal")
 results = episodic_index.search(query_embedding, top_k=3)
 ```
 
