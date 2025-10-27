@@ -1,313 +1,214 @@
 # Stateless Agent Architecture
 
-## Overview
+## 1. Overview
 
-The stateless agent is the **baseline** for our comparison. It has **no memory** between requests - each query is processed independently with zero awareness of previous interactions.
-
-**Key Point**: This demonstrates what AI agents are like WITHOUT memory systems.
+This document explains the **internal architecture of the stateless agent**: how it operates with basic tool calling.
 
 ### What You'll Learn
 
-- What "stateless" means in AI agents
-- How the simple tool-calling loop works
-- Which tools are available (3 health tools only)
-- Why it fails at follow-up questions
-- Real code examples from the codebase
+- **[Key Technologies](#2-key-technologies)** - LLM and tools
+- **[Architecture Overview](#3-architecture-overview)** - Component layers
+- **[How It Works](#4-how-it-works)** - Workflow and examples
+- **[Related Documentation](#5-related-documentation)** - Links to other docs
 
 ---
 
-## What is Stateless?
+## 2. What is Stateless?
 
-**Stateless = Zero Memory**
+**Stateless** means the agent has **no memory** between requests. Each query is processed independently with no awareness of previous interactions.
 
-Every request:
+### Key Characteristics
+
+- **No conversation history**: Each request starts fresh
+- **No context retention**: Previous queries and responses are not stored
+- **No learning**: Agent doesn't improve or adapt over time
+- **No user preferences**: Goals and patterns are not remembered
+
+### How It Works
+
+Every request to a stateless agent:
 1. Receives only the current user message
 2. Processes it in isolation
 3. Returns a response
-4. **Forgets everything**
+4. Forgets everything
 
 The next request has zero knowledge of what came before.
 
-### Example: Where Stateless Fails
+### Example
 
 ```
-User: "What was my heart rate yesterday?"
-Agent: "Your average heart rate yesterday was 72 bpm."
+Request 1: "What was my heart rate yesterday?"
+Response: "Your average heart rate yesterday was 72 bpm."
 
-User: "Is that good?"
-Agent: ❌ "I need more information. What value are you referring to?"
+Request 2: "Is that good?"
+Response: "I need more information. What value are you referring to?"
 ```
 
-The agent doesn't remember "that" refers to "72 bpm" from 5 seconds ago.
+The agent doesn't remember "that" refers to "72 bpm" from the previous exchange.
 
 ---
 
-## Architecture
+## 3. Key Technologies
 
-### Components
+**What's Included:**
+- **Qwen 2.5 7B**: Function-calling LLM (via Ollama) that reads tool docstrings and autonomously decides which tools to call
+- **Simple Tool Loop**: Up to 8 iterations of tool calling
+- **Intent Router**: Pre-LLM pattern matching for simple goal queries (fast path, returns immediately)
+- **3 Health Tools**: `get_health_metrics`, `get_sleep_analysis`, `get_workout_data`
 
-```
-User Query
-    ↓
-Intent Router (pattern matching for goals)
-    ↓
-Qwen 2.5 7B LLM + 3 Health Tools
-    ↓
-Simple Tool Loop (up to 8 iterations)
-    ↓
-Redis (health data only - read-only)
-    ↓
-Response → FORGET EVERYTHING
-```
-
-### What's Included
-
-✅ **Qwen 2.5 7B** - Function-calling LLM via Ollama
-✅ **Simple Tool Loop** - Up to 8 iterations
-✅ **Intent Router** - Fast path for goal CRUD (<100ms)
-✅ **3 Health Tools**:
-   - `get_health_metrics` - Heart rate, steps, weight, BMI
-   - `get_sleep_analysis` - Sleep data and efficiency
-   - `get_workout_data` - Workout lists, patterns, comparisons
-
-### What's Deliberately Excluded (For Comparison)
-
-❌ **NO conversation history** - Forgets previous messages
-❌ **NO LangGraph** - No StateGraph, no checkpointing
-❌ **NO RedisVL** - No vector search
-❌ **NO memory tools** - `get_my_goals`, `get_tool_suggestions` not available
-❌ **NO semantic memory** - No long-term knowledge base
+**What's Deliberately Excluded:**
+- ❌ NO conversation history (forgets previous messages)
+- ❌ NO LangGraph (no StateGraph, no checkpointing)
+- ❌ NO RedisVL (no vector search, no episodic/procedural memory)
+- ❌ NO memory tools (`get_my_goals`, `get_tool_suggestions` not available)
+- ❌ NO semantic memory (no long-term knowledge base)
+- ❌ NO Redis storage (except through tools that read existing health data)
 
 ---
 
-## How It Works
+## 3. Architecture Overview
 
-### Simple Tool Loop
+The stateless agent uses **intent routing** and a **simple tool-calling loop**:
 
-```python
-# From: backend/src/agents/stateless_agent.py
+```mermaid
+flowchart TB
+    UI["User Interface"]
+    Router["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
 
-async def chat(message: str, user_id: str):
-    # NO conversation history loaded
+    Simple["Redis<br/>(Simple Queries)"]
+    SimpleLoop["Simple Tool Loop<br/>• Qwen 2.5 7B LLM<br/>• Tool calling<br/>• Response synthesis"]
 
-    # Intent router: fast path for goals
-    if is_goal_query(message):
-        return handle_goal_query(message)  # <100ms, no LLM
+    Tools["Health Tools<br/>(3 tools)"]
+    RedisData["Redis Health Data Store"]
 
-    # Create tools (health only - NO memory)
-    tools = create_user_bound_tools(
-        user_id,
-        include_memory_tools=False  # Stateless baseline
-    )
+    UI --> Router
+    Router -->|"Simple"| Simple
+    Router -->|"Complex"| SimpleLoop
 
-    # Simple loop (max 8 iterations)
-    conversation = [SystemMessage(...), HumanMessage(message)]
+    SimpleLoop --> Tools
+    Tools --> RedisData
 
-    for iteration in range(8):
-        # Call LLM with tools
-        llm_with_tools = llm.bind_tools(tools)
-        response = await llm_with_tools.ainvoke(conversation)
-
-        # Execute tools if LLM requested them
-        if response.tool_calls:
-            tool_results = execute_tools(response.tool_calls)
-            conversation.append(tool_results)
-        else:
-            # LLM finished
-            return response.content
-
-    # NO memory stored after response
+    style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
+    style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
+    style Simple fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style SimpleLoop fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
+    style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style RedisData fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
 ```
 
-### Real Example: Heart Rate Query
+### Layer Responsibilities
 
-**User**: "What was my average heart rate last week?"
+1. **Intent Router**: Pre-LLM pattern matching for simple queries (<100ms, returns immediately)
+2. **Simple Tool Loop**: Iterative tool calling
+3. **Tool Layer**: 3 LLM-callable health tools
+   - `get_health_metrics`
+   - `get_sleep_analysis`
+   - `get_workout_data`
 
-**Step 1**: LLM decides to call tool
-```python
-{
-    "tool_calls": [{
-        "name": "get_health_metrics",
-        "args": {"metric": "HeartRate", "days": 7}
-    }]
-}
+---
+
+## 4. How It Works
+
+### Workflow
+
+The stateless agent routes queries through: intent routing → simple tool loop → response:
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px', 'edgeLabelBackground':'#f8f9fa'}, 'flowchart': {'nodeSpacing': 25, 'rankSpacing': 25}}}%%
+flowchart TB
+    Query["User Query"]
+    Router{"Intent Router"}
+    GoalOp["Simple Queries<br/>"]
+    LLM["Qwen 2.5 7B<br/>(Ollama LLM)"]
+    Decision{"Which tool?"}
+    HealthTools["Health Data Tools<br/>get_health_metrics<br/>get_sleep_analysis<br/>get_workout_data"]
+    DataSource["Redis Health Data Store"]
+    Loop{"More data?"}
+    Response["&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Response&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"]
+
+    Query --> Router
+    Router -->|"Simple Query"
+    Router -->|"Complex"| LLM
+    GoalOp --> Response
+    LLM --> Decision
+    Decision --> HealthTools
+    Decision -->|"Has answer"| Response
+    HealthTools -->|"Read only"| DataSource
+    DataSource --> Loop
+    Loop -->|Yes| LLM
+    Loop -->|No| Response
+
+    style Query fill:#fff,stroke:#333,stroke-width:2px
+    style Router fill:#fff,stroke:#333,stroke-width:2px
+    style GoalOp fill:#fff,stroke:#333,stroke-width:2px
+    style LLM fill:#fff,stroke:#333,stroke-width:2px
+    style Decision fill:#fff,stroke:#333,stroke-width:2px
+    style HealthTools fill:#fff,stroke:#6c757d,stroke-width:2px
+    style DataSource fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Loop fill:#fff,stroke:#333,stroke-width:2px
+    style Response fill:#fff,stroke:#333,stroke-width:2px,min-width:500px
 ```
 
-**Step 2**: Tool retrieves from Redis
+### Tool → Data Source Mapping
+
+Tools read existing health data from Redis:
+
+| Data Source | Storage Type | Tools That Use It | What's Stored |
+|-------------|--------------|-------------------|---------------|
+| `health:*` | Redis (read-only) | `get_health_metrics`<br/>`get_sleep_analysis` | Heart rate, steps, weight, BMI, sleep |
+| `workout:*` | Redis (read-only) | `get_workout_data` | Workout records and indexes |
+
+### Key Components
+
+#### Intent Router (Fast Path)
+
+Pattern-based routing for simple goal queries. Returns immediately without LLM.
+
+**What are "simple queries"?**
+- Simple queries: "My goal is X", "What are my goals?", "Delete my goals"
+- Pattern matching on keywords: "goal", "target", "my goals"
+- Direct Redis hash operations (no LLM, no vector search)
+- Benefits: <100ms response, zero tokens, zero LLM cost
+
+**Example:** "My goal is to run 3x per week" → Direct Redis HSET (<100ms, zero tokens)
+
+**Note:** Intent router bypasses LLM entirely for simple queries.
+
+#### Simple Tool Loop
+
+Basic iterative tool calling without persistence:
+
+**How it works:**
+1. User query → LLM with tools
+2. LLM decides to call tool → Execute tool
+3. Tool result → Back to LLM
+4. Repeat up to 8 times (MAX_TOOL_ITERATIONS)
+5. Final response
+
+### Real Example: Health Query
+
+```
+User: "What was my average heart rate last week?"
+```
+
+**Step 1: LLM decides to call tool**
 ```python
-# Tool reads health data (Redis hash)
+{"tool_calls": [{"name": "get_health_metrics", "args": {"metric": "HeartRate", "days": 7}}]}
+```
+
+**Step 2: Tool retrieves data from Redis**
+```python
 result = {"average": 72, "unit": "bpm", "days": 7}
 ```
 
-**Step 3**: LLM synthesizes response
+**Step 3: LLM synthesizes response**
 > "Your average heart rate last week was 72 bpm."
 
-**Step 4**: ❌ **Forgets everything** - no storage
-
 ---
 
-## Tool Calling
+## 5. Related Documentation
 
-### 3 Health Tools (All Agents Have These)
-
-| Tool | Purpose | Redis Keys |
-|------|---------|------------|
-| `get_health_metrics` | All non-sleep, non-workout metrics<br/>(heart rate, steps, weight, BMI) | `health:*` hashes |
-| `get_sleep_analysis` | Sleep data with daily aggregation | `sleep:*` hashes |
-| `get_workout_data` | ALL workout queries<br/>(lists, patterns, progress) | `workout:*` hashes |
-
-**Code Location**: `backend/src/apple_health/query_tools/`
-
-### How LLM Chooses Tools
-
-Qwen 2.5 7B reads tool docstrings and autonomously decides which to call:
-
-```python
-# Tool docstring (LLM reads this)
-def get_health_metrics(metric: str, days: int):
-    """
-    🔢 RETRIEVE health metrics: heart rate, steps, weight, BMI.
-
-    USE THIS TOOL WHEN:
-    - User asks about "heart rate", "steps", "weight", "BMI"
-    - User wants statistics: "average", "min", "max"
-
-    DO NOT USE for:
-    - Sleep data (use get_sleep_analysis)
-    - Workouts (use get_workout_data)
-    """
-```
-
-LLM sees these descriptions and picks the right tool based on the query.
-
----
-
-## Limitations
-
-### What Stateless CANNOT Do
-
-❌ **Follow-up questions**
-```
-"How many workouts?" → "154 workouts"
-"What's the most common type?" → ❌ "What are you referring to?"
-```
-
-❌ **Pronoun resolution**
-```
-"When was my last workout?" → "October 17th"
-"How long was it?" → ❌ "How long was what?"
-```
-
-❌ **Multi-turn reasoning**
-```
-Turn 1: "What was my heart rate during workouts?"
-Turn 2: "How does that compare to this week?"
-Turn 3: ❌ "I need context. What are you comparing?"
-```
-
-❌ **Goal awareness**
-```
-"Am I on track for my weight goal?" → ❌ "I don't know your goals"
-```
-
-❌ **Pattern learning**
-```
-Query 1: 2.8s to figure out tools
-Query 2: 2.8s (same - doesn't learn)
-```
-
-### This is NOT a Limitation of Qwen
-
-The LLM is capable. The limitation is **architectural** - no memory system.
-
----
-
-## Code Examples
-
-### Agent Initialization
-
-```python path=/Users/allierays/Sites/redis-wellness/backend/src/agents/stateless_agent.py start=46
-class StatelessHealthAgent:
-    """
-    Simple stateless chat with basic tool calling but NO memory.
-
-    This is the BASELINE for demonstrating memory value.
-    """
-
-    def __init__(self) -> None:
-        """Initialize stateless chat."""
-        self.llm = create_health_llm()
-        logger.info("StatelessHealthAgent initialized (no memory)")
-```
-
-### Tool Creation (No Memory Tools)
-
-```python path=/Users/allierays/Sites/redis-wellness/backend/src/agents/stateless_agent.py start=173
-# Create tools (health only - NO memory tools)
-user_tools = create_user_bound_tools(
-    user_id,
-    conversation_history=messages,
-    include_memory_tools=False,  # Stateless agent has NO memory
-)
-```
-
-### System Prompt (No Memory Instructions)
-
-```python path=/Users/allierays/Sites/redis-wellness/backend/src/utils/agent_helpers.py start=null
-def build_base_system_prompt() -> str:
-    """
-    Build system prompt for health AI agent.
-
-    NOTE: No memory retrieval instructions - stateless agent
-    only has access to health tools.
-    """
-    return """
-    You are a health AI agent with access to Apple Health data.
-
-    Available tools:
-    - get_health_metrics: Heart rate, steps, weight, BMI
-    - get_sleep_analysis: Sleep data and efficiency
-    - get_workout_data: Workout lists, patterns, progress
-
-    NOTE: You have NO memory of previous conversations.
-    """
-```
-
----
-
-## Performance
-
-| Metric | Stateless Agent |
-|--------|-----------------|
-| **First query** | ~2.8s (LLM inference) |
-| **Follow-up query** | ❌ Fails (no context) |
-| **Pattern learning** | ❌ None (2.8s every time) |
-| **Token usage** | Low (no conversation history) |
-| **Memory overhead** | 0 KB |
-
----
-
-## Comparison to Stateful
-
-See [STATELESS_VS_STATEFUL_COMPARISON.md](STATELESS_VS_STATEFUL_COMPARISON.md) for side-by-side comparison.
-
-**Key Differences**:
-- Stateless: 3 tools (health only)
-- Stateful: 5 tools (health + memory)
-- Stateless: Simple loop
-- Stateful: LangGraph workflow
-- Stateless: No Redis storage
-- Stateful: Checkpointing + vector search
-
----
-
-## Related Documentation
-
-- **[STATEFUL_AGENT.md](STATEFUL_AGENT.md)** - How memory transforms the agent
-- **[STATELESS_VS_STATEFUL_COMPARISON.md](STATELESS_VS_STATEFUL_COMPARISON.md)** - Side-by-side comparison
-- **[EXAMPLE_QUERIES.md](EXAMPLE_QUERIES.md)** - Try queries to see the difference
-- **[QUICKSTART.md](QUICKSTART.md)** - Run the demo
-
----
-
-**Key takeaway:** The stateless agent is intentionally memory-free to demonstrate the baseline. It works for simple, single-turn queries but fails at conversation, context, and learning - exactly what we're trying to show.
+- **[02_THE_DEMO.md](02_THE_DEMO.md)** - Side-by-side demo comparison
+- **[STATEFUL_AGENT.md](STATEFUL_AGENT.md)** - Stateful agent architecture
+- **[03_MEMORY_ARCHITECTURE.md](03_MEMORY_ARCHITECTURE.md)** - Memory system details
+- **[04_AUTONOMOUS_AGENTS.md](04_AUTONOMOUS_AGENTS.md)** - Tool-calling patterns
