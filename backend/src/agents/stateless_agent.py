@@ -179,9 +179,11 @@ class StatelessHealthAgent:
             )
 
             # Simple tool calling loop
-            system_content = (
-                build_base_system_prompt()
-            )  # Use base prompt without verbosity
+            system_content = build_base_system_prompt()
+
+            # Add stateless-specific instruction about unclear references
+            system_content += "\n\n🚫 CRITICAL - UNCLEAR REFERENCES:\nYou have NO access to previous messages. If the user refers to 'that', 'it', 'those', or other pronouns without clear context, respond with:\n\"Could you clarify what you're referring to? I need more specific information to help you.\""
+
             logger.debug(
                 f"📝 Stateless system prompt preview:\n{system_content[:LOG_SYSTEM_PROMPT_PREVIEW_LENGTH]}..."
             )

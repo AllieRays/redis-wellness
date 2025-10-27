@@ -48,14 +48,14 @@ flowchart LR
 
     style Turn1 fill:none,stroke:#333,stroke-width:2px
     style Turn2 fill:none,stroke:#333,stroke-width:2px
-    style U1 fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style U2 fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style L1 fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style L2 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style U1 fill:#e9ecef,stroke:#6c757d,stroke-width:2px,color:#000
+    style U2 fill:#e9ecef,stroke:#6c757d,stroke-width:2px,color:#000
+    style L1 fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000
+    style L2 fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000
     style R1 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
     style R2 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
-    style A1 fill:#f5f5f5,stroke:#DC382C,stroke-width:3px
-    style A2 fill:#f5f5f5,stroke:#DC382C,stroke-width:3px
+    style A1 fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000
+    style A2 fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000
 ```
 
 **Without Checkpointing (Stateless)**:
@@ -140,11 +140,11 @@ flowchart LR
     Save -."Next turn".-> Load
     Execute --> Response
     
-    style Start fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Start fill:#e9ecef,stroke:#6c757d,stroke-width:2px,color:#000
     style Load fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
-    style Execute fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Execute fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000
     style Save fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
-    style Response fill:#f5f5f5,stroke:#DC382C,stroke-width:3px
+    style Response fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#000
 ```
 
 ### State Structure
