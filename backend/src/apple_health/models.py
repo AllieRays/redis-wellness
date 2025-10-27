@@ -10,7 +10,7 @@ from datetime import UTC, date, datetime, timedelta
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class PrivacyLevel(str, Enum):
@@ -57,26 +57,44 @@ class HealthRecord(BaseModel):
     """
 
     # Public fields - safe to display
-    record_type: HealthMetricType = Field(..., privacy_level=PrivacyLevel.PUBLIC)
-    unit: str | None = Field(None, privacy_level=PrivacyLevel.PUBLIC)
+    record_type: HealthMetricType = Field(
+        ..., json_schema_extra={"privacy_level": PrivacyLevel.PUBLIC}
+    )
+    unit: str | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.PUBLIC}
+    )
 
     # Sensitive fields - health data
-    value: str | None = Field(None, privacy_level=PrivacyLevel.SENSITIVE)
-    start_date: datetime = Field(..., privacy_level=PrivacyLevel.SENSITIVE)
-    end_date: datetime = Field(..., privacy_level=PrivacyLevel.SENSITIVE)
+    value: str | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
+    start_date: datetime = Field(
+        ..., json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
+    end_date: datetime = Field(
+        ..., json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
 
     # Personal fields - can be anonymized
-    source_name: str | None = Field(None, privacy_level=PrivacyLevel.PERSONAL)
-    source_version: str | None = Field(None, privacy_level=PrivacyLevel.PERSONAL)
-    device: str | None = Field(None, privacy_level=PrivacyLevel.PERSONAL)
-    creation_date: datetime | None = Field(None, privacy_level=PrivacyLevel.PERSONAL)
+    source_name: str | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.PERSONAL}
+    )
+    source_version: str | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.PERSONAL}
+    )
+    device: str | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.PERSONAL}
+    )
+    creation_date: datetime | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.PERSONAL}
+    )
 
     # Private fields - internal use only
     raw_metadata: dict[str, Any] | None = Field(
-        default_factory=dict, privacy_level=PrivacyLevel.PRIVATE
+        default_factory=dict, json_schema_extra={"privacy_level": PrivacyLevel.PRIVATE}
     )
 
-    @validator("record_type", pre=True)
+    @field_validator("record_type", mode="before")
     @classmethod
     def normalize_record_type(cls, v):
         """Normalize record type to enum, fallback to OTHER for unknown types."""
@@ -158,25 +176,33 @@ class SleepSegment(BaseModel):
     """
 
     # Public fields
-    state: str = Field(..., privacy_level=PrivacyLevel.PUBLIC)
+    state: str = Field(..., json_schema_extra={"privacy_level": PrivacyLevel.PUBLIC})
 
     # Sensitive fields - sleep timing data
-    start_date: datetime = Field(..., privacy_level=PrivacyLevel.SENSITIVE)
-    end_date: datetime = Field(..., privacy_level=PrivacyLevel.SENSITIVE)
-    duration_hours: float = Field(..., privacy_level=PrivacyLevel.SENSITIVE)
+    start_date: datetime = Field(
+        ..., json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
+    end_date: datetime = Field(
+        ..., json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
+    duration_hours: float = Field(
+        ..., json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
 
     # Personal fields
-    source_name: str | None = Field(None, privacy_level=PrivacyLevel.PERSONAL)
+    source_name: str | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.PERSONAL}
+    )
 
-    @validator("duration_hours", pre=True, always=True)
+    @field_validator("duration_hours", mode="before")
     @classmethod
-    def calculate_duration(cls, v, values):
+    def calculate_duration(cls, v, info):
         """Calculate duration from start/end dates if not provided."""
         if v is not None:
             return v
-        if "start_date" in values and "end_date" in values:
-            start = values["start_date"]
-            end = values["end_date"]
+        if info.data.get("start_date") and info.data.get("end_date"):
+            start = info.data["start_date"]
+            end = info.data["end_date"]
             duration_seconds = (end - start).total_seconds()
             return duration_seconds / 3600  # Convert to hours
         return 0.0
@@ -190,40 +216,59 @@ class SleepSummary(BaseModel):
     """
 
     # Public fields
-    date: str = Field(..., privacy_level=PrivacyLevel.PUBLIC)  # YYYY-MM-DD format
+    date: str = Field(
+        ..., json_schema_extra={"privacy_level": PrivacyLevel.PUBLIC}
+    )  # YYYY-MM-DD format
 
     # Sensitive sleep metrics
-    total_sleep_hours: float = Field(..., privacy_level=PrivacyLevel.SENSITIVE)
-    total_in_bed_hours: float = Field(..., privacy_level=PrivacyLevel.SENSITIVE)
+    total_sleep_hours: float = Field(
+        ..., json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
+    total_in_bed_hours: float = Field(
+        ..., json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
     sleep_efficiency: float | None = Field(
-        None, privacy_level=PrivacyLevel.SENSITIVE
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
     )  # Sleep / InBed ratio
 
     # Optional detailed breakdown
-    deep_sleep_hours: float | None = Field(None, privacy_level=PrivacyLevel.SENSITIVE)
-    rem_sleep_hours: float | None = Field(None, privacy_level=PrivacyLevel.SENSITIVE)
-    core_sleep_hours: float | None = Field(None, privacy_level=PrivacyLevel.SENSITIVE)
-    awake_hours: float | None = Field(None, privacy_level=PrivacyLevel.SENSITIVE)
+    deep_sleep_hours: float | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
+    rem_sleep_hours: float | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
+    core_sleep_hours: float | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
+    awake_hours: float | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
 
     # Metadata
-    segment_count: int = Field(0, privacy_level=PrivacyLevel.PUBLIC)
+    segment_count: int = Field(
+        0, json_schema_extra={"privacy_level": PrivacyLevel.PUBLIC}
+    )
     first_sleep_time: str | None = Field(
-        None, privacy_level=PrivacyLevel.SENSITIVE
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
     )  # HH:MM format
     last_wake_time: str | None = Field(
-        None, privacy_level=PrivacyLevel.SENSITIVE
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
     )  # HH:MM format
 
-    @validator("sleep_efficiency", pre=True, always=True)
+    @field_validator("sleep_efficiency", mode="before")
     @classmethod
-    def calculate_efficiency(cls, v, values):
+    def calculate_efficiency(cls, v, info):
         """Calculate sleep efficiency from sleep/in_bed hours."""
         if v is not None:
             return v
-        if "total_sleep_hours" in values and "total_in_bed_hours" in values:
-            in_bed = values["total_in_bed_hours"]
+        if (
+            info.data.get("total_sleep_hours") is not None
+            and info.data.get("total_in_bed_hours") is not None
+        ):
+            in_bed = info.data["total_in_bed_hours"]
             if in_bed > 0:
-                sleep = values["total_sleep_hours"]
+                sleep = info.data["total_sleep_hours"]
                 return round((sleep / in_bed) * 100, 1)
         return None
 
@@ -236,21 +281,37 @@ class WorkoutSummary(BaseModel):
     """
 
     # Public fields
-    workout_activity_type: str = Field(..., privacy_level=PrivacyLevel.PUBLIC)
-    duration_unit: str | None = Field(None, privacy_level=PrivacyLevel.PUBLIC)
+    workout_activity_type: str = Field(
+        ..., json_schema_extra={"privacy_level": PrivacyLevel.PUBLIC}
+    )
+    duration_unit: str | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.PUBLIC}
+    )
 
     # Sensitive fields
-    duration: float | None = Field(None, privacy_level=PrivacyLevel.SENSITIVE)
-    total_distance: float | None = Field(None, privacy_level=PrivacyLevel.SENSITIVE)
-    total_energy_burned: float | None = Field(
-        None, privacy_level=PrivacyLevel.SENSITIVE
+    duration: float | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
     )
-    start_date: datetime = Field(..., privacy_level=PrivacyLevel.SENSITIVE)
-    end_date: datetime = Field(..., privacy_level=PrivacyLevel.SENSITIVE)
+    total_distance: float | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
+    total_energy_burned: float | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
+    start_date: datetime = Field(
+        ..., json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
+    end_date: datetime = Field(
+        ..., json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
 
     # Personal fields
-    source_name: str | None = Field(None, privacy_level=PrivacyLevel.PERSONAL)
-    device: str | None = Field(None, privacy_level=PrivacyLevel.PERSONAL)
+    source_name: str | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.PERSONAL}
+    )
+    device: str | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.PERSONAL}
+    )
 
 
 class ActivitySummary(BaseModel):
@@ -261,24 +322,28 @@ class ActivitySummary(BaseModel):
     """
 
     # Public fields
-    date_components: date = Field(..., privacy_level=PrivacyLevel.PUBLIC)
+    date_components: date = Field(
+        ..., json_schema_extra={"privacy_level": PrivacyLevel.PUBLIC}
+    )
 
     # Sensitive activity data
     active_energy_burned: float | None = Field(
-        None, privacy_level=PrivacyLevel.SENSITIVE
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
     )
     active_energy_burned_goal: float | None = Field(
-        None, privacy_level=PrivacyLevel.SENSITIVE
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
     )
     apple_exercise_time: float | None = Field(
-        None, privacy_level=PrivacyLevel.SENSITIVE
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
     )
     apple_exercise_time_goal: float | None = Field(
-        None, privacy_level=PrivacyLevel.SENSITIVE
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
     )
-    apple_stand_hours: float | None = Field(None, privacy_level=PrivacyLevel.SENSITIVE)
+    apple_stand_hours: float | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
+    )
     apple_stand_hours_goal: float | None = Field(
-        None, privacy_level=PrivacyLevel.SENSITIVE
+        None, json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE}
     )
 
 
@@ -289,9 +354,15 @@ class UserProfile(BaseModel):
     """
 
     # All fields are personal/private - no public health profile data
-    date_of_birth: date | None = Field(None, privacy_level=PrivacyLevel.PRIVATE)
-    biological_sex: str | None = Field(None, privacy_level=PrivacyLevel.PRIVATE)
-    blood_type: str | None = Field(None, privacy_level=PrivacyLevel.PRIVATE)
+    date_of_birth: date | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.PRIVATE}
+    )
+    biological_sex: str | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.PRIVATE}
+    )
+    blood_type: str | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.PRIVATE}
+    )
 
     def anonymize(self) -> "UserProfile":
         """Create fully anonymized profile (removes all personal data)."""
@@ -306,24 +377,34 @@ class HealthDataCollection(BaseModel):
     """
 
     # Export metadata
-    export_date: datetime = Field(..., privacy_level=PrivacyLevel.PUBLIC)
-    record_count: int = Field(0, privacy_level=PrivacyLevel.PUBLIC)
+    export_date: datetime = Field(
+        ..., json_schema_extra={"privacy_level": PrivacyLevel.PUBLIC}
+    )
+    record_count: int = Field(
+        0, json_schema_extra={"privacy_level": PrivacyLevel.PUBLIC}
+    )
 
     # User data (highly sensitive)
-    user_profile: UserProfile | None = Field(None, privacy_level=PrivacyLevel.PRIVATE)
+    user_profile: UserProfile | None = Field(
+        None, json_schema_extra={"privacy_level": PrivacyLevel.PRIVATE}
+    )
 
     # Health records (sensitive)
     records: list[HealthRecord] = Field(
-        default_factory=list, privacy_level=PrivacyLevel.SENSITIVE
+        default_factory=list,
+        json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE},
     )
     workouts: list[WorkoutSummary] = Field(
-        default_factory=list, privacy_level=PrivacyLevel.SENSITIVE
+        default_factory=list,
+        json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE},
     )
     sleep_summaries: list[SleepSummary] = Field(
-        default_factory=list, privacy_level=PrivacyLevel.SENSITIVE
+        default_factory=list,
+        json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE},
     )
     activity_summaries: list[ActivitySummary] = Field(
-        default_factory=list, privacy_level=PrivacyLevel.SENSITIVE
+        default_factory=list,
+        json_schema_extra={"privacy_level": PrivacyLevel.SENSITIVE},
     )
 
     def get_records_by_type(self, metric_type: HealthMetricType) -> list[HealthRecord]:

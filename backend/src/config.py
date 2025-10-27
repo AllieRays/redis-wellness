@@ -1,10 +1,18 @@
 """Application configuration."""
 
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """Application settings."""
+
+    model_config = ConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        env_prefix="",
+        extra="allow",  # Allow extra fields from .env
+    )
 
     app_host: str = "0.0.0.0"
     app_port: int = 8000
@@ -32,12 +40,6 @@ class Settings(BaseSettings):
     max_context_tokens: int = 24000  # Conservative limit (75% of 32k)
     token_usage_threshold: float = 0.8  # Trigger trimming at 80% of max
     min_messages_to_keep: int = 2  # Always keep at least 2 recent messages
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-        env_prefix = ""
-        extra = "allow"  # Allow extra fields from .env
 
 
 def get_settings() -> Settings:
