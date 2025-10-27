@@ -17,7 +17,6 @@ Redis powers the entire memory system with five key data structures. This doc ex
 ## 2. Why Redis for AI?
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0d212c', 'primaryTextColor':'#fff', 'primaryBorderColor':'#ff4438', 'lineColor':'#666', 'secondaryColor':'#163341', 'tertiaryColor':'#091a23', 'background':'#0d212c', 'mainBkg':'#163341', 'secondBkg':'#0d212c', 'textColor':'#fff', 'fontSize':'16px'}}}%%
 graph LR
     subgraph "Traditional Stack"
     A[PostgreSQL] -->|Slow Joins| B[Vector Extension]
@@ -31,11 +30,14 @@ graph LR
     E -->|Built-in| H[HNSW Index]
     end
 
-    style A fill:#163341,stroke:#666,color:#fff,stroke-width:2px
-    style E fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
-    style F fill:#091a23,stroke:#666,color:#fff
-    style G fill:#091a23,stroke:#666,color:#fff
-    style H fill:#091a23,stroke:#666,color:#fff
+    style A fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style B fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style C fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style D fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style E fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style F fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style G fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style H fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
 ```
 
 ### PostgreSQL Approach (Traditional)
@@ -73,7 +75,6 @@ results = episodic_index.search(query_vector)
 ## 3. Five Key Structures
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0d212c', 'primaryTextColor':'#fff', 'primaryBorderColor':'#ff4438', 'lineColor':'#666', 'secondaryColor':'#163341', 'tertiaryColor':'#091a23'}}}%%
 graph TD
     A[Redis Data Structures] --> B[STRING<br/>Health Data JSON]
     A --> C[LIST<br/>Conversation History]
@@ -87,17 +88,17 @@ graph TD
     E -->|Timestamps| E1[O log N Ranges]
     F -->|1024-dim| F1[HNSW Search]
 
-    style A fill:#0d212c,stroke:#666,color:#fff,stroke-width:2px
-    style B fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
-    style C fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
-    style D fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
-    style E fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
-    style F fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
-    style B1 fill:#091a23,stroke:#666,color:#fff
-    style C1 fill:#091a23,stroke:#666,color:#fff
-    style D1 fill:#091a23,stroke:#666,color:#fff
-    style E1 fill:#091a23,stroke:#666,color:#fff
-    style F1 fill:#091a23,stroke:#666,color:#fff
+    style A fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style B fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style C fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style D fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style E fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style F fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style B1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style C1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style D1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style E1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style F1 fill:#f5f5f5,stroke:#333,stroke-width:2px
 ```
 
 ### STRING (JSON Blob)
@@ -297,7 +298,6 @@ results = episodic_index.query(vector_query)
 ## 4. Health Data Patterns
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0d212c', 'primaryTextColor':'#fff', 'primaryBorderColor':'#ff4438', 'lineColor':'#666', 'secondaryColor':'#163341', 'tertiaryColor':'#091a23'}}}%%
 flowchart TD
     A[Apple Health XML] -->|Parse| B[Redis Indexer]
 
@@ -313,12 +313,15 @@ flowchart TD
     F -->|O log N| E1
     F -->|Pipeline| C1
 
-    style A fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
-    style B fill:#0d212c,stroke:#666,color:#fff,stroke-width:2px
-    style C fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
-    style D fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
-    style E fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
-    style F fill:#091a23,stroke:#666,color:#fff
+    style A fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style B fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style C fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style D fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style E fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style F fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style C1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style D1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style E1 fill:#f5f5f5,stroke:#333,stroke-width:2px
 ```
 
 ### Workout Storage
@@ -385,7 +388,6 @@ user:wellness_user:sleep:by_date → ZSET {
 ## 5. Memory Patterns
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0d212c', 'primaryTextColor':'#fff', 'primaryBorderColor':'#ff4438', 'lineColor':'#666', 'secondaryColor':'#163341', 'tertiaryColor':'#091a23'}}}%%
 graph TB
     subgraph "Short-Term Memory"
     A[LangGraph] -->|AsyncRedisSaver| B[langgraph:checkpoint:*]
@@ -406,13 +408,16 @@ graph TB
     G --> C
     G --> E
 
-    style A fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
-    style C fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
-    style E fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
-    style G fill:#163341,stroke:#666,color:#fff,stroke-width:2px
-    style B fill:#091a23,stroke:#666,color:#fff
-    style D fill:#091a23,stroke:#666,color:#fff
-    style F fill:#091a23,stroke:#666,color:#fff
+    style A fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style C fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style E fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style G fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style B fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style D fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style F fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style B1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style D1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style F1 fill:#f5f5f5,stroke:#333,stroke-width:2px
 ```
 
 ### Short-Term (LangGraph Checkpointing)

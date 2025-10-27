@@ -1,33 +1,72 @@
 # Redis Wellness - Critical Project Information
 
+## Project Status
+
+**🎯 NEARING COMPLETION** - This project is in **final polish phase**. Core functionality is complete and stable.
+
+### Completed ✅
+- ✅ Full stateless vs. stateful agent comparison working
+- ✅ Four-layer memory architecture (short-term, episodic, procedural, semantic)
+- ✅ 13 comprehensive documentation files in `/docs/`
+- ✅ Complete test suite (unit, integration, API, LLM)
+- ✅ Apple Health data pipeline with Redis indexing
+- ✅ LangGraph checkpointing for conversation state
+- ✅ 11 LangChain tools (9 health + 2 memory)
+- ✅ TypeScript frontend with SSE streaming
+- ✅ Full Docker deployment with health checks
+- ✅ Makefile with comprehensive commands
+- ✅ Pre-commit and pre-push hooks
+- ✅ 100% local privacy (Ollama + Redis)
+
+### Focus Areas for Final Polish
+- 🎨 Documentation refinement (cross-references, formatting)
+- 🧪 Edge case testing and validation
+- 📊 Performance optimization (if needed)
+- 🐛 Bug fixes from user testing
+- 📝 README and doc examples verification
+
+**Primary Goal**: Production-ready demo showcasing Redis + RedisVL for AI agent memory systems.
+
+---
+
 ## Project Architecture
 
 **We ALWAYS use Docker** - All services run in containers via `docker compose`
 
-### Triple Memory System:
+### Four-Layer Memory System:
 
-The application uses **three types of memory** powered by Redis + RedisVL:
+The application uses **four types of memory** powered by Redis + RedisVL (CoALA framework-inspired):
 
-1. **Episodic Memory** (Short-term)
-   - Stores conversation history within a session
-   - Managed by `episodic_memory_manager.py`
-   - Redis key pattern: `episodic:{session_id}:history`
-   - Enables context awareness within a conversation
+1. **Short-term Memory** (LangGraph Checkpointing)
+   - Stores recent conversation within current session
+   - Managed by LangGraph BaseCheckpointSaver
+   - Redis key pattern: `checkpoint:{session_id}:{step}`
+   - Enables context awareness and pronoun resolution
 
-2. **Semantic Memory** (Long-term)
-   - Stores important facts extracted from conversations
-   - Managed by `semantic_memory_manager.py` with RedisVL vector search
-   - Redis key pattern: `semantic:{user_id}:{timestamp}`
-   - Enables recall of past information across sessions
+2. **Episodic Memory** (User Goals & Facts)
+   - Stores important user-specific facts and goals
+   - Managed by `episodic_memory_manager.py` with RedisVL vector search
+   - Redis key pattern: `episodic:{user_id}:goal:{timestamp}`
+   - Enables cross-session goal recall
    - Uses embeddings for similarity search (1024 dimensions)
+   - Retrieved autonomously via `get_my_goals` tool (LLM-triggered)
 
-3. **Procedural Memory** (Goals & Preferences)
-   - Stores user goals, preferences, and configuration
-   - Managed by `procedural_memory_manager.py`
-   - Redis key pattern: `procedural:{user_id}:goals`
-   - Enables personalized responses based on user objectives
+3. **Procedural Memory** (Workflow Patterns)
+   - Stores successful tool-calling sequences and strategies
+   - Managed by `procedural_memory_manager.py` with RedisVL
+   - Redis key pattern: `procedural:pattern:{timestamp}`
+   - Enables workflow optimization via past success
+   - Retrieved autonomously via `get_tool_suggestions` tool (LLM-triggered)
 
-This architecture mirrors human memory systems and dramatically improves AI conversation quality.
+4. **Semantic Memory** (Health Knowledge Base) - Optional
+   - Stores general health facts and medical knowledge
+   - Managed by `semantic_memory_manager.py` with RedisVL
+   - Redis key pattern: `semantic:{category}:{fact_type}:{timestamp}`
+   - Enables domain knowledge augmentation
+
+This architecture mirrors human memory systems (CoALA framework) and dramatically improves AI conversation quality.
+
+**Key Feature**: Memory retrieval is **autonomous** - the LLM decides when to call memory tools, not hardcoded logic.
 
 ### Key Locations:
 - **Import script**: `backend/src/import_health_data.py`
@@ -180,18 +219,26 @@ make test-unit     # Unit tests only
 
 ## Key Constraints
 
-### DO NOT:
+### DO NOT (Core Features - Stable):
 - ❌ Create new import scripts
 - ❌ Change datetime formats
 - ❌ Remove hash set deduplication
 - ❌ Skip workout enrichment step
 - ❌ Modify Redis key structure without updating `utils/redis_keys.py`
+- ❌ Refactor agent logic (stateless/stateful) - tested and stable
+- ❌ Change Redis data structures - optimized and working
+- ❌ Modify LangGraph workflow - validated against test suite
+- ❌ Alter tool calling system - Qwen-optimized
+- ❌ Remove privacy features - 100% local is core selling point
 
-### DO:
+### DO (Focus Areas):
 - ✅ Use `import_health_data.py` for ALL imports
-- ✅ Test with `test_data_validation.sh` after importing
-- ✅ Run hallucination tests to verify agent accuracy
-- ✅ Check `rebuild_workout_indexes.py` for workout indexing
+- ✅ Improve documentation clarity and examples
+- ✅ Add test coverage for edge cases
+- ✅ Enhance error messages and user feedback
+- ✅ Fix bugs from user testing
+- ✅ Verify code examples in docs work
+- ✅ Run `make lint && make test` before commits
 
 ## Data Location
 
@@ -207,10 +254,11 @@ Access via: `docker compose exec redis redis-cli`
 - **Metrics**: `user:wellness_user:health_metric:{MetricType}` (7-month TTL)
 - **Workout indexes**: Auto-indexed during import
 
-**Triple Memory System:**
-- **Episodic**: `episodic:{session_id}:history` - Conversation history
-- **Semantic**: `semantic:{user_id}:{timestamp}` - Long-term facts with embeddings
-- **Procedural**: `procedural:{user_id}:goals` - User goals and preferences
+**Four-Layer Memory System:**
+- **Short-term**: `checkpoint:{session_id}:{step}` - LangGraph checkpointing (conversation history)
+- **Episodic**: `episodic:{user_id}:goal:{timestamp}` - User goals and facts with embeddings
+- **Procedural**: `procedural:pattern:{timestamp}` - Workflow patterns with embeddings
+- **Semantic**: `semantic:{category}:{fact_type}:{timestamp}` - Health knowledge (optional)
 
 ### Apple Health Module Structure
 
@@ -229,6 +277,11 @@ backend/src/apple_health/
 
 **Important**: Tools in `query_tools/` are what agents use to access data. The system uses **5 consolidated tools** (3 health + 2 memory) instead of many specialized tools to reduce token usage and improve LLM performance. The `get_workout_data` tool handles all workout queries through feature flags.
 
+**Stateless vs. Stateful Agents:**
+- **Stateless Agent**: Uses 9 health tools only, simple tool loop, NO memory
+- **Stateful Agent**: Uses 11 tools (9 health + 2 memory), LangGraph workflow with checkpointing, four-layer memory
+- **Memory is autonomous**: LLM decides when to call `get_my_goals` or `get_tool_suggestions`
+
 ## Related Scripts & Services
 
 **Backend Scripts** (`backend/scripts/`):
@@ -238,14 +291,15 @@ backend/src/apple_health/
 - `verify_redis_checkpointer.py` - Verifies Redis persistence
 
 **Core Services** (`backend/src/services/`):
-- `redis_chat.py` - RAG chat service with triple memory
-- `stateless_chat.py` - Baseline no-memory service
-- `episodic_memory_manager.py` - Conversation history
-- `semantic_memory_manager.py` - Long-term context (RedisVL)
-- `procedural_memory_manager.py` - Goals and preferences
+- `redis_chat.py` - RAG chat service with four-layer memory (stateful agent)
+- `stateless_chat.py` - Baseline no-memory service (stateless agent)
+- `episodic_memory_manager.py` - Episodic memory (user goals)
+- `semantic_memory_manager.py` - Semantic memory (health knowledge, optional)
+- `procedural_memory_manager.py` - Procedural memory (workflow patterns)
 - `redis_workout_indexer.py` - Workout indexing
 - `redis_apple_health_manager.py` - Health data CRUD
 - `embedding_service.py` - Embedding generation
+- `redis_connection.py` - Production-ready Redis connection management
 
 ## Troubleshooting
 
@@ -273,3 +327,41 @@ backend/src/apple_health/
 - Check both containers running: `docker compose ps`
 - Check Docker network: `docker compose logs backend | grep -i redis`
 - Redis host in code is `redis` (container name), not `localhost`
+
+---
+
+## Development Philosophy
+
+**This is a teaching demo** - code clarity matters more than extreme optimization.
+
+### Priorities (in order):
+1. **Correctness** - Feature works reliably
+2. **Documentation** - Users understand how it works
+3. **Privacy** - Data stays local (non-negotiable)
+4. **Simplicity** - Clear, maintainable code
+5. **Performance** - Fast enough for demo purposes
+
+### Not Priorities:
+- Production-scale performance (this is a demo)
+- Supporting multiple LLM providers (Ollama is sufficient)
+- Cloud deployment (local-first is the feature)
+- Complex optimization (simplicity > speed)
+
+### Project Status Notes:
+- **Nearly complete** - resist urge to refactor working code
+- **Focus on**: Bug fixes, docs, edge cases, error messages
+- **Avoid**: Major architecture changes, unnecessary abstraction, feature creep
+- **Goal**: Ship a polished, educational demo
+
+### Before Making Changes:
+1. Run `make test` to verify current state
+2. Review relevant docs in `/docs/` (13 comprehensive guides)
+3. Understand dependencies:
+   - Frontend changes: No rebuild needed (volume mounted)
+   - Backend changes: **MUST rebuild Docker** (`docker compose build backend`)
+   - Environment variables: Update both `docker-compose.yml` AND `config.py`
+
+### Code Quality:
+- Pre-commit hooks run automatically - DO NOT bypass
+- Pre-push hooks prevent CI failures (tests + Docker build)
+- All changes must pass: `make lint && make test && make typecheck`
