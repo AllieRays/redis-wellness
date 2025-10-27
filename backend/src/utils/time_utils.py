@@ -54,6 +54,7 @@ Providing clean, simple date strings with helper fields prevents:
 
 import re
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 # Default timeframe for "recent" queries
 DEFAULT_RECENT_DAYS = 30
@@ -291,6 +292,35 @@ def format_date_utc(utc_datetime: datetime) -> str:
     if utc_datetime.tzinfo is None:
         utc_datetime = utc_datetime.replace(tzinfo=UTC)
     return utc_datetime.date().isoformat()
+
+
+def convert_utc_to_user_timezone(
+    utc_datetime: datetime, user_timezone: str
+) -> datetime:
+    """
+    Convert UTC datetime to user's local timezone.
+
+    Args:
+        utc_datetime: Datetime in UTC timezone
+        user_timezone: IANA timezone name (e.g., "America/Los_Angeles", "America/New_York")
+
+    Returns:
+        Datetime converted to user's timezone
+
+    Examples:
+        >>> dt = datetime(2025, 9, 1, 8, 10, 0, tzinfo=UTC)  # 8:10 AM UTC
+        >>> convert_utc_to_user_timezone(dt, "America/Los_Angeles")
+        datetime.datetime(2025, 9, 1, 1, 10, 0, tzinfo=ZoneInfo(key='America/Los_Angeles'))  # 1:10 AM PST
+
+    Note:
+        This is used for display purposes only (e.g., sleep times).
+        All internal storage and calculations remain in UTC.
+    """
+    if utc_datetime.tzinfo is None:
+        utc_datetime = utc_datetime.replace(tzinfo=UTC)
+
+    user_tz = ZoneInfo(user_timezone)
+    return utc_datetime.astimezone(user_tz)
 
 
 def parse_health_record_date(

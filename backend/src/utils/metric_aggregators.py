@@ -70,7 +70,14 @@ def aggregate_daily_sums(
         # StepCount records: [250, 488, 686] steps on 2025-10-17
         # Returns: {date(2025, 10, 17): 1424.0}
     """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
     filter_start, filter_end = _normalize_date_range(date_range)
+    logger.info(
+        f"🔍 aggregate_daily_sums: date range {filter_start} to {filter_end}, total_records={len(records)}"
+    )
     daily_totals: defaultdict[date, float] = defaultdict(float)
 
     for record in records:
@@ -83,6 +90,9 @@ def aggregate_daily_sums(
         except (ValueError, TypeError, KeyError):
             continue
 
+    logger.info(
+        f"✅ aggregate_daily_sums result: {len(daily_totals)} unique days, dates: {sorted(daily_totals.keys())[:5]}"
+    )
     return dict(daily_totals)
 
 

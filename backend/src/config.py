@@ -1,10 +1,18 @@
 """Application configuration."""
 
+from pydantic import ConfigDict, Field
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """Application settings."""
+
+    model_config = ConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        env_prefix="",
+        extra="allow",  # Allow extra fields from .env
+    )
 
     app_host: str = "0.0.0.0"
     app_port: int = 8000
@@ -27,17 +35,16 @@ class Settings(BaseSettings):
     # Set in .env file - keeps personal health data private and out of git
     user_health_context: str = ""
 
+    # User timezone for display - reads from USER_TIMEZONE in .env
+    # All internal storage remains UTC, but display times convert to this timezone
+    # Format: IANA timezone database name (e.g., America/Los_Angeles, America/New_York, Europe/London)
+    user_timezone: str = Field(default="UTC")
+
     # Token limits for context management
     # Qwen 2.5 7B has ~32k effective context window
     max_context_tokens: int = 24000  # Conservative limit (75% of 32k)
     token_usage_threshold: float = 0.8  # Trigger trimming at 80% of max
     min_messages_to_keep: int = 2  # Always keep at least 2 recent messages
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-        env_prefix = ""
-        extra = "allow"  # Allow extra fields from .env
 
 
 def get_settings() -> Settings:

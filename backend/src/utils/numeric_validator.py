@@ -49,16 +49,21 @@ class NumericValidator:
         """
         numbers = []
 
-        # Pattern to match numbers with optional units
-        # Matches: "136.8", "136.8 lb", "70 count/min", "23.6 BMI"
-        pattern = r"(\d+\.?\d*)\s*(" + "|".join(self.unit_patterns) + r")?"
+        # Pattern to match numbers with optional commas and units
+        # Matches: "136.8", "136.8 lb", "70 count/min", "23.6 BMI", "86,100 steps", "1,234,567"
+        pattern = (
+            r"(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+\.\d+|\d+)\s*("
+            + "|".join(self.unit_patterns)
+            + r")?"
+        )
 
         for match in re.finditer(pattern, text, re.IGNORECASE):
             value_str = match.group(1)
             unit = match.group(2)
 
             try:
-                value = float(value_str)
+                # Remove commas before converting to float (e.g., "86,100" → 86100)
+                value = float(value_str.replace(",", ""))
 
                 # Extract context (5 words before and after)
                 start = max(0, match.start() - 50)

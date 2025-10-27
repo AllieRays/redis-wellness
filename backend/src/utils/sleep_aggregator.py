@@ -9,6 +9,8 @@ from collections import defaultdict
 from datetime import datetime
 
 from ..apple_health.models import SleepSegment, SleepState, SleepSummary
+from ..config import get_settings
+from .time_utils import convert_utc_to_user_timezone
 
 
 def aggregate_sleep_by_date(sleep_segments: list[SleepSegment]) -> list[SleepSummary]:
@@ -138,9 +140,22 @@ def _create_daily_summary(date_str: str, segments: list[SleepSegment]) -> SleepS
     if total_in_bed > 0:
         sleep_efficiency = round((total_asleep / total_in_bed) * 100, 1)
 
-    # Format times
-    first_sleep_time = first_sleep.strftime("%H:%M") if first_sleep else None
-    last_wake_time = last_wake.strftime("%H:%M") if last_wake else None
+    # Format times in user's timezone (convert from UTC)
+    settings = get_settings()
+    first_sleep_time = None
+    last_wake_time = None
+
+    if first_sleep:
+        local_first_sleep = convert_utc_to_user_timezone(
+            first_sleep, settings.user_timezone
+        )
+        first_sleep_time = local_first_sleep.strftime("%H:%M")
+
+    if last_wake:
+        local_last_wake = convert_utc_to_user_timezone(
+            last_wake, settings.user_timezone
+        )
+        last_wake_time = local_last_wake.strftime("%H:%M")
 
     return SleepSummary(
         date=date_str,
