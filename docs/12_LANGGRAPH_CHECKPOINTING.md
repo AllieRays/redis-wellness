@@ -19,7 +19,7 @@ LangGraph's **AsyncRedisSaver** provides automatic conversation persistence - th
 **Checkpointing** = Automatically saving agent state after each step so it can be resumed later.
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 60}}}%%
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px', 'edgeLabelBackground':'#fff', 'tertiaryColor':'#6c757d', 'tertiaryTextColor':'#495057'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 60}}}%%
 flowchart LR
     subgraph Turn1["Turn 1: First Query"]
         U1["User:<br/>'What was my<br/>heart rate?'"]
@@ -126,7 +126,7 @@ class StatefulRAGAgent:
 ## 4. How It Works
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}, 'flowchart': {'nodeSpacing': 60, 'rankSpacing': 80}}}%%
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px', 'edgeLabelBackground':'#fff', 'tertiaryColor':'#6c757d', 'tertiaryTextColor':'#495057'}, 'flowchart': {'nodeSpacing': 60, 'rankSpacing': 80}}}%%
 flowchart LR
     Start["🧑 User Query"]
     Load["📥 Load from Redis<br/>(if exists)"]
