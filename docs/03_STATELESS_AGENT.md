@@ -6,10 +6,11 @@ This document explains the **internal architecture of the stateless agent**: how
 
 ### What You'll Learn
 
-- **[Key Technologies](#2-key-technologies)** - LLM and tools
-- **[Architecture Overview](#3-architecture-overview)** - Component layers
-- **[How It Works](#4-how-it-works)** - Workflow and examples
-- **[Related Documentation](#5-related-documentation)** - Links to other docs
+- **[What is Stateless?](#2-what-is-stateless)** - Core concept explained
+- **[Key Technologies](#3-key-technologies)** - LLM and tools
+- **[Architecture Overview](#4-architecture-overview)** - Component layers
+- **[How It Works](#5-how-it-works)** - Workflow and examples
+- **[Related Documentation](#6-related-documentation)** - Links to other docs
 
 ---
 
@@ -66,7 +67,7 @@ The agent doesn't remember "that" refers to "72 bpm" from the previous exchange.
 
 ---
 
-## 3. Architecture Overview
+## 4. Architecture Overview
 
 The stateless agent uses **intent routing** and a **simple tool-calling loop**:
 
@@ -107,7 +108,7 @@ flowchart TB
 
 ---
 
-## 4. How It Works
+## 5. How It Works
 
 ### Workflow
 
@@ -153,10 +154,10 @@ flowchart TB
 
 Tools read existing health data from Redis (imported via [07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md](07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md)):
 
-|| Data Source | Storage Type | Tools That Use It | What's Stored |
+| Data Source | Storage Type | Tools That Use It | What's Stored |
 |-------------|--------------|-------------------|---------------|
-|| `health:*` | Redis (read-only) | `get_health_metrics`<br/>`get_sleep_analysis` | Heart rate, steps, weight, BMI, sleep |
-|| `workout:*` | Redis (read-only) | `get_workout_data` | Workout records and indexes |
+| `health:*` | Redis (read-only) | `get_health_metrics`<br/>`get_sleep_analysis` | Heart rate, steps, weight, BMI, sleep |
+| `workout:*` | Redis (read-only) | `get_workout_data` | Workout records and indexes |
 
 ### Key Components
 
@@ -206,7 +207,7 @@ result = {"average": 72, "unit": "bpm", "days": 7}
 
 ---
 
-## 5. Related Documentation
+## 6. Related Documentation
 
 - **[05_STATELESS_VS_STATEFUL_COMPARISON.md](05_STATELESS_VS_STATEFUL_COMPARISON.md)** - Side-by-side demo comparison
 - **[04_STATEFUL_AGENT.md](04_STATEFUL_AGENT.md)** - Stateful agent architecture

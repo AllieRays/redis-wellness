@@ -42,10 +42,10 @@ flowchart TB
     UI2["User Interface"]
     Router2["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
     Simple2["Redis<br/>(Simple Queries)"]
-    LangGraph["LangGraph StateGraph<br/>• Qwen 2.5 7B LLM<br/>• Tool calling loop<br/>• Response synthesis"]
-    RedisShort["Redis Short-term<br/>Checkpointing"]
+    LangGraph["LangGraph StateGraph<br/>• Qwen 2.5 7B LLM<br/>• Tool calling loop<br/>• Response synthesis<br/>• Checkpointing (automatic)"]
     RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
     Tools2["LLM Tools<br/>(5 total: 3 health + 2 memory)"]
+    RedisData["Redis Health Data Store"]
     Response2["Response to User"]
     Store["✅ STORE MEMORY"]
 
@@ -53,12 +53,11 @@ flowchart TB
     Router2 -->|"Fast path"| Simple2
     Router2 -->|"Complex path"| LangGraph
     Simple2 --> Response2
-    LangGraph --> RedisShort
-    LangGraph --> RedisVL
     LangGraph --> Tools2
-    RedisShort --> Response2
+    Tools2 --> RedisVL
+    Tools2 --> RedisData
     RedisVL --> Response2
-    Tools2 --> Response2
+    RedisData --> Response2
     Response2 --> UI2
     Response2 --> Store
 
@@ -66,9 +65,9 @@ flowchart TB
     style Router2 fill:#f8f9fa,stroke:#333,stroke-width:2px
     style Simple2 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style LangGraph fill:#f8f9fa,stroke:#333,stroke-width:2px
-    style RedisShort fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style RedisVL fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style Tools2 fill:#fff,stroke:#333,stroke-width:2px
+    style RedisData fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style Response2 fill:#f8f9fa,stroke:#333,stroke-width:2px
     style Store fill:#fff,stroke:#28a745,stroke-width:2px,color:#28a745,stroke-dasharray: 5 5
 ```
@@ -83,25 +82,25 @@ flowchart LR
     UI["User Interface"]
     Router["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
     Simple["Redis<br/>(Simple Queries)"]
-    Complex["LangGraph StateGraph<br/>• Qwen 2.5 7B LLM<br/>• Tool calling loop<br/>• Response synthesis"]
-    RedisShort["Redis Short-term<br/>Checkpointing"]
+    Complex["LangGraph StateGraph<br/>• Qwen 2.5 7B LLM<br/>• Tool calling loop<br/>• Response synthesis<br/>• Checkpointing (automatic)"]
     RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
     Tools["LLM Tools<br/>(5 total: 3 health + 2 memory)"]
+    RedisData["Redis Health Data"]
 
     UI --> Router
     Router -->|"Fast path"| Simple
     Router -->|"Complex path"| Complex
-    Complex --> RedisShort
-    Complex --> RedisVL
     Complex --> Tools
+    Tools --> RedisVL
+    Tools --> RedisData
 
     style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
     style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
     style Simple fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style Complex fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
-    style RedisShort fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style RedisVL fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style RedisData fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
 ```
 
 ## Horizontal Workflow Diagram
