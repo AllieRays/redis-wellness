@@ -46,6 +46,8 @@ flowchart LR
 
     Turn1 --> Turn2
 
+    style Turn1 fill:none,stroke:#333,stroke-width:2px
+    style Turn2 fill:none,stroke:#333,stroke-width:2px
     style U1 fill:#f5f5f5,stroke:#333,stroke-width:2px
     style U2 fill:#f5f5f5,stroke:#333,stroke-width:2px
     style L1 fill:#f5f5f5,stroke:#333,stroke-width:2px

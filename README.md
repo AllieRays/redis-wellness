@@ -28,6 +28,14 @@ Built with **FastAPI**, **TypeScript**, **Redis**, **RedisVL**, and **Ollama (Qw
 
 ---
 
+## 🖼️ Side-by-Side Comparison
+
+![Side-by-side chat interface showing stateless vs stateful agents](docs/images/homepage.png)
+
+*Left: Stateless agent with no memory. Right: Stateful agent powered by Redis.*
+
+---
+
 ## 📊 Core Architecture
 
 | Component | Stateless Agent | Stateful Agent | Technology |

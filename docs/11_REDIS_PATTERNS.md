@@ -93,11 +93,11 @@ graph TD
     E[ZSET]
     F[VECTOR]
 
-    B1["In This Codebase:<br/>15MB Health JSON<br/>health:user:wellness_user:data"]
-    C1["In This Codebase:<br/>LangGraph Checkpointer<br/>langgraph:checkpoint:*"]
-    D1["In This Codebase:<br/>Workouts + Sleep<br/>user:*:workout:days"]
-    E1["In This Codebase:<br/>Date Indexes<br/>user:*:workout:by_date"]
-    F1["In This Codebase:<br/>Goals + Patterns<br/>episodic:*, procedural:*"]
+    B1["In This Codebase:<br/>• 15MB Health JSON (permanent)<br/>• Embedding cache<br/>health:user:wellness_user:data"]
+    C1["In This Codebase:<br/>• LangGraph checkpoints<br/>• Conversation history<br/>langgraph:checkpoint:*"]
+    D1["In This Codebase:<br/>• Workout details (date, type, duration)<br/>• Sleep summaries (hours, efficiency)<br/>• Day-of-week aggregations<br/>user:*:workout:*, user:*:sleep:*"]
+    E1["In This Codebase:<br/>• Workout date index<br/>• Sleep date index<br/>user:*:by_date"]
+    F1["In This Codebase:<br/>• User goals (episodic)<br/>• Tool patterns (procedural)<br/>episodic:*, procedural:*"]
 
     A --> B
     A --> C
@@ -323,23 +323,26 @@ results = episodic_index.query(vector_query)
 ```mermaid
 flowchart LR
     A[Apple Health XML] -->|Parse| B[Redis Indexer]
-    B --> C[Individual Workouts]
-    B --> D[Day Aggregations]
-    B --> E[Date Index]
+    B --> C[Workouts]
+    B --> D[Sleep Data]
+    B --> E[Aggregations]
+    B --> F[Date Indexes]
 
-    C --> F[Query Tools]
-    D --> F
-    E --> F
+    C --> G[Query Tools]
+    D --> G
+    E --> G
+    F --> G
 
-    F --> G[Redis Health Data]
+    G --> H[Redis Health Data]
 
     style A fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
     style B fill:#fff,stroke:#333,stroke-width:2px
     style C fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
     style D fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
     style E fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
-    style F fill:#fff,stroke:#333,stroke-width:2px
-    style G fill:#fff,stroke:#DC382C,stroke-width:2px
+    style F fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style G fill:#fff,stroke:#333,stroke-width:2px
+    style H fill:#fff,stroke:#DC382C,stroke-width:2px
 ```
 
 ### Workout Storage
