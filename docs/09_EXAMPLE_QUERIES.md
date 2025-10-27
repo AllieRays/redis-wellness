@@ -4,9 +4,9 @@ See why memory transforms AI from simple Q&A into intelligent conversation.
 
 ```mermaid
 %%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 60}}}%%
-flowchart TD
+flowchart LR
     subgraph Stateless["❌ Stateless Agent (No Memory)"]
-        direction TB
+        direction LR
         S1["👤 Turn 1:<br/>'What was my heart rate?'"]
         S2["📊 Redis Health Data"]
         S3["💬 '72 bpm'"]
@@ -20,7 +20,7 @@ flowchart TD
     end
 
     subgraph Stateful["✅ Stateful Agent (With Memory)"]
-        direction TB
+        direction LR
         T1["👤 Turn 1:<br/>'What was my heart rate?'"]
         T2["📊 Redis Health Data"]
         T3["💬 '72 bpm'"]
@@ -37,7 +37,7 @@ flowchart TD
         T6 --> T7
     end
 
-    Stateless --> Stateful
+    Stateless -.-> Stateful
 
     style S1 fill:#f5f5f5,stroke:#333,stroke-width:2px
     style S2 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
