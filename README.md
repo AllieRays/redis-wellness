@@ -46,7 +46,7 @@ Built with **FastAPI**, **TypeScript**, **Redis**, **RedisVL**, and **Ollama (Qw
 | **Episodic Memory** | None | User goals & facts | RedisVL vector search |
 | **Procedural Memory** | None | Tool usage patterns | RedisVL vector search |
 | **Health Data** | Redis (read-only) | Redis (read-only) | Redis Hashes |
-| **Tools** | 3 (health only) | 5 (3 health + 2 memory) | LangChain |
+| **Tools** | 3 (health only) | 5 (3 health + 2 memory) | Python, LangChain, Langraph |
 
 **Health Tools (both agents):** `get_health_metrics`, `get_sleep_analysis`, `get_workout_data`  
 **Memory Tools (stateful only):** `get_my_goals`, `get_tool_suggestions`
