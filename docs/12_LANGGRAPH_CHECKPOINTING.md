@@ -46,14 +46,14 @@ flowchart LR
 
     Turn1 --> Turn2
 
-    style U1 fill:#fff,stroke:#333,stroke-width:2px
-    style U2 fill:#fff,stroke:#333,stroke-width:2px
-    style L1 fill:#0d6efd,stroke:#0d6efd,stroke-width:2px,color:#fff
-    style L2 fill:#0d6efd,stroke:#0d6efd,stroke-width:2px,color:#fff
-    style R1 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style R2 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style A1 fill:#d4edda,stroke:#198754,stroke-width:2px
-    style A2 fill:#d4edda,stroke:#198754,stroke-width:2px
+    style U1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style U2 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style L1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style L2 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style R1 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style R2 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style A1 fill:#f5f5f5,stroke:#DC382C,stroke-width:3px
+    style A2 fill:#f5f5f5,stroke:#DC382C,stroke-width:3px
 ```
 
 **Without Checkpointing (Stateless)**:
@@ -149,21 +149,21 @@ flowchart TD
 
     Final --> Response["✅ Return Response<br/>to User"]
 
-    style Start fill:#fff,stroke:#333,stroke-width:2px
-    style Load fill:#fff,stroke:#0d6efd,stroke-width:2px
-    style Check fill:#fff,stroke:#333,stroke-width:2px
-    style Restore fill:#cfe2ff,stroke:#0d6efd,stroke-width:2px
-    style Init fill:#fff3cd,stroke:#ffc107,stroke-width:2px
-    style Execute fill:#e7f1ff,stroke:#0d6efd,stroke-width:2px
-    style Node1 fill:#0d6efd,stroke:#0d6efd,stroke-width:2px,color:#fff
-    style Node2 fill:#0d6efd,stroke:#0d6efd,stroke-width:2px,color:#fff
-    style Node3 fill:#0d6efd,stroke:#0d6efd,stroke-width:2px,color:#fff
-    style Store fill:#0d6efd,stroke:#0d6efd,stroke-width:2px,color:#fff
-    style Save1 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style Save2 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style Save3 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style Final fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style Response fill:#d4edda,stroke:#198754,stroke-width:2px
+    style Start fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Load fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Check fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Restore fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Init fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Execute fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Node1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Node2 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Node3 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Store fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Save1 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style Save2 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style Save3 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style Final fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style Response fill:#f5f5f5,stroke:#DC382C,stroke-width:3px
 ```
 
 ### State Structure

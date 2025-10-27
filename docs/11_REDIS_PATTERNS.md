@@ -93,11 +93,23 @@ graph TD
     E[ZSET]
     F[VECTOR]
 
+    B1["In This Codebase:<br/>15MB Health JSON<br/>health:user:wellness_user:data"]
+    C1["In This Codebase:<br/>LangGraph Checkpointer<br/>langgraph:checkpoint:*"]
+    D1["In This Codebase:<br/>Workouts + Sleep<br/>user:*:workout:days"]
+    E1["In This Codebase:<br/>Date Indexes<br/>user:*:workout:by_date"]
+    F1["In This Codebase:<br/>Goals + Patterns<br/>episodic:*, procedural:*"]
+
     A --> B
     A --> C
     A --> D
     A --> E
     A --> F
+
+    B --> B1
+    C --> C1
+    D --> D1
+    E --> E1
+    F --> F1
 
     style A fill:#fff,stroke:#333,stroke-width:2px
     style B fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
@@ -105,6 +117,11 @@ graph TD
     style D fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
     style E fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
     style F fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style B1 fill:#fff,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
+    style C1 fill:#fff,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
+    style D1 fill:#fff,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
+    style E1 fill:#fff,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
+    style F1 fill:#fff,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
 ```
 
 ### STRING (JSON Blob)

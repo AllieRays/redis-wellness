@@ -1,634 +1,153 @@
-# Redis Wellness 🏥
+# Redis Wellness 🧠💾
 
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.6+-blue.svg)](https://www.typescriptlang.org/)
 [![Redis](https://img.shields.io/badge/redis-7.0+-red.svg)](https://redis.io/)
 [![FastAPI](https://img.shields.io/badge/fastapi-0.115+-green.svg)](https://fastapi.tiangolo.com/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Privacy](https://img.shields.io/badge/privacy-100%25%20local-success.svg)](#-privacy)
+[![Privacy](https://img.shields.io/badge/privacy-100%25%20local-success.svg)](#privacy)
 
+> **Can AI be intelligent without memory?**
 
-# Redis Wellness 🧠
+Compare two identical AI agents side-by-side. Same LLM. Same tools. One difference: **Redis memory**.
 
-Can AI agents be intelligent without memory?
+See how Redis + RedisVL transforms stateless Q&A into intelligent conversation with context awareness, goal recall, and pattern learning.
 
-This project compares **Stateless** and **Stateful (Redis-powered)** AI agents using **Apple Health data**, showing how memory transforms reasoning, recall, and conversation quality.
-
-Built with **FastAPI**, **TypeScript**, **Redis**, **RedisVL**, and **Ollama (Qwen 2.5 7B)**, all running **100% locally** for privacy.
-
-🔒 *Your health data never leaves your machine.*
-
-## Why This Demo?
-
-We wanted to see how memory affects AI reasoning using real health data that changes day by day.
-
-You can chat with two versions of the same agent:
-- 🟦 **Stateless** — No memory; forgets everything each turn
-- 🔴 **Stateful (Redis)** — Remembers, recalls, and reasons over your past context
-
+🔒 **100% local** - Your health data never leaves your machine.
 
 ---
 
 ## 🎯 The Difference
 
-### Core Architecture
-|| Component | Stateless Agent | Stateful Agent | Technology |
-|-----------|-----------------|----------------|------------|
-| **LLM** | Qwen 2.5 7B | Qwen 2.5 7B | Ollama (local inference) |
-| **Orchestration** | Simple tool loop | Simple tool loop with state | No LangGraph - direct tool calling |
-| **Episodic Memory** | None | Conversation history (7-month TTL) | Redis LIST (`episodic:{session_id}:history`) |
-| **Semantic Memory** | None | Long-term context with vector search | RedisVL (HNSW index, 1024-dim embeddings) |
-| **Procedural Memory** | None | Goals and preferences tracking | Redis Hash (`procedural:{user_id}:goals`) |
-| **Health Data** | Redis read-only access | Redis read-only access | Redis Hashes + JSON (O(1) lookups) |
-| **Tool Calling** | 9 health tools | 11 tools (9 health + 2 memory) | LangChain tool integration |
-
-### Conversation Capabilities
-
-| Capability | Stateless Agent | Stateful Agent | How It Works |
-|------------|-----------------|----------------|---------------|
-| **Follow-up Questions** | Treats each as new query | Maintains conversation flow | Prior exchanges in LLM prompt |
-| **Pronoun Resolution** | Cannot resolve "it", "that", "those" | Resolves references from context | Message history retrieval |
-| **Multi-turn Reasoning** | Isolated single-turn responses | Coherent multi-turn conversations | Triple memory system (episodic + semantic + procedural) |
-| **Example** | **You:** "What was my average heart rate last week?"<br>**Bot:** "87 bpm"<br><br>**You:** "Is that good?"<br>**Bot:** "What are you referring to?" | **You:** "What was my average heart rate last week?"<br>**Bot:** "87 bpm"<br><br>**You:** "Is that good?"<br>**Bot:** "87 bpm is within normal range for your age group..." | Stateful uses conversation history + semantic memory |
-
----
-
-## 🏗️ Architecture
-
-### System Overview
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                       Docker Network (wellness-network)          │
-│                                                                  │
-│  ┌──────────────┐       ┌──────────────┐      ┌──────────────┐ │
-│  │   Frontend   │──────▶│   Backend    │─────▶│    Redis     │ │
-│  │ TypeScript   │       │   FastAPI    │      │ + RedisVL    │ │
-│  │   :3000      │       │    :8000     │      │ :6379, :8001 │ │
-│  └──────────────┘       └──────┬───────┘      └──────────────┘ │
-│                                │                                 │
-└────────────────────────────────┼─────────────────────────────────┘
-                                 │
-                                 ▼
-                    ┌────────────────────────┐
-                    │   Ollama (Host)        │
-                    │   Qwen 2.5 7B          │
-                    │   mxbai-embed-large    │
-                    │   :11434               │
-                    └────────────────────────┘
-```
-
-### Agent Comparison
-
-<table>
-<tr>
-<td width="50%" style="vertical-align: top; min-height: 800px;">
-
-#### 🟦 Stateless Agent
+### Stateless Agent (No Memory)
 
 ```mermaid
-flowchart TD
-    S1["<br/><br/>User Query<br/><br/>"]:::query
-    S2["<br/><br/>Qwen 2.5 7B<br/><br/>"]:::llm
-    S3["<br/><br/>Health Tools<br/>(3 tools)<br/><br/>"]:::tool
-    S4["<br/><br/>Redis<br/>(Health Data)<br/><br/>"]:::redis
-    S5["<br/><br/>Response<br/><br/>"]:::response
-    S6["<br/><br/>❌ No Memory<br/><br/>"]:::nomemory
+flowchart TB
+    UI["User Interface"]
+    Router["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
 
-    S1 --> S2
-    S2 --> S3
-    S3 --> S4
-    S4 --> S5
-    S5 -.-> S6
+    Simple["Redis<br/>(Simple Queries)"]
+    SimpleLoop["Simple Tool Loop<br/>• Qwen 2.5 7B LLM<br/>• Tool calling<br/>• Response synthesis"]
 
-    classDef query fill:#fff,stroke:#333,stroke-width:2px,color:#000
-    classDef llm fill:#fff,stroke:#0d6efd,stroke-width:2px,color:#000
-    classDef tool fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
-    classDef redis fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    classDef response fill:#fff,stroke:#333,stroke-width:2px,color:#000
-    classDef nomemory fill:#e9ecef,stroke:#6c757d,stroke-width:2px,stroke-dasharray: 5 5,color:#6c757d
+    Tools["Health Tools<br/>(3 tools)"]
+    RedisData["Redis Health Data Store"]
+    Forget["❌ FORGET EVERYTHING"]
+
+    UI --> Router
+    Router -->|"Simple"| Simple
+    Router -->|"Complex"| SimpleLoop
+    Simple --> RedisData
+    SimpleLoop --> Tools
+    Tools --> RedisData
+    RedisData --> Forget
+
+    style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
+    style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
+    style Simple fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style SimpleLoop fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
+    style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style RedisData fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Forget fill:#fff,stroke:#dc3545,stroke-width:2px,color:#dc3545,stroke-dasharray: 5 5
 ```
 
-</td>
-<td width="50%" style="vertical-align: top; min-height: 800px;">
-
-#### 🔴 Stateful Agent
+### Stateful Agent (With Memory)
 
 ```mermaid
-flowchart TD
-    T1["<br/><br/>User Query<br/><br/>"]:::query
-    T2["<br/><br/>LangGraph<br/>Checkpointing<br/><br/>"]:::memory
-    T3["<br/><br/>Qwen 2.5 7B<br/><br/>"]:::llm
-    T4["<br/><br/>Health + Memory Tools<br/>(5 tools)<br/><br/>"]:::tool
-    T5["<br/><br/>Redis + RedisVL<br/>(Health Data + Vector Search)<br/><br/>"]:::redis
-    T6["<br/><br/>Response<br/><br/>"]:::response
-    T7["<br/><br/>✅ Store Memory<br/>(Goals & Patterns)<br/><br/>"]:::memory
+flowchart TB
+    UI["User Interface"]
+    Router["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
+    Simple["Redis<br/>(Simple Queries)"]
+    Complex["LangGraph StateGraph<br/>• Qwen 2.5 7B LLM<br/>• Tool calling loop<br/>• Response synthesis"]
+    RedisShort["Redis Short-term<br/>Checkpointing"]
+    RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
+    Tools["LLM Tools<br/>(5 total: 3 health + 2 memory)"]
+    Store["✅ STORE MEMORY"]
 
-    T1 --> T2
-    T2 --> T3
-    T3 --> T4
-    T4 --> T5
-    T5 --> T6
-    T6 --> T7
-    T7 -.-> T2
+    UI --> Router
+    Router -->|"Fast path"| Simple
+    Router -->|"Complex path"| Complex
+    Complex --> RedisShort
+    Complex --> RedisVL
+    Complex --> Tools
+    Tools --> Store
 
-    classDef query fill:#fff,stroke:#333,stroke-width:2px,color:#000
-    classDef llm fill:#fff,stroke:#0d6efd,stroke-width:2px,color:#000
-    classDef tool fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
-    classDef redis fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    classDef response fill:#fff,stroke:#333,stroke-width:2px,color:#000
-    classDef memory fill:#dc3545,stroke:#dc3545,stroke-width:2px,color:#fff
+    style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
+    style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
+    style Simple fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Complex fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
+    style RedisShort fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style RedisVL fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style Store fill:#fff,stroke:#28a745,stroke-width:2px,color:#28a745,stroke-dasharray: 5 5
 ```
 
-</td>
-</tr>
-</table>
+**Key difference:** Redis memory enables follow-up questions, goal recall, and pattern learning.
 
-### Four-Layer Memory Architecture
-
-The stateful agent uses **four types of memory** inspired by human cognition (CoALA framework):
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      STATEFUL AGENT MEMORY                       │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  1️⃣ SHORT-TERM (LangGraph Checkpointing)                       │
-│     ├─ Recent conversation within current session               │
-│     ├─ Managed by: LangGraph BaseCheckpointSaver                │
-│     ├─ Storage: Redis (checkpoints)                             │
-│     └─ Enables: Context awareness, pronoun resolution           │
-│                                                                  │
-│  2️⃣ EPISODIC (User Goals & Facts)                              │
-│     ├─ Important user-specific facts and goals                  │
-│     ├─ Redis key: episodic:{user_id}:goal:{timestamp}           │
-│     ├─ Managed by: episodic_memory_manager.py                   │
-│     ├─ Vector search: RedisVL HNSW (1024-dim embeddings)        │
-│     ├─ Retrieved via: get_my_goals tool (LLM-triggered)         │
-│     └─ Enables: Cross-session goal recall                       │
-│                                                                  │
-│  3️⃣ PROCEDURAL (Workflow Patterns)                             │
-│     ├─ Successful tool-calling sequences and strategies         │
-│     ├─ Redis key: procedural:pattern:{timestamp}                │
-│     ├─ Managed by: procedural_memory_manager.py                 │
-│     ├─ Vector search: RedisVL HNSW (pattern matching)           │
-│     ├─ Retrieved via: get_tool_suggestions tool (LLM-triggered) │
-│     └─ Enables: Workflow optimization via past success          │
-│                                                                  │
-│  4️⃣ SEMANTIC (Health Knowledge Base) - Optional                │
-│     ├─ General health facts and medical knowledge               │
-│     ├─ Redis key: semantic:{category}:{fact_type}:{timestamp}   │
-│     ├─ Managed by: semantic_memory_manager.py                   │
-│     ├─ Vector search: RedisVL HNSW                              │
-│     └─ Enables: Domain knowledge augmentation                   │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-
-        📊 HEALTH DATA STORE (Shared by Both Agents)
-        ├─ Workouts: Hash sets (O(1) lookups by ID)
-        ├─ Metrics: JSON blobs (aggregated by date/type)
-        ├─ Indexes: Day-of-week, date ranges
-        └─ TTL: 7 months (configurable)
-```
-
-**Key Differences:**
-- **Stateless Agent**: No memory systems, only accesses health data via tools
-- **Stateful Agent**: All 4 memory types + LangGraph checkpointing for conversation continuity
-- **Memory Retrieval**: Autonomous via tools (LLM decides when to call `get_my_goals` or `get_tool_suggestions`)
-- **Memory Storage**: Automatic after response generation (episodic + procedural)
-
----
-
-## 🛠️ Tech Stack
-
-### Backend
-- **FastAPI** - High-performance async API framework
-- **Redis 7.0+** - Primary data store and memory layer
-- **RedisVL** - Vector search for semantic memory
-- **LangChain** - Tool calling and LLM integration
-- **Ollama** - Local LLM runtime (Qwen 2.5 7B)
-- **Python 3.11+** - Modern async Python with type hints
-- **uv** - Fast Python package manager
-
-### Frontend
-- **TypeScript** - Type-safe frontend code
-- **Server-Sent Events (SSE)** - Real-time streaming responses
-- **Vanilla JS** - Lightweight, no framework dependencies
-
-### Infrastructure
-- **Docker & Docker Compose** - Containerized deployment
-- **Redis** - Single source of truth for all data
-- **Ollama** - Runs on host for LLM inference
-
-### Development
-- **pytest** - Comprehensive test suite
-- **Ruff** - Lightning-fast linting and formatting
-- **pre-commit** - Git hooks for code quality
-
----
-
-## ⚙️ How It Works
-
-### 1. Stateless Agent (Simple Tool Loop)
-
-```python
-# No memory - every query starts fresh
-while True:
-    user_input = get_user_message()
-
-    # LLM decides which tool to call
-    tool_call = llm.generate(user_input)
-
-    # Execute tool against Redis health data
-    result = execute_tool(tool_call)
-
-    # Return result (no memory saved)
-    return result
-```
-
-**Limitations:**
-- ❌ Cannot answer follow-up questions
-- ❌ Cannot understand pronouns ("that", "it", "those")
-- ❌ Cannot learn from past interactions
-- ❌ Every query is independent
-
-### 2. Stateful Agent (LangGraph with Autonomous Memory)
-
-```python
-# LangGraph-based agent with autonomous memory retrieval
-async def stateful_agent(message: str, session_id: str):
-    # Build LangGraph state with four-layer memory
-    state = {
-        "messages": [HumanMessage(content=message)],
-        "user_id": user_id,
-        "workflow_start_time": time.time(),
-    }
-
-    # LangGraph workflow:
-    # 1. llm_node: Call LLM with ALL tools (health + memory)
-    #    - LLM autonomously decides: call tools or finish?
-    #    - Can call get_my_goals, get_tool_suggestions, or health tools
-
-    # 2. tool_node: Execute tools if LLM requested them
-    #    - Executes health data queries
-    #    - OR retrieves episodic/procedural memory via tools
-
-    # 3. Loop back to llm_node (up to recursion_limit)
-    #    - LLM sees tool results, decides next action
-    #    - Continues until LLM says "done" (no more tool calls)
-
-    # 4. reflect_node: Evaluate workflow success
-    #    - Score: tool execution, timing, response quality
-
-    # 5. store_episodic_node: Extract and store goals
-    #    - Parse user goals from conversation
-    #    - Store in RedisVL with embeddings
-
-    # 6. store_procedural_node: Save successful patterns
-    #    - If workflow successful, store tool sequence
-    #    - Future queries can retrieve similar patterns
-
-    # Execute graph with checkpointing
-    config = {"configurable": {"thread_id": session_id}}
-    final_state = await graph.ainvoke(state, config)
-
-    return final_state["messages"][-1].content
-```
-
-**Key Features:**
-- ✅ **Short-term memory**: LangGraph checkpointing (conversation history)
-- ✅ **Episodic memory**: User goals retrieved via `get_my_goals` tool (LLM-triggered)
-- ✅ **Procedural memory**: Workflow patterns via `get_tool_suggestions` tool (LLM-triggered)
-- ✅ **Autonomous memory retrieval**: LLM decides when to call memory tools
-- ✅ **Automatic memory storage**: Goals and patterns stored after response
-- ✅ **Recursion limit**: Prevents infinite loops (configurable, default 50)
-
-### 3. Tool Calling System
-
-**Both agents** use the same **9 health tools**. **Stateful agent** adds **2 memory tools**:
-
-| Tool | Purpose | Redis Data Structure | Agent |
-|------|---------|---------------------|-------|
-| **Health Data Tools** | | | |
-| `get_health_metrics` | Query health metrics (weight, BMI, heart rate, steps) with statistics | Redis JSON | Both |
-| `get_workouts` | Retrieve workout details with heart rate zones and day-of-week tracking | Redis Hashes + JSON | Both |
-| `get_trends` | Analyze trends and compare periods (weight, steps, heart rate, etc.) | Redis JSON + aggregation | Both |
-| `get_activity_comparison` | Compare activity metrics across time periods (steps, energy, distance) | Multi-metric aggregation | Both |
-| `get_workout_patterns` | Analyze workout patterns by day/week (schedule or intensity analysis) | Temporal aggregation | Both |
-| `get_workout_progress` | Track progress between time periods (improvement over time) | Time-series comparison | Both |
-| **Memory Tools (Stateful Only)** | | | |
-| `get_my_goals` | Retrieve user goals via semantic search (e.g., "weight goal is 125 lbs") | RedisVL vector search (episodic) | Stateful only |
-| `get_tool_suggestions` | Get workflow pattern suggestions based on past successful queries | RedisVL vector search (procedural) | Stateful only |
-
-**How Tool Calling Works:**
-
-```python
-# Stateless Agent: Simple loop
-while has_tool_calls and iterations < 8:
-    response = llm(messages, tools=health_tools)  # 9 health tools only
-    if response.tool_calls:
-        execute_tools(response.tool_calls)
-        messages.append(tool_results)
-    else:
-        break  # LLM finished
-
-# Stateful Agent: LangGraph workflow
-while has_tool_calls:  # LangGraph manages recursion
-    response = llm(messages, tools=health_tools + memory_tools)  # 11 tools total
-    if response.tool_calls:
-        # LLM can call:
-        # - Health tools (get_workouts, get_trends, etc.)
-        # - Memory tools (get_my_goals, get_tool_suggestions)
-        execute_tools(response.tool_calls)
-        messages.append(tool_results)
-    else:
-        break  # LLM finished, proceed to storage
-
-# After response: store episodic + procedural memory
-```
-
-**Key Differences:**
-- **Stateless**: 9 health tools, simple loop, no memory storage
-- **Stateful**: 11 tools (9 health + 2 memory), LangGraph workflow, automatic memory storage
-- **Autonomous**: LLM decides which tools to call and when (no hardcoded retrieval)
-- **Chaining**: Both agents support multi-step tool sequences (max 8 iterations for stateless, configurable for stateful)
-
-### 4. Redis Data Patterns
-
-**Health Data Storage:**
-```python
-# Workout data (O(1) lookup by ID)
-HSET user:wellness_user:workout:abc123
-  type "Walking"
-  startDate "2025-10-20T14:30:00Z"
-  duration "3600"
-  calories "250"
-  day_of_week "Monday"  # Pre-computed for pattern analysis
-
-# Health metrics (JSON blobs for fast aggregation)
-JSON.SET health:wellness_user:heart_rate:2025-10-20
-  '{"value": 87, "unit": "bpm", "timestamp": 1698765432}'
-```
-
-**Memory Storage (Stateful Agent Only):**
-```python
-# 1. Short-term: LangGraph checkpoints (managed by LangGraph)
-HSET checkpoint:session_abc:step_0
-  messages '[{"role": "user", "content": "..."}]'
-  metadata '{"step": 0, "timestamp": 1698765432}'
-
-# 2. Episodic: User goals with vector embeddings (RedisVL)
-HSET episodic:wellness_user:goal:1698765432
-  user_id "wellness_user"
-  event_type "goal"
-  timestamp 1698765432
-  description "User's weight goal is 125 lbs"  # Searchable text
-  metadata '{"metric": "weight", "value": 125, "unit": "lbs"}'
-  embedding <binary vector: 1024 floats>  # mxbai-embed-large
-
-# 3. Procedural: Workflow patterns with embeddings (RedisVL)
-HSET procedural:pattern:1698765432
-  query "what was my weight trend last month"
-  query_type "weight_analysis"
-  tools_used '["get_health_metrics", "get_trends"]'
-  success_score 0.95  # 95% success
-  execution_time_ms 1234
-  embedding <binary vector: 1024 floats>  # For pattern matching
-
-# 4. Semantic: General health knowledge (optional, not heavily used)
-HSET semantic:cardio:guideline:1698765432
-  fact_type "guideline"
-  category "cardio"
-  fact "Normal resting heart rate is 60-100 bpm"
-  context "Standard medical guideline for adults"
-  embedding <binary vector: 1024 floats>
-```
-
-**Memory Retrieval (Vector Search):**
-```python
-# LLM calls get_my_goals tool
-FT.SEARCH episodic_idx
-  "(@user_id:{wellness_user})=>{
-    $BLOB_ATTR: $vec
-  }"
-  PARAMS 2 vec <query_embedding>
-  SORTBY __embedding_score
-  LIMIT 0 3  # Top 3 relevant goals
-
-# LLM calls get_tool_suggestions tool
-FT.SEARCH procedural_idx
-  "(*)=>{
-    $BLOB_ATTR: $vec
-  }"
-  PARAMS 2 vec <query_embedding>
-  SORTBY __embedding_score
-  DIALECT 2
-  LIMIT 0 3  # Top 3 similar patterns
-```
+**[📖 See detailed comparison →](docs/05_STATELESS_VS_STATEFUL_COMPARISON.md)**
 
 ---
 
 ## 🚀 Quick Start
 
-### TL;DR (Under 5 Minutes)
-
 ```bash
-# 1. Start all services
+# 1. Start services
 make up
 
-# 2. Import your health data
+# 2. Import Apple Health data
 make import
 
 # 3. Open http://localhost:3000
 ```
 
-**That's it!** See the side-by-side comparison of stateless vs. stateful AI agents.
+**Try it:**
+- Ask both agents: *"How many workouts do I have?"* → Both answer correctly ✅
+- Follow up: *"What's the most common type?"*
+  - ❌ Stateless: *"What are you referring to?"*
+  - ✅ Stateful: *"Traditional Strength Training (40 workouts, 26%)\"*
 
-### Prerequisites
-
-Before starting, you need:
-
-1. **Docker & Docker Compose** - Container runtime
-2. **Ollama with models** - Qwen 2.5 7B + mxbai-embed-large
-3. **Apple Health export** - Your health data in `apple_health_export/export.xml`
-
-**Complete setup guide**: See **[docs/00_PREREQUISITES.md](docs/00_PREREQUISITES.md)** for detailed installation instructions.
-
-### Detailed Steps
-
-**1. Clone and Start Services:**
-
-```bash
-git clone https://github.com/AllieRays/redis-wellness.git
-cd redis-wellness
-
-# Start all services (Frontend, Backend, Redis, RedisInsight)
-make up
-
-# Verify services are healthy
-make health
-```
-
-**2. Import Health Data:**
-
-```bash
-# Import your Apple Health export
-make import
-
-# Verify import was successful
-make verify
-
-# (Optional) View statistics
-make stats
-```
-
-**3. Try the Demo:**
-
-Open http://localhost:3000 and test the memory difference:
-
-1. **"What was my average heart rate last week?"** - Both agents answer
-2. **"Is that good?"** - Only stateful agent remembers context
-
-See **[docs/01_QUICKSTART.md](docs/01_QUICKSTART.md)** for detailed walkthrough.
-
-### Essential Make Commands
-
-```bash
-make help         # Show all available commands
-make up           # Start all Docker containers
-make down         # Stop all containers
-make logs         # View real-time logs
-make import       # Import health data
-make verify       # Verify data loaded
-make stats        # Show health statistics
-make health       # Check all services
-make fresh-start  # Full reset + reimport
-```
-
-### Access Points
-
-- **Frontend UI**: http://localhost:3000
-- **API Docs**: http://localhost:8000/docs
-- **RedisInsight**: http://localhost:8001
+**[📖 Full setup guide →](docs/02_QUICKSTART.md)**
 
 ---
 
 ## 📚 Documentation
 
-### Getting Started (Start Here)
+**Quick Start:**
+- [Prerequisites](docs/01_PREREQUISITES.md) - Docker, Ollama, Apple Health export
+- [Quickstart](docs/02_QUICKSTART.md) - Running in 5 minutes
+- [Example Queries](docs/09_EXAMPLE_QUERIES.md) - Try these to see memory in action
 
-- **[01_PREREQUISITES.md](docs/01_PREREQUISITES.md)** - Install Docker, Ollama, and export health data
-- **[02_QUICKSTART.md](docs/02_QUICKSTART.md)** - Get the demo running in under 5 minutes
+**Architecture Deep Dives:**
+- [Stateless vs Stateful Comparison](docs/05_STATELESS_VS_STATEFUL_COMPARISON.md) - Side-by-side breakdown
+- [Memory Architecture](docs/10_MEMORY_ARCHITECTURE.md) - Four-layer memory system
+- [Agentic RAG](docs/06_AGENTIC_RAG.md) - How tool calling works
+- [LangGraph Checkpointing](docs/12_LANGGRAPH_CHECKPOINTING.md) - Conversation state
 
-### Architecture & Agents
-
-- **[03_STATELESS_AGENT.md](docs/03_STATELESS_AGENT.md)** - How the stateless agent works
-- **[04_STATEFUL_AGENT.md](docs/04_STATEFUL_AGENT.md)** - How the stateful agent uses Redis memory
-- **[05_STATELESS_VS_STATEFUL_COMPARISON.md](docs/05_STATELESS_VS_STATEFUL_COMPARISON.md)** - Side-by-side comparison
-- **[06_AGENTIC_RAG.md](docs/06_AGENTIC_RAG.md)** - Agentic RAG architecture and workflow
-
-### Data & Examples
-
-- **[07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md](docs/07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md)** - Apple Health data pipeline and import process
-- **[09_EXAMPLE_QUERIES.md](docs/09_EXAMPLE_QUERIES.md)** - Example queries to try with the demo
-
-### Memory & Redis
-
-- **[10_MEMORY_ARCHITECTURE.md](docs/10_MEMORY_ARCHITECTURE.md)** - Four-layer memory system explained
-- **[11_REDIS_PATTERNS.md](docs/11_REDIS_PATTERNS.md)** - Redis data structures and patterns for AI agents
-- **[12_LANGGRAPH_CHECKPOINTING.md](docs/12_LANGGRAPH_CHECKPOINTING.md)** - LangGraph checkpointing for conversation state
-
-### Reference
-
-- **[08_QWEN_BEST_PRACTICES.md](docs/08_QWEN_BEST_PRACTICES.md)** - Qwen 2.5 tool calling best practices
-- **[13_TOOLS_SERVICES_UTILS_REFERENCE.md](docs/13_TOOLS_SERVICES_UTILS_REFERENCE.md)** - Complete backend reference
-
-### API Documentation
-
-Full API docs available at:
-- **Swagger UI**: http://localhost:8000/docs (interactive testing)
-- **ReDoc**: http://localhost:8000/redoc (clean reference docs)
-
-### Key Endpoints
-
-```bash
-# Health check
-GET /api/health/check
-
-# Demo information
-GET /api/chat/demo/info
-
-# Stateless chat
-POST /api/chat/stateless/stream
-
-# Stateful chat (LangGraph)
-POST /api/chat/stateful/stream
-
-# Memory stats
-GET /api/memory/{thread_id}/stats
-```
-
-### External Resources
-
-- **Redis Documentation**: https://redis.io/docs
-- **RedisVL Guide**: https://redisvl.com
-- **LangGraph Tutorial**: https://langchain-ai.github.io/langgraph
-- **Ollama Models**: https://ollama.ai/library
+**[📖 All 13 docs →](docs/)**
 
 ---
 
-## 🐛 Troubleshooting
+## 🛠️ Tech Stack
 
-**Services not starting:**
-```bash
-make logs    # View logs
-make health  # Check service status
-```
-
-**Ollama not running:**
-```bash
-curl http://localhost:11434
-ollama list
-```
-
-**Import failed:**
-```bash
-make fresh-start  # Full reset + reimport
-```
-
-**Port conflicts:**
-```bash
-lsof -i :3000 :8000 :6379
-make down
-```
-
-See **[docs/01_QUICKSTART.md#troubleshooting](docs/01_QUICKSTART.md#6-troubleshooting--next-steps)** for detailed troubleshooting.
+- **Backend:** FastAPI + Python 3.11
+- **Frontend:** TypeScript + Vite
+- **AI:** Ollama (Qwen 2.5 7B) + LangChain
+- **Memory:** Redis + RedisVL (HNSW vector search)
+- **Privacy:** 100% local processing
 
 ---
 
-## 🔒 Privacy
+## 🤝 Contributing
 
-**Your health data never leaves your machine.**
-
-- ✅ Ollama runs locally (no OpenAI/Anthropic API calls)
-- ✅ Redis stores data locally (no cloud sync)
-- ✅ All processing happens on your computer
-- ✅ No telemetry, no tracking, no external requests
-
-This is a **fully local AI system** - perfect for sensitive health data.
-
----
-
+This is a demo project showcasing Redis + RedisVL for AI agent memory. Feel free to:
+- Open issues for bugs or questions
+- Submit PRs for improvements
+- Use as reference for your own projects
 
 ---
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - See [LICENSE](LICENSE)
 
 ---
 
-<p align="center">
-  <strong>Redis + RedisVL • Demonstrating why memory matters in AI</strong><br>
-  Built with ❤️ by <a href="https://www.linkedin.com/in/allierays/">@AllieRays</a>
-</p>
+**Built to showcase Redis + RedisVL for intelligent AI agents** 🧠💾

@@ -135,20 +135,20 @@ Agentic RAG enables **autonomous multi-step workflows** with different strategie
 
 ### Simple Chain (Information Dependency)
 
-**Query**: "Am I on track for my weight goal?"
+**Query**: "Am I on track for my daily steps goal?"
 
 **Stateful Agent Workflow** (Autonomous):
 
 ```mermaid
 flowchart TD
-    A["👤 User: 'Am I on track for my weight goal?'"] --> B{🤖 Qwen 2.5 7B<br/>sees 'goal' keyword}
+    A["👤 User: 'Am I on track for my daily steps goal?'"] --> B{🤖 Qwen 2.5 7B<br/>sees 'goal' keyword}
     B --> C["🎯 Tool 1: get_my_goals()"]
-    C --> D["📋 Redis Memory<br/>Returns: goal '125 lbs by December'<br/>current: null"]
-    D --> E{🤔 LLM: Need current weight!}
-    E --> F["⚖️ Tool 2: get_health_metrics<br/>(metric='BodyMass')"]
-    F --> G["📊 Redis Health Data<br/>Returns: latest 136.8 lb"]
+    C --> D["📋 Redis Memory<br/>Returns: goal '10,000 steps daily'<br/>current: null"]
+    D --> E{🤔 LLM: Need current steps!}
+    E --> F["👟 Tool 2: get_health_metrics<br/>(metric='StepCount', days=1)"]
+    F --> G["📊 Redis Health Data<br/>Returns: today 8,432 steps"]
     G --> H["🧮 Qwen synthesizes comparison"]
-    H --> I["💬 Response: 'Your goal is 125 lbs.<br/>Current: 136.8 lbs.<br/>You need to lose 11.8 lbs...'"]
+    H --> I["💬 Response: 'Your goal is 10,000 steps daily.<br/>Today: 8,432 steps (84%).<br/>You need 1,568 more steps...'"]
 
     style A fill:#f5f5f5,stroke:#333,stroke-width:2px
     style B fill:#f5f5f5,stroke:#333,stroke-width:2px
@@ -165,11 +165,11 @@ flowchart TD
 
 ```python
 # LLM autonomously chains 2 tools:
-1. get_my_goals(query="weight goal")
-   → Returns: {"goal": "125 lbs"}
+1. get_my_goals(query="steps goal")
+   → Returns: {"goal": "10,000 steps daily"}
 
-2. get_health_metrics(metric="BodyMass")
-   → Returns: {"latest": 136.8}
+2. get_health_metrics(metric="StepCount", days=1)
+   → Returns: {"today": 8432}
 
 3. Synthesizes answer
 ```

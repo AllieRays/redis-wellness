@@ -30,6 +30,7 @@ flowchart TB
 
     Tools["Health Tools<br/>(3 tools)"]
     RedisData["Redis Health Data Store"]
+    Response["Response to User"]
     Forget["❌ FORGET EVERYTHING"]
 
     UI --> Router
@@ -38,7 +39,9 @@ flowchart TB
     Simple --> RedisData
     SimpleLoop --> Tools
     Tools --> RedisData
-    RedisData --> Forget
+    RedisData --> Response
+    Response --> UI
+    Response --> Forget
 
     style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
     style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
@@ -46,6 +49,7 @@ flowchart TB
     style SimpleLoop fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
     style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
     style RedisData fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Response fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
     style Forget fill:#fff,stroke:#dc3545,stroke-width:2px,color:#dc3545,stroke-dasharray: 5 5
 ```
 
@@ -60,15 +64,19 @@ flowchart TB
     RedisShort["Redis Short-term<br/>Checkpointing"]
     RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
     Tools["LLM Tools<br/>(5 total: 3 health + 2 memory)"]
+    Response["Response to User"]
     Store["✅ STORE MEMORY"]
 
     UI --> Router
     Router -->|"Fast path"| Simple
     Router -->|"Complex path"| Complex
+    Simple --> Response
     Complex --> RedisShort
     Complex --> RedisVL
     Complex --> Tools
-    Tools --> Store
+    Tools --> Response
+    Response --> UI
+    Response --> Store
 
     style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
     style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
@@ -77,6 +85,7 @@ flowchart TB
     style RedisShort fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style RedisVL fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style Response fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
     style Store fill:#fff,stroke:#28a745,stroke-width:2px,color:#28a745,stroke-dasharray: 5 5
 ```
 
