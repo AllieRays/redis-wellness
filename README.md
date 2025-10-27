@@ -19,7 +19,8 @@ Built with **FastAPI**, **TypeScript**, **Redis**, **RedisVL**, and **Ollama (Qw
 
 - **AI/LLM:** Ollama (Qwen 2.5 7B) + LangChain + LangGraph
 - **Vector Search:** **RedisVL** (HNSW index, 1024-dim embeddings via mxbai-embed-large)
-- **Memory & Data:** **Redis Stack** (checkpointing, health data, indexes)
+- **Memory:** **Redis Stack** (checkpointing, indexes)
+- **Data:** Apple Health data export and uploaded to Redis
 - **Backend:** FastAPI + Python 3.11
 - **Frontend:** TypeScript + Vite + Server-Sent Events (SSE)
 - **Deployment:** Docker + Docker Compose
@@ -155,26 +156,31 @@ make import
 ## 📚 Documentation
 
 **Getting Started:**
+
 1. [Prerequisites](docs/01_PREREQUISITES.md) - Docker, Ollama, Apple Health export
 2. [Quickstart](docs/02_QUICKSTART.md) - Running in 5 minutes
 
 **Agent Architecture:**
+
 3. [Stateless Agent](docs/03_STATELESS_AGENT.md) - Simple tool loop without memory
 4. [Stateful Agent](docs/04_STATEFUL_AGENT.md) - LangGraph with four-layer memory
 5. [Stateless vs Stateful Comparison](docs/05_STATELESS_VS_STATEFUL_COMPARISON.md) - Side-by-side breakdown
 
 **Core Concepts:**
+
 6. [Agentic RAG](docs/06_AGENTIC_RAG.md) - Autonomous tool calling
 7. [Apple Health Data Import](docs/07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md) - Data pipeline
 8. [Qwen Best Practices](docs/08_QWEN_BEST_PRACTICES.md) - Tool calling optimization
 9. [Example Queries](docs/09_EXAMPLE_QUERIES.md) - Try these to see memory in action
 
 **Memory Systems:**
+
 10. [Memory Architecture](docs/10_MEMORY_ARCHITECTURE.md) - Four-layer memory system
 11. [Redis Patterns](docs/11_REDIS_PATTERNS.md) - Data structures for AI agents
 12. [LangGraph Checkpointing](docs/12_LANGGRAPH_CHECKPOINTING.md) - Conversation state
 
 **Reference:**
+
 13. [Tools, Services & Utils](docs/13_TOOLS_SERVICES_UTILS_REFERENCE.md) - Complete code reference
 
 ---
