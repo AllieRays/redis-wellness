@@ -2,9 +2,9 @@
 
 ## 1. Overview
 
-This document provides a **comprehensive side-by-side comparison** of the stateless and stateful agents. Both use the same LLM (Qwen 2.5 7B) and same health tools - the **only difference is memory**.
+Both agents use the same LLM (Qwen 2.5 7B) and same health tools. The only difference is memory.
 
-This comparison shows **exactly** what Redis memory systems add to AI agents.
+This doc compares what each agent can do.
 
 ### What You'll Learn
 

@@ -6,23 +6,24 @@
 [![FastAPI](https://img.shields.io/badge/fastapi-0.115+-green.svg)](https://fastapi.tiangolo.com/)
 [![Privacy](https://img.shields.io/badge/privacy-100%25%20local-success.svg)](#privacy)
 
-> **Can AI be intelligent without memory?**
+> **Can AI agents be intelligent without memory?**
 
-Compare two identical AI agents side-by-side. Same LLM. Same tools. One difference: **Redis memory**.
+This project compares **Stateless** and **Stateful (Redis-powered)** AI agents using **Apple Health data**, showing how memory changes the way an agent understands and responds over time.
 
-See how Redis + RedisVL transforms stateless Q&A into intelligent conversation with context awareness, goal recall, and pattern learning.
-
-🔒 **100% local** - Your health data never leaves your machine.
+Built with **FastAPI**, **TypeScript**, **Redis**, **RedisVL**, and **Ollama (Qwen 2.5 7B)**, all running **100% locally** for privacy.  
+🔒 *Your health data never leaves your machine.*
 
 ---
 
 ## 🛠️ Tech Stack
 
+- **AI/LLM:** Ollama (Qwen 2.5 7B) + LangChain + LangGraph
+- **Vector Search:** **RedisVL** (HNSW index, 1024-dim embeddings via mxbai-embed-large)
+- **Memory & Data:** **Redis Stack** (checkpointing, health data, indexes)
 - **Backend:** FastAPI + Python 3.11
-- **Frontend:** TypeScript + Vite  
-- **AI:** Ollama (Qwen 2.5 7B) + LangChain
-- **Memory:** Redis + RedisVL (HNSW vector search)
-- **Privacy:** 100% local processing
+- **Frontend:** TypeScript + Vite + Server-Sent Events (SSE)
+- **Deployment:** Docker + Docker Compose
+- **Privacy:** 100% local processing - no external APIs
 
 ---
 
@@ -30,13 +31,16 @@ See how Redis + RedisVL transforms stateless Q&A into intelligent conversation w
 
 | Component | Stateless Agent | Stateful Agent | Technology |
 |-----------|-----------------|----------------|------------|
-| **LLM** | Qwen 2.5 7B | Qwen 2.5 7B | Ollama (local inference) |
-| **Orchestration** | Simple tool loop | LangGraph StateGraph | LangGraph checkpointing |
-| **Short-term Memory** | None | Conversation history | LangGraph checkpointing |
+| **LLM** | Qwen 2.5 7B | Qwen 2.5 7B | Ollama (local) |
+| **Orchestration** | Simple tool loop | LangGraph StateGraph | LangGraph |
+| **Short-term Memory** | None | Conversation history | Redis checkpointing |
 | **Episodic Memory** | None | User goals & facts | RedisVL vector search |
-| **Procedural Memory** | None | Workflow patterns | RedisVL vector search |
-| **Health Data** | Redis read-only | Redis read-only | Redis Hashes + JSON |
-| **Tool Calling** | 3 health tools | 5 tools (3 health + 2 memory) | LangChain integration |
+| **Procedural Memory** | None | Tool usage patterns | RedisVL vector search |
+| **Health Data** | Redis (read-only) | Redis (read-only) | Redis Hashes |
+| **Tools** | 3 (health only) | 5 (3 health + 2 memory) | LangChain |
+
+**Health Tools (both agents):** `get_health_metrics`, `get_sleep_analysis`, `get_workout_data`  
+**Memory Tools (stateful only):** `get_my_goals`, `get_tool_suggestions`
 
 ---
 

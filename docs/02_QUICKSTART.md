@@ -91,7 +91,7 @@ make stats
 
 ## 5. Try the Demo
 
-Open **http://localhost:3000** - you'll see a side-by-side comparison of stateless vs. stateful agents. For a detailed architectural comparison, see [05_STATELESS_VS_STATEFUL_COMPARISON.md](05_STATELESS_VS_STATEFUL_COMPARISON.md).
+Open **http://localhost:3000** to see both agents side-by-side. See [05_STATELESS_VS_STATEFUL_COMPARISON.md](05_STATELESS_VS_STATEFUL_COMPARISON.md) for the full comparison.
 
 ### Test the Memory Difference
 
