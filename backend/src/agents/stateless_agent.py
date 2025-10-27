@@ -38,7 +38,6 @@ from ..utils.validation_retry import (
 from .constants import (
     LOG_SYSTEM_PROMPT_PREVIEW_LENGTH,
     MAX_TOOL_ITERATIONS,
-    VALIDATION_STRICT_MODE,
 )
 
 logger = logging.getLogger(__name__)
@@ -322,53 +321,19 @@ class StatelessHealthAgent:
                 response_text = final_message.content
 
             # Validate response and retry if needed (shared utility)
-            if stream:
-                # For streaming, validation happens after all tokens streamed
-                # We'll handle retry in streaming mode if needed
-                retry_generator = validate_and_retry_response(
-                    response_text=response_text,
-                    tool_results=tool_results,
-                    user_query=message,
-                    llm=self.llm,
-                    conversation=conversation,
-                    stream=True,
-                )
-                # If retry is needed, it will yield tokens
-                async for chunk in retry_generator:
-                    if chunk.get("type") == "token":
-                        yield chunk
-                    elif chunk.get("type") == "validation_retry":
-                        response_text = chunk["corrected_text"]
-
-                # Get final validation results
-                from ..utils.date_validator import get_date_validator
-                from ..utils.numeric_validator import get_numeric_validator
-
-                numeric_validator = get_numeric_validator()
-                numeric_validation = numeric_validator.validate_response(
-                    response_text=response_text,
-                    tool_results=tool_results,
-                    strict=VALIDATION_STRICT_MODE,
-                )
-                date_validator = get_date_validator()
-                date_validation = date_validator.validate_response(
-                    user_query=message,
-                    response_text=response_text,
-                )
-            else:
-                # Non-streaming mode
-                (
-                    response_text,
-                    numeric_validation,
-                    date_validation,
-                ) = await validate_and_retry_response(
-                    response_text=response_text,
-                    tool_results=tool_results,
-                    user_query=message,
-                    llm=self.llm,
-                    conversation=conversation,
-                    stream=False,
-                )
+            # Both streaming and non-streaming use the same validation
+            (
+                response_text,
+                numeric_validation,
+                date_validation,
+            ) = await validate_and_retry_response(
+                response_text=response_text,
+                tool_results=tool_results,
+                user_query=message,
+                llm=self.llm,
+                conversation=conversation,
+                stream=stream,
+            )
 
             # Calculate token usage stats for conversation
             token_manager = get_token_manager()

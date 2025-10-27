@@ -85,8 +85,8 @@ flowchart TD
 ### Example 1: Workout Types
 
 ```
-You: "How many workouts do I have?"
-Both: "You have 154 workouts recorded."
+You: "Tell me about my recent workouts"
+Both: "You have 154 workouts recorded in the past 30 days."
 
 You: "What's the most common type?"
 Stateless: ❌ "What are you referring to?"

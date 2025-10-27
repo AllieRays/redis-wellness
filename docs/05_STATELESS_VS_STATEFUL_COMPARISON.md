@@ -131,7 +131,7 @@ flowchart TB
 
 #### Follow-Up Questions
 
-**Query**: "How many workouts?" → "What's the most common type?"
+**Query**: "Tell me about my recent workouts" → "What's the most common type?"
 
 | Agent | Response to Follow-Up |
 |-------|----------------------|

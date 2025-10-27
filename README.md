@@ -55,9 +55,7 @@ Built with **FastAPI**, **TypeScript**, **Redis**, **RedisVL**, and **Ollama (Qw
 
 ## 🎯 The Difference
 
-| ❌ **Stateless (No Memory)** | ✅ **Stateful (With Memory)** |
-|---|---|
-| 
+### ❌ Stateless Agent (No Memory)
 
 ```mermaid
 flowchart TB
@@ -73,7 +71,11 @@ flowchart TB
     style R1 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style Res1 fill:#f5f5f5,stroke:#333,stroke-width:2px
     style F1 fill:#fff,stroke:#dc3545,stroke-width:3px,color:#dc3545
-``` | ```mermaid
+```
+
+### ✅ Stateful Agent (With Memory)
+
+```mermaid
 flowchart TB
     Q2["👤 Query"] --> A2["🤖 Qwen 2.5 7B"]
     A2 --> C2["❤️ Checkpointing"]
@@ -93,7 +95,7 @@ flowchart TB
     style R2 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style Res2 fill:#f5f5f5,stroke:#333,stroke-width:2px
     style S2 fill:#fff,stroke:#28a745,stroke-width:3px,color:#28a745
-``` |
+```
 
 **Key difference:** Redis memory enables follow-up questions, goal recall, and pattern learning.
 

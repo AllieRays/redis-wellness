@@ -97,7 +97,7 @@ Open **http://localhost:3000** to see both agents side-by-side. See [05_STATELES
 
 Try this sequence to see memory in action:
 
-1. **"How many workouts do I have?"**
+1. **"Tell me about my recent workouts"**
    - Both agents answer correctly
 
 2. **"What day do I work out most?"**
