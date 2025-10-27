@@ -37,13 +37,13 @@ flowchart TD
 
     style User fill:#f5f5f5,stroke:#333,stroke-width:2px
     style Agent fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style STM fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-    style EM fill:#fce4ec,stroke:#c2185b,stroke-width:2px
-    style PM fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style SM fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
-    style Redis fill:#DC382C,stroke:#DC382C,stroke-width:3px,color:#fff
-    style RedisVL fill:#DC382C,stroke:#DC382C,stroke-width:3px,color:#fff
-    style Response fill:#fff3e0,stroke:#DC382C,stroke-width:3px
+    style STM fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style EM fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style PM fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style SM fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Redis fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style RedisVL fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style Response fill:#f5f5f5,stroke:#DC382C,stroke-width:3px
 ```
 
 ### 1️⃣ Short-Term Memory
