@@ -34,17 +34,30 @@ The "agentic" part means the AI has **agency** - it can:
 
 Let's compare the two approaches:
 
-| **Traditional RAG (Hardcoded)** ❌ | **Agentic RAG (Autonomous)** ✅ |
-|---|---|
-| **Code Approach** | **Code Approach** |
-| ```python
+### ❌ Traditional RAG (Hardcoded)
+
+**Code Approach:**
+```python
 # BAD: Hardcoded logic
 if "weight" in query:
     tool = search_health_records
 elif "workout" in query:
     tool = search_workouts
 # ...100+ if/else statements
-``` | ```python
+```
+
+**Problems:**
+- Can't handle variations ("fitness" vs "workout")
+- Can't chain tools
+- Breaks with complex queries
+- Requires manual updates
+
+---
+
+### ✅ Agentic RAG (Autonomous)
+
+**Code Approach:**
+```python
 # GOOD: LLM decides
 llm_with_tools = llm.bind_tools([
     get_health_metrics,
@@ -56,9 +69,13 @@ llm_with_tools = llm.bind_tools([
 
 response = await llm_with_tools.ainvoke(user_query)
 # LLM autonomously picks tools based on query
-``` |
-| **Problems** | **Benefits** |
-| • Can't handle variations ("fitness" vs "workout")<br>• Can't chain tools<br>• Breaks with complex queries<br>• Requires manual updates | • Handles natural language variations<br>• Chains multiple tools as needed<br>• Adapts to new patterns<br>• No code changes required |
+```
+
+**Benefits:**
+- Handles natural language variations
+- Chains multiple tools as needed
+- Adapts to new patterns
+- No code changes required
 
 ---
 
@@ -66,7 +83,7 @@ response = await llm_with_tools.ainvoke(user_query)
 
 ### Tool Docstrings as Instructions
 
-Qwen 2.5 7B reads tool docstrings to understand what each tool does:
+Qwen 2.5 7B reads tool docstrings to understand what each tool does. For comprehensive best practices on tool calling with Qwen, see [08_QWEN_BEST_PRACTICES.md](08_QWEN_BEST_PRACTICES.md).
 
 ```python
 @tool
@@ -93,7 +110,7 @@ def get_health_metrics(metric: str, days: int):
 ### Decision Process
 
 ```mermaid
-flowchart TD
+flowchart LR
     A["👤 User: 'What was my average heart rate?'"] --> B[🤖 Qwen 2.5 7B]
     B --> C{🔍 Analyze query intent}
     C --> D["📋 Tool: get_health_metrics<br/>mentions 'heart rate' + 'average'"]
@@ -114,7 +131,7 @@ flowchart TD
 
 ## 4. Tool Chaining Strategies
 
-Agentic RAG enables **autonomous multi-step workflows** with different strategies based on query complexity.
+Agentic RAG enables **autonomous multi-step workflows** with different strategies based on query complexity. See [09_EXAMPLE_QUERIES.md](09_EXAMPLE_QUERIES.md) for real-world examples.
 
 ### Simple Chain (Information Dependency)
 
@@ -123,7 +140,7 @@ Agentic RAG enables **autonomous multi-step workflows** with different strategie
 **Stateful Agent Workflow** (Autonomous):
 
 ```mermaid
-flowchart TD
+flowchart LR
     A["👤 User: 'Am I on track for my weight goal?'"] --> B{🤖 Qwen 2.5 7B<br/>sees 'goal' keyword}
     B --> C["🎯 Tool 1: get_my_goals()"]
     C --> D["📋 Redis Memory<br/>Returns: goal '125 lbs by December'<br/>current: null"]
@@ -407,11 +424,11 @@ for iteration in range(MAX_ITERATIONS):
 
 ## 8. Related Documentation
 
-- **[STATELESS_AGENT.md](STATELESS_AGENT.md)** - Agentic RAG without memory
-- **[STATEFUL_AGENT.md](STATEFUL_AGENT.md)** - Agentic RAG with memory
-- **[QWEN_BEST_PRACTICES.md](QWEN_BEST_PRACTICES.md)** - Optimizing tool calling
-- **[MEMORY_ARCHITECTURE.md](MEMORY_ARCHITECTURE.md)** - Procedural memory patterns
-- **[EXAMPLE_QUERIES.md](EXAMPLE_QUERIES.md)** - See tool selection in action
+- **[03_STATELESS_AGENT.md](03_STATELESS_AGENT.md)** - Agentic RAG without memory
+- **[04_STATEFUL_AGENT.md](04_STATEFUL_AGENT.md)** - Agentic RAG with memory
+- **[08_QWEN_BEST_PRACTICES.md](08_QWEN_BEST_PRACTICES.md)** - Optimizing tool calling
+- **[10_MEMORY_ARCHITECTURE.md](10_MEMORY_ARCHITECTURE.md)** - Procedural memory patterns
+- **[09_EXAMPLE_QUERIES.md](09_EXAMPLE_QUERIES.md)** - See tool selection in action
 
 ---
 

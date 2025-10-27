@@ -66,6 +66,8 @@ flowchart LR
 
 ## Follow-up Questions
 
+**Stateless agents forget. Stateful agents remember** using [short-term memory](10_MEMORY_ARCHITECTURE.md#1%EF%B8%8F%E2%83%A3-short-term-memory) via LangGraph checkpointing.
+
 ### Example 1: Workout Types
 
 ```
@@ -105,7 +107,7 @@ Stateful:  ✅ "Cycling - 142 bpm vs 98 bpm, and 2.8x more calories/min."
 
 ## Goal Memory
 
-**Stateful agents use RedisVL vector search to remember your goals.**
+**Stateful agents use RedisVL vector search to remember your goals** through [episodic memory](10_MEMORY_ARCHITECTURE.md#2%EF%B8%8F%E2%83%A3-episodic-memory).
 
 ### Weight Goal
 
@@ -135,7 +137,7 @@ Stateful:  ✅ "Goal: 10,000 steps. Today: 8,432 (84% complete)."
 
 ## Pattern Learning
 
-**Stateful agents learn which tools work for which queries.**
+**Stateful agents learn which tools work for which queries** using [procedural memory](10_MEMORY_ARCHITECTURE.md#3%EF%B8%8F%E2%83%A3-procedural-memory).
 
 ```
 Query: "Compare my activity this month vs last month"
@@ -164,7 +166,7 @@ Stateful stores successful workflows in procedural memory:
 
 ## Tool Chaining
 
-**Stateful agents chain tools autonomously for complete answers.**
+**Stateful agents chain tools autonomously for complete answers.** See [06_AGENTIC_RAG.md](06_AGENTIC_RAG.md) for detailed tool chaining patterns.
 
 ### Workout Progress
 
@@ -228,8 +230,8 @@ Stateful:  ✅ "Not concerning if you intensified workouts.
 
 - [03_STATELESS_AGENT.md](03_STATELESS_AGENT.md) - Stateless implementation
 - [04_STATEFUL_AGENT.md](04_STATEFUL_AGENT.md) - Stateful implementation
-- [05_TOOLS_AND_CALLING.md](05_TOOLS_AND_CALLING.md) - Tool catalog
-- [06_MEMORY_ARCHITECTURE.md](06_MEMORY_ARCHITECTURE.md) - Memory system
-- [02_THE_DEMO.md](02_THE_DEMO.md) - Try these queries
+- [06_AGENTIC_RAG.md](06_AGENTIC_RAG.md) - Tool calling patterns
+- [10_MEMORY_ARCHITECTURE.md](10_MEMORY_ARCHITECTURE.md) - Memory system
+- [05_STATELESS_VS_STATEFUL_COMPARISON.md](05_STATELESS_VS_STATEFUL_COMPARISON.md) - Try these queries
 
 **Key takeaway**: Memory transforms AI from isolated Q&A into intelligent conversation.

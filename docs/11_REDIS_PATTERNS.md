@@ -17,7 +17,7 @@ Redis powers the entire memory system with five key data structures. This doc ex
 ## 2. Why Redis for AI?
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0d212c', 'primaryTextColor':'#fff', 'primaryBorderColor':'#ff4438', 'lineColor':'#ff4438', 'secondaryColor':'#163341', 'tertiaryColor':'#091a23', 'background':'#0d212c', 'mainBkg':'#163341', 'secondBkg':'#0d212c', 'textColor':'#fff', 'fontSize':'16px'}}}%%
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0d212c', 'primaryTextColor':'#fff', 'primaryBorderColor':'#ff4438', 'lineColor':'#666', 'secondaryColor':'#163341', 'tertiaryColor':'#091a23', 'background':'#0d212c', 'mainBkg':'#163341', 'secondBkg':'#0d212c', 'textColor':'#fff', 'fontSize':'16px'}}}%%
 graph LR
     subgraph "Traditional Stack"
     A[PostgreSQL] -->|Slow Joins| B[Vector Extension]
@@ -31,11 +31,11 @@ graph LR
     E -->|Built-in| H[HNSW Index]
     end
 
-    style A fill:#163341,stroke:#ff4438,color:#fff
-    style E fill:#0d212c,stroke:#dcff1e,color:#fff
-    style F fill:#091a23,stroke:#dcff1e,color:#fff
-    style G fill:#091a23,stroke:#dcff1e,color:#fff
-    style H fill:#091a23,stroke:#dcff1e,color:#fff
+    style A fill:#163341,stroke:#666,color:#fff,stroke-width:2px
+    style E fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
+    style F fill:#091a23,stroke:#666,color:#fff
+    style G fill:#091a23,stroke:#666,color:#fff
+    style H fill:#091a23,stroke:#666,color:#fff
 ```
 
 ### PostgreSQL Approach (Traditional)
@@ -73,7 +73,7 @@ results = episodic_index.search(query_vector)
 ## 3. Five Key Structures
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0d212c', 'primaryTextColor':'#fff', 'primaryBorderColor':'#ff4438', 'lineColor':'#ff4438', 'secondaryColor':'#163341', 'tertiaryColor':'#091a23'}}}%%
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0d212c', 'primaryTextColor':'#fff', 'primaryBorderColor':'#ff4438', 'lineColor':'#666', 'secondaryColor':'#163341', 'tertiaryColor':'#091a23'}}}%%
 graph TD
     A[Redis Data Structures] --> B[STRING<br/>Health Data JSON]
     A --> C[LIST<br/>Conversation History]
@@ -87,17 +87,17 @@ graph TD
     E -->|Timestamps| E1[O log N Ranges]
     F -->|1024-dim| F1[HNSW Search]
 
-    style A fill:#0d212c,stroke:#dcff1e,color:#fff,stroke-width:3px
-    style B fill:#163341,stroke:#ff4438,color:#fff
-    style C fill:#163341,stroke:#ff4438,color:#fff
-    style D fill:#163341,stroke:#ff4438,color:#fff
-    style E fill:#163341,stroke:#ff4438,color:#fff
-    style F fill:#163341,stroke:#ff4438,color:#fff
-    style B1 fill:#091a23,stroke:#dcff1e,color:#fff
-    style C1 fill:#091a23,stroke:#dcff1e,color:#fff
-    style D1 fill:#091a23,stroke:#dcff1e,color:#fff
-    style E1 fill:#091a23,stroke:#dcff1e,color:#fff
-    style F1 fill:#091a23,stroke:#dcff1e,color:#fff
+    style A fill:#0d212c,stroke:#666,color:#fff,stroke-width:2px
+    style B fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
+    style C fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
+    style D fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
+    style E fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
+    style F fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
+    style B1 fill:#091a23,stroke:#666,color:#fff
+    style C1 fill:#091a23,stroke:#666,color:#fff
+    style D1 fill:#091a23,stroke:#666,color:#fff
+    style E1 fill:#091a23,stroke:#666,color:#fff
+    style F1 fill:#091a23,stroke:#666,color:#fff
 ```
 
 ### STRING (JSON Blob)
@@ -297,7 +297,7 @@ results = episodic_index.query(vector_query)
 ## 4. Health Data Patterns
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0d212c', 'primaryTextColor':'#fff', 'primaryBorderColor':'#ff4438', 'lineColor':'#ff4438', 'secondaryColor':'#163341', 'tertiaryColor':'#091a23'}}}%%
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0d212c', 'primaryTextColor':'#fff', 'primaryBorderColor':'#ff4438', 'lineColor':'#666', 'secondaryColor':'#163341', 'tertiaryColor':'#091a23'}}}%%
 flowchart TD
     A[Apple Health XML] -->|Parse| B[Redis Indexer]
 
@@ -313,12 +313,12 @@ flowchart TD
     F -->|O log N| E1
     F -->|Pipeline| C1
 
-    style A fill:#091a23,stroke:#ff4438,color:#fff
-    style B fill:#0d212c,stroke:#dcff1e,color:#fff,stroke-width:3px
-    style C fill:#163341,stroke:#ff4438,color:#fff
-    style D fill:#163341,stroke:#ff4438,color:#fff
-    style E fill:#163341,stroke:#ff4438,color:#fff
-    style F fill:#091a23,stroke:#dcff1e,color:#fff
+    style A fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
+    style B fill:#0d212c,stroke:#666,color:#fff,stroke-width:2px
+    style C fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
+    style D fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
+    style E fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
+    style F fill:#091a23,stroke:#666,color:#fff
 ```
 
 ### Workout Storage
@@ -385,7 +385,7 @@ user:wellness_user:sleep:by_date → ZSET {
 ## 5. Memory Patterns
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0d212c', 'primaryTextColor':'#fff', 'primaryBorderColor':'#ff4438', 'lineColor':'#ff4438', 'secondaryColor':'#163341', 'tertiaryColor':'#091a23'}}}%%
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#0d212c', 'primaryTextColor':'#fff', 'primaryBorderColor':'#ff4438', 'lineColor':'#666', 'secondaryColor':'#163341', 'tertiaryColor':'#091a23'}}}%%
 graph TB
     subgraph "Short-Term Memory"
     A[LangGraph] -->|AsyncRedisSaver| B[langgraph:checkpoint:*]
@@ -406,13 +406,13 @@ graph TB
     G --> C
     G --> E
 
-    style A fill:#0d212c,stroke:#dcff1e,color:#fff
-    style C fill:#0d212c,stroke:#dcff1e,color:#fff
-    style E fill:#0d212c,stroke:#dcff1e,color:#fff
-    style G fill:#163341,stroke:#ff4438,color:#fff,stroke-width:3px
-    style B fill:#091a23,stroke:#ff4438,color:#fff
-    style D fill:#091a23,stroke:#ff4438,color:#fff
-    style F fill:#091a23,stroke:#ff4438,color:#fff
+    style A fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
+    style C fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
+    style E fill:#ff4438,stroke:#ff4438,color:#fff,stroke-width:3px
+    style G fill:#163341,stroke:#666,color:#fff,stroke-width:2px
+    style B fill:#091a23,stroke:#666,color:#fff
+    style D fill:#091a23,stroke:#666,color:#fff
+    style F fill:#091a23,stroke:#666,color:#fff
 ```
 
 ### Short-Term (LangGraph Checkpointing)
@@ -500,7 +500,7 @@ procedural:a1b2c3d4:1729962000 → HASH {
 - **[10_MEMORY_ARCHITECTURE.md](10_MEMORY_ARCHITECTURE.md)** - Memory types
 - **[12_LANGGRAPH_CHECKPOINTING.md](12_LANGGRAPH_CHECKPOINTING.md)** - Checkpointing deep dive
 - **[04_STATEFUL_AGENT.md](04_STATEFUL_AGENT.md)** - How agent uses Redis
-- **[07_APPLE_HEALTH_PIPELINE.md](07_APPLE_HEALTH_PIPELINE.md)** - Data import patterns
+- **[07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md](07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md)** - Data import patterns
 
 ---
 

@@ -81,7 +81,7 @@ def aggregate_metrics(
 
 ### 3. System Prompt Design
 
-Provide explicit tool selection guidance in the system prompt:
+Provide explicit tool selection guidance in the system prompt. See [06_AGENTIC_RAG.md](06_AGENTIC_RAG.md) for how Qwen's agentic RAG approach makes tool selection decisions:
 
 ```python
 system_prompt = """
@@ -185,7 +185,7 @@ def _agent_node(self, state: AgentState) -> Dict:
 
 **Problem**: Large tool libraries (10+ tools) can degrade performance.
 
-**Solution**: Use tool routing to present only relevant tools:
+**Solution**: Use tool routing to present only relevant tools. See how this is implemented in [03_STATELESS_AGENT.md](03_STATELESS_AGENT.md) and [04_STATEFUL_AGENT.md](04_STATEFUL_AGENT.md):
 
 ```python
 # Instead of binding all 20 tools:

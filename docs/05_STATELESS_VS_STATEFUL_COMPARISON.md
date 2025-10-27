@@ -18,60 +18,67 @@ This comparison shows **exactly** what Redis memory systems add to AI agents.
 
 ## 2. Architecture Comparison
 
-### Side-by-Side Diagrams
+### Stateless Agent (No Memory)
 
-<table>
-<tr>
-<td width="50%" style="vertical-align: top;">
+```mermaid
+flowchart TB
+    UI["User Interface"]
+    Router["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
 
-#### Stateless Agent (No Memory)
+    Simple["Redis<br/>(Simple Queries)"]
+    SimpleLoop["Simple Tool Loop<br/>• Qwen 2.5 7B LLM<br/>• Tool calling<br/>• Response synthesis"]
 
-```
-User Query
-    ↓
-Intent Router
-    ↓
-Qwen 2.5 7B
-+ 3 Health Tools
-    ↓
-Simple Loop (8 max)
-    ↓
-Redis (health data)
-    ↓
-Response
-    ↓
-❌ FORGET EVERYTHING
-```
+    Tools["Health Tools<br/>(3 tools)"]
+    RedisData["Redis Health Data Store"]
+    Forget["❌ FORGET EVERYTHING"]
 
-</td>
-<td width="50%" style="vertical-align: top;">
+    UI --> Router
+    Router -->|"Simple"| Simple
+    Router -->|"Complex"| SimpleLoop
+    Simple --> RedisData
+    SimpleLoop --> Tools
+    Tools --> RedisData
+    RedisData --> Forget
 
-#### Stateful Agent (With Memory)
-
-```
-User Query
-    ↓
-Intent Router
-    ↓
-LangGraph StateGraph
-    ↓
-✅ Load Checkpointer
-    ↓
-Qwen 2.5 7B
-+ 5 Tools (3 + 2 memory)
-    ↓
-Loop (recursion limit)
-    ↓
-Redis + RedisVL
-    ↓
-Response
-    ↓
-✅ STORE MEMORY
+    style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
+    style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
+    style Simple fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style SimpleLoop fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
+    style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style RedisData fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Forget fill:#fff,stroke:#dc3545,stroke-width:2px,color:#dc3545,stroke-dasharray: 5 5
 ```
 
-</td>
-</tr>
-</table>
+### Stateful Agent (With Memory)
+
+```mermaid
+flowchart TB
+    UI["User Interface"]
+    Router["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
+    Simple["Redis<br/>(Simple Queries)"]
+    Complex["LangGraph StateGraph<br/>• Qwen 2.5 7B LLM<br/>• Tool calling loop<br/>• Response synthesis"]
+    RedisShort["Redis Short-term<br/>Checkpointing"]
+    RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
+    Tools["LLM Tools<br/>(5 total: 3 health + 2 memory)"]
+    Store["✅ STORE MEMORY"]
+
+    UI --> Router
+    Router -->|"Fast path"| Simple
+    Router -->|"Complex path"| Complex
+    Complex --> RedisShort
+    Complex --> RedisVL
+    Complex --> Tools
+    Tools --> Store
+
+    style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
+    style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
+    style Simple fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Complex fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
+    style RedisShort fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style RedisVL fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style Store fill:#fff,stroke:#28a745,stroke-width:2px,color:#28a745,stroke-dasharray: 5 5
+```
 
 ### Key Differences
 
@@ -263,11 +270,11 @@ tools = create_user_bound_tools(user_id, include_memory_tools=True)
 
 ## 6. Related Documentation
 
-- **[STATELESS_AGENT.md](STATELESS_AGENT.md)** - Detailed stateless agent architecture
-- **[STATEFUL_AGENT.md](STATEFUL_AGENT.md)** - Detailed stateful agent architecture
-- **[MEMORY_ARCHITECTURE.md](MEMORY_ARCHITECTURE.md)** - Four-layer memory system deep dive
-- **[EXAMPLE_QUERIES.md](EXAMPLE_QUERIES.md)** - Try these queries in the demo
-- **[QUICKSTART.md](QUICKSTART.md)** - Run the demo to see the difference
+- **[03_STATELESS_AGENT.md](03_STATELESS_AGENT.md)** - Detailed stateless agent architecture
+- **[04_STATEFUL_AGENT.md](04_STATEFUL_AGENT.md)** - Detailed stateful agent architecture
+- **[10_MEMORY_ARCHITECTURE.md](10_MEMORY_ARCHITECTURE.md)** - Four-layer memory system deep dive
+- **[09_EXAMPLE_QUERIES.md](09_EXAMPLE_QUERIES.md)** - Try these queries in the demo
+- **[02_QUICKSTART.md](02_QUICKSTART.md)** - Run the demo to see the difference
 
 ---
 

@@ -51,10 +51,10 @@ The agent doesn't remember "that" refers to "72 bpm" from the previous exchange.
 ## 3. Key Technologies
 
 **What's Included:**
-- **Qwen 2.5 7B**: Function-calling LLM (via Ollama) that reads tool docstrings and autonomously decides which tools to call
-- **Simple Tool Loop**: Up to 8 iterations of tool calling
+- **Qwen 2.5 7B**: Function-calling LLM (via Ollama) that reads tool docstrings and autonomously decides which tools to call (see [08_QWEN_BEST_PRACTICES.md](08_QWEN_BEST_PRACTICES.md))
+- **Simple Tool Loop**: Up to 8 iterations of tool calling (see [06_AGENTIC_RAG.md](06_AGENTIC_RAG.md) for patterns)
 - **Intent Router**: Pre-LLM pattern matching for simple goal queries (fast path, returns immediately)
-- **3 Health Tools**: `get_health_metrics`, `get_sleep_analysis`, `get_workout_data`
+- **3 Health Tools**: `get_health_metrics`, `get_sleep_analysis`, `get_workout_data` (details in [13_TOOLS_SERVICES_UTILS_REFERENCE.md](13_TOOLS_SERVICES_UTILS_REFERENCE.md))
 
 **What's Deliberately Excluded:**
 - ❌ NO conversation history (forgets previous messages)
@@ -151,12 +151,12 @@ flowchart TB
 
 ### Tool → Data Source Mapping
 
-Tools read existing health data from Redis:
+Tools read existing health data from Redis (imported via [07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md](07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md)):
 
-| Data Source | Storage Type | Tools That Use It | What's Stored |
+|| Data Source | Storage Type | Tools That Use It | What's Stored |
 |-------------|--------------|-------------------|---------------|
-| `health:*` | Redis (read-only) | `get_health_metrics`<br/>`get_sleep_analysis` | Heart rate, steps, weight, BMI, sleep |
-| `workout:*` | Redis (read-only) | `get_workout_data` | Workout records and indexes |
+|| `health:*` | Redis (read-only) | `get_health_metrics`<br/>`get_sleep_analysis` | Heart rate, steps, weight, BMI, sleep |
+|| `workout:*` | Redis (read-only) | `get_workout_data` | Workout records and indexes |
 
 ### Key Components
 
@@ -208,7 +208,7 @@ result = {"average": 72, "unit": "bpm", "days": 7}
 
 ## 5. Related Documentation
 
-- **[02_THE_DEMO.md](02_THE_DEMO.md)** - Side-by-side demo comparison
-- **[STATEFUL_AGENT.md](STATEFUL_AGENT.md)** - Stateful agent architecture
-- **[03_MEMORY_ARCHITECTURE.md](03_MEMORY_ARCHITECTURE.md)** - Memory system details
-- **[04_AUTONOMOUS_AGENTS.md](04_AUTONOMOUS_AGENTS.md)** - Tool-calling patterns
+- **[05_STATELESS_VS_STATEFUL_COMPARISON.md](05_STATELESS_VS_STATEFUL_COMPARISON.md)** - Side-by-side demo comparison
+- **[04_STATEFUL_AGENT.md](04_STATEFUL_AGENT.md)** - Stateful agent architecture
+- **[10_MEMORY_ARCHITECTURE.md](10_MEMORY_ARCHITECTURE.md)** - Memory system details
+- **[06_AGENTIC_RAG.md](06_AGENTIC_RAG.md)** - Tool-calling patterns

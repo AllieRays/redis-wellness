@@ -418,10 +418,10 @@ GET user:wellness_user:metric:BodyMass
 
 ## 6. Related Documentation
 
-- **[01_QUICKSTART.md](01_QUICKSTART.md)** - Get started with the demo
-- **[03_MEMORY_ARCHITECTURE.md](03_MEMORY_ARCHITECTURE.md)** - Understanding the memory system
-- **[05_REDIS_PATTERNS.md](05_REDIS_PATTERNS.md)** - Redis data structure patterns and best practices
-- **[RETRIEVAL_PATTERNS_GUIDE.md](RETRIEVAL_PATTERNS_GUIDE.md)** - Data retrieval strategies
+- **[02_QUICKSTART.md](02_QUICKSTART.md)** - Get started with the demo
+- **[10_MEMORY_ARCHITECTURE.md](10_MEMORY_ARCHITECTURE.md)** - Understanding the memory system
+- **[11_REDIS_PATTERNS.md](11_REDIS_PATTERNS.md)** - Redis data structure patterns and best practices
+- **[13_TOOLS_SERVICES_UTILS_REFERENCE.md](13_TOOLS_SERVICES_UTILS_REFERENCE.md)** - Data retrieval strategies and tools
 
 ---
 

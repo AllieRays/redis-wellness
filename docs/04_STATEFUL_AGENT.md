@@ -16,12 +16,12 @@ This document explains the **internal architecture of the stateful agent**: how 
 
 ## 2. Key Technologies
 
-- **Qwen 2.5 7B**: Function-calling LLM (via Ollama) that reads tool docstrings and autonomously decides which tools to call
+- **Qwen 2.5 7B**: Function-calling LLM (via Ollama) that reads tool docstrings and autonomously decides which tools to call (see [08_QWEN_BEST_PRACTICES.md](08_QWEN_BEST_PRACTICES.md))
 - **Ollama Embeddings**: `mxbai-embed-large` model generates 1024-dim vectors for semantic search
-- **LangGraph**: StateGraph workflow orchestration with automatic Redis checkpointing for conversation history
-- **Redis**: Stores short-term conversation history via LangGraph's AsyncRedisSaver and structured health data
+- **LangGraph**: StateGraph workflow orchestration with automatic Redis checkpointing for conversation history (details in [12_LANGGRAPH_CHECKPOINTING.md](12_LANGGRAPH_CHECKPOINTING.md))
+- **Redis**: Stores short-term conversation history via LangGraph's AsyncRedisSaver and structured health data (see [11_REDIS_PATTERNS.md](11_REDIS_PATTERNS.md))
 - **RedisVL**: Vector search for episodic memory (goals) and procedural memory (learned patterns)
-- **Intent Router**: Pre-LLM pattern matching for simple queries
+- **Intent Router**: Pre-LLM pattern matching for simple queries (see [06_AGENTIC_RAG.md](06_AGENTIC_RAG.md))
 
 ---
 
@@ -57,12 +57,12 @@ flowchart TB
 
 ### Layer Responsibilities
 
-1. **Intent Router**: Pre-LLM pattern matching for simple queries
-2. **LangGraph**: Orchestrates LLM → tools → memory → response workflow
-3. **Memory Layer**:
+1. **Intent Router**: Pre-LLM pattern matching for simple queries (see [06_AGENTIC_RAG.md](06_AGENTIC_RAG.md))
+2. **LangGraph**: Orchestrates LLM → tools → memory → response workflow (see [12_LANGGRAPH_CHECKPOINTING.md](12_LANGGRAPH_CHECKPOINTING.md))
+3. **Memory Layer** (see [10_MEMORY_ARCHITECTURE.md](10_MEMORY_ARCHITECTURE.md)):
    - Redis checkpointing (short-term conversation history)
    - RedisVL vector search (episodic goals + procedural patterns)
-4. **Tool Layer**: 5 LLM-callable tools
+4. **Tool Layer**: 5 LLM-callable tools (see [13_TOOLS_SERVICES_UTILS_REFERENCE.md](13_TOOLS_SERVICES_UTILS_REFERENCE.md))
    - **Health data**: `get_health_metrics`, `get_sleep_analysis`, `get_workout_data`
    - **Memory**: `get_my_goals`, `get_tool_suggestions`
 
@@ -272,10 +272,10 @@ Future similar queries will retrieve this pattern via `get_tool_suggestions`, he
 
 ## 6. Related Documentation
 
-- **[02_THE_DEMO.md](02_THE_DEMO.md)** - Side-by-side stateless vs. stateful comparison in the UI
-- **[03_MEMORY_ARCHITECTURE.md](03_MEMORY_ARCHITECTURE.md)** - Deep dive into four-layer memory system
-- **[04_AUTONOMOUS_AGENTS.md](04_AUTONOMOUS_AGENTS.md)** - Tool-calling and agentic workflow patterns
-- **[05_REDIS_PATTERNS.md](05_REDIS_PATTERNS.md)** - Redis usage patterns and best practices
+- **[05_STATELESS_VS_STATEFUL_COMPARISON.md](05_STATELESS_VS_STATEFUL_COMPARISON.md)** - Side-by-side stateless vs. stateful comparison in the UI
+- **[10_MEMORY_ARCHITECTURE.md](10_MEMORY_ARCHITECTURE.md)** - Deep dive into four-layer memory system
+- **[06_AGENTIC_RAG.md](06_AGENTIC_RAG.md)** - Tool-calling and agentic workflow patterns
+- **[11_REDIS_PATTERNS.md](11_REDIS_PATTERNS.md)** - Redis usage patterns and best practices
 
 ---
 

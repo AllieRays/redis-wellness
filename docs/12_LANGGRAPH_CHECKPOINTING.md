@@ -57,6 +57,10 @@ async def get_checkpointer():
     return checkpointer
 ```
 
+**Real code**:
+- Checkpointer initialization: [`redis_connection.py:255-292`](../backend/src/services/redis_connection.py#L255-L292)
+- Redis URL builder: [`redis_connection.py:309-330`](../backend/src/services/redis_connection.py#L309-L330)
+
 ### Integration with LangGraph
 
 ```python
@@ -73,6 +77,10 @@ class StatefulRAGAgent:
         return workflow.compile(checkpointer=self.checkpointer)
 ```
 
+**Real code**:
+- Agent initialization: [`stateful_rag_agent.py:59-73`](../backend/src/agents/stateful_rag_agent.py#L59-L73)
+- Graph compilation: [`stateful_rag_agent.py:91-146`](../backend/src/agents/stateful_rag_agent.py#L91-L146)
+
 ---
 
 ## 4. How It Works
@@ -87,6 +95,9 @@ class MemoryState(TypedDict):
     procedural_patterns: list[dict] | None
     workflow_start_time: int
 ```
+
+**Real code**:
+- State definition: [`stateful_rag_agent.py:47-56`](../backend/src/agents/stateful_rag_agent.py#L47-L56)
 
 ### Automatic Saving
 
@@ -106,6 +117,9 @@ new_state = await node_function(previous_state)
 await checkpointer.aput(config, new_state)
 ```
 
+**Real code**:
+- Graph execution example: [`stateful_rag_agent.py:270-296`](../backend/src/agents/stateful_rag_agent.py#L270-L296) (invoke method)
+
 ### Redis Keys
 
 ```bash
@@ -117,6 +131,8 @@ langgraph:checkpoint:abc123:0  # Initial state
 langgraph:checkpoint:abc123:1  # After first LLM call
 langgraph:checkpoint:abc123:2  # After tool execution
 ```
+
+**Storage**: LangGraph's AsyncRedisSaver automatically manages checkpoint keys. No manual key management needed.
 
 ---
 

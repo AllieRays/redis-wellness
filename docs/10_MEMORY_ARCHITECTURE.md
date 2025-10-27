@@ -22,40 +22,28 @@ This document explains the **four-layer memory architecture** that transforms th
 flowchart TD
     User[👤 User Query] --> Agent[🤖 Qwen 2.5 7B]
 
-    Agent --> STM["💭 Short-Term Memory<br/>(LangGraph Checkpointing)<br/>Recent conversation"]
-    Agent --> EM["🎯 Episodic Memory<br/>(RedisVL Vector Search)<br/>Goals & facts"]
-    Agent --> PM["🧠 Procedural Memory<br/>(RedisVL Vector Search)<br/>Learned patterns"]
-    Agent --> SM["📚 Semantic Memory<br/>(RedisVL Vector Search)<br/>Domain knowledge"]
+    Agent --> STM["💭 Short-Term Memory<br/>(LangGraph Checkpointing)<br/><br/>Recent conversation<br/>7 months TTL<br/>Automatic load<br/><br/>Enables: Follow-ups,<br/>pronoun resolution"]
+    Agent --> EM["🎯 Episodic Memory<br/>(RedisVL Vector Search)<br/><br/>Goals & facts<br/>Permanent storage<br/>Cross-session recall<br/><br/>Example: 'My goal is<br/>125 lbs by December'"]
+    Agent --> PM["🔧 Procedural Memory<br/>(RedisVL Vector Search)<br/><br/>Learned patterns<br/>Permanent storage<br/>Speeds up queries<br/><br/>Example: Tool chains<br/>for comparisons (32% faster)"]
+    Agent --> SM["🧠 Semantic Memory<br/>(RedisVL Vector Search)<br/><br/>Domain knowledge<br/>Permanent storage<br/>Optional<br/><br/>Example: 'Normal HR<br/>is 60-100 bpm'"]
 
-    STM --> Redis[(Redis)]
-    EM --> RedisVL[(RedisVL)]
+    STM --> Redis[(Redis<br/>Checkpoint<br/>Storage)]
+    EM --> RedisVL[(RedisVL<br/>Vector Indexes<br/>1024-dim HNSW)]
     PM --> RedisVL
     SM --> RedisVL
 
     Redis --> Response[💬 Contextual Response]
     RedisVL --> Response
 
-    subgraph legend["Memory Characteristics"]
-        L1["💭 Short-Term: 7 months TTL, automatic"]
-        L2["🎯 Episodic: Permanent, cross-session"]
-        L3["🧠 Procedural: Permanent, speeds up queries"]
-        L4["📚 Semantic: Permanent, optional"]
-    end
-
     style User fill:#f5f5f5,stroke:#333,stroke-width:2px
     style Agent fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style STM fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style EM fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style PM fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style SM fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style STM fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    style EM fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    style PM fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style SM fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
     style Redis fill:#DC382C,stroke:#DC382C,stroke-width:3px,color:#fff
     style RedisVL fill:#DC382C,stroke:#DC382C,stroke-width:3px,color:#fff
-    style Response fill:#f5f5f5,stroke:#DC382C,stroke-width:3px
-    style legend fill:#fff,stroke:#ddd,stroke-width:1px
-    style L1 fill:#fff,stroke:none
-    style L2 fill:#fff,stroke:none
-    style L3 fill:#fff,stroke:none
-    style L4 fill:#fff,stroke:none
+    style Response fill:#fff3e0,stroke:#DC382C,stroke-width:3px
 ```
 
 ### 1️⃣ Short-Term Memory
@@ -73,6 +61,8 @@ User: "Is that good?" ← Remembers "that" = 72 bpm
 ```
 
 **Redis Keys**: `langgraph:checkpoint:{session_id}:*`
+
+[📄 View implementation](../backend/src/agents/stateful_rag_agent.py)
 
 ---
 
@@ -95,6 +85,8 @@ Agent: "Your goal is 125 lbs. Current: 136.8 lbs..."
 
 **Redis Keys**: `episodic:{user_id}:goal:{timestamp}`
 
+[📄 View service](../backend/src/services/episodic_memory_manager.py) | [📄 View tools](../backend/src/apple_health/query_tools/memory_tools.py)
+
 ---
 
 ### 3️⃣ Procedural Memory
@@ -116,6 +108,8 @@ Query 2: Similar comparison query
 
 **Redis Keys**: `procedural:pattern:{timestamp}`
 
+[📄 View service](../backend/src/services/procedural_memory_manager.py) | [📄 View tools](../backend/src/apple_health/query_tools/memory_tools.py)
+
 ---
 
 ### 4️⃣ Semantic Memory (Optional)
@@ -129,11 +123,15 @@ Query 2: Similar comparison query
 
 **Redis Keys**: `semantic:{category}:{timestamp}`
 
+[📄 View service](../backend/src/services/semantic_memory_manager.py)
+
 ---
 
 ## 3. Redis Storage Patterns
 
 ### Short-Term (LangGraph Checkpointing)
+
+[📄 View implementation](../backend/src/agents/stateful_rag_agent.py)
 
 ```python
 # Automatic via LangGraph AsyncRedisSaver
@@ -154,6 +152,8 @@ checkpointer = AsyncRedisSaver(redis_url="redis://localhost:6379")
 
 ### Episodic (RedisVL Vector Index)
 
+[📄 View implementation](../backend/src/services/episodic_memory_manager.py)
+
 ```python
 # Stored with 1024-dim embeddings
 {
@@ -173,6 +173,8 @@ results = episodic_index.search(query_embedding, top_k=3)
 ---
 
 ### Procedural (RedisVL Vector Index)
+
+[📄 View implementation](../backend/src/services/procedural_memory_manager.py)
 
 ```python
 # Stored after successful workflows
@@ -213,6 +215,8 @@ result = await graph.ainvoke(input_state, config)
 **When**: LLM decides based on query
 **How**: LLM calls memory tools
 
+[📄 View tools](../backend/src/apple_health/query_tools/memory_tools.py)
+
 ```python
 # LLM sees query mentions "goal"
 # → Autonomously calls get_my_goals tool
@@ -248,6 +252,8 @@ workflow.add_node("store_procedural", self._store_procedural_node)
 ```
 
 ### Storage Logic
+
+[📄 View workflow nodes](../backend/src/agents/stateful_rag_agent.py) | [📄 View fact extractor](../backend/src/utils/conversation_fact_extractor.py)
 
 ```python
 async def _store_episodic_node(self, state):

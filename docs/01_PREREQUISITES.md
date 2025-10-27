@@ -126,7 +126,7 @@ ollama --version
 
 ### Pull Required Models
 
-Download the Qwen 2.5 7B model and embeddings model (required for the demo):
+Download the Qwen 2.5 7B model and embeddings model (required for the demo). For detailed best practices on using Qwen 2.5, see [08_QWEN_BEST_PRACTICES.md](08_QWEN_BEST_PRACTICES.md).
 
 ```bash
 # Pull Qwen 2.5 7B Instruct (main chat model - 4.7 GB)
@@ -160,7 +160,7 @@ ollama list
 
 ## 5. Apple Health Data Export
 
-Export your health data from your iPhone's Health app.
+Export your health data from your iPhone's Health app. For detailed information about how this data is processed and indexed, see [07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md](07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md).
 
 ### Export Steps
 
@@ -352,7 +352,7 @@ Once all prerequisites are installed and verified:
 | Ollama installed with Qwen 2.5 7B and mxbai-embed-large | ✅ |
 | Apple Health data exported to `apple_health_export/export.xml` | ✅ |
 
-**→ Continue to [01_QUICKSTART.md](01_QUICKSTART.md)** to start the application and import your health data.
+**→ Continue to [02_QUICKSTART.md](02_QUICKSTART.md)** to start the application and import your health data.
 
 ### Getting Help
 
@@ -368,16 +368,16 @@ Once all prerequisites are installed and verified:
 - [Apple Health Export Guide](https://support.apple.com/en-us/HT203037)
 
 **Project-Specific Issues:**
-- Check [01_QUICKSTART.md](01_QUICKSTART.md) for common setup issues
+- Check [02_QUICKSTART.md](02_QUICKSTART.md) for common setup issues
 - Review logs: `docker compose logs`
 
 ---
 
 ## Related Documentation
 
-- **[01_QUICKSTART.md](01_QUICKSTART.md)** - Quick start guide to run the application
-- **[02_THE_DEMO.md](02_THE_DEMO.md)** - Understanding the side-by-side demo
-- **[07_APPLE_HEALTH_DATA.md](07_APPLE_HEALTH_DATA.md)** - Apple Health data pipeline details
+- **[02_QUICKSTART.md](02_QUICKSTART.md)** - Quick start guide to run the application
+- **[05_STATELESS_VS_STATEFUL_COMPARISON.md](05_STATELESS_VS_STATEFUL_COMPARISON.md)** - Understanding the side-by-side demo
+- **[07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md](07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md)** - Apple Health data pipeline details
 
 ---
 

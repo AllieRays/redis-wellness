@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-Get the Redis Wellness demo running in under 5 minutes using simple Make commands. This guide assumes you've completed [00_PREREQUISITES.md](00_PREREQUISITES.md).
+Get the Redis Wellness demo running in under 5 minutes using simple Make commands. This guide assumes you've completed [01_PREREQUISITES.md](01_PREREQUISITES.md).
 
 ### Quick Start (TL;DR)
 
@@ -43,7 +43,7 @@ ollama list | grep -E "qwen2.5:7b|mxbai-embed-large"
 ls apple_health_export/export.xml
 ```
 
-**If any check fails**, complete [00_PREREQUISITES.md](00_PREREQUISITES.md) first.
+**If any check fails**, complete [01_PREREQUISITES.md](01_PREREQUISITES.md) first.
 
 ---
 
@@ -91,7 +91,7 @@ make stats
 
 ## 5. Try the Demo
 
-Open **http://localhost:3000** - you'll see a side-by-side comparison of stateless vs. stateful agents.
+Open **http://localhost:3000** - you'll see a side-by-side comparison of stateless vs. stateful agents. For a detailed architectural comparison, see [05_STATELESS_VS_STATEFUL_COMPARISON.md](05_STATELESS_VS_STATEFUL_COMPARISON.md).
 
 ### Test the Memory Difference
 
@@ -107,18 +107,18 @@ Try this sequence to see memory in action:
    - ❌ **Stateless**: "I don't have context about what I said before."
    - ✅ **Stateful**: "Based on your last 6 workouts, 3 were on Friday..."
 
-The stateful agent remembers the conversation and can reference previous responses.
+The stateful agent remembers the conversation and can reference previous responses using its [four-layer memory architecture](10_MEMORY_ARCHITECTURE.md).
 
 ### Useful Commands
 
 ```bash
 make logs           # View real-time logs
-make redis-keys     # Check Redis data
+make redis-keys     # Check Redis data (see 11_REDIS_PATTERNS.md)
 make clear-session  # Clear chat (keeps health data)
 make stats          # View health data statistics
 ```
 
-See [02_THE_DEMO.md](02_THE_DEMO.md) for detailed comparison.
+See [05_STATELESS_VS_STATEFUL_COMPARISON.md](05_STATELESS_VS_STATEFUL_COMPARISON.md) for detailed comparison.
 
 ---
 
@@ -238,11 +238,11 @@ Now that the demo is running:
 
 ## Related Documentation
 
-- **[00_PREREQUISITES.md](00_PREREQUISITES.md)** - Prerequisites setup guide
-- **[02_THE_DEMO.md](02_THE_DEMO.md)** - Detailed demo walkthrough and comparison
-- **[03_MEMORY_ARCHITECTURE.md](03_MEMORY_ARCHITECTURE.md)** - Four-layer memory system explained
-- **[04_AUTONOMOUS_AGENTS.md](04_AUTONOMOUS_AGENTS.md)** - How agentic tool calling works
-- **[07_APPLE_HEALTH_DATA.md](07_APPLE_HEALTH_DATA.md)** - Apple Health data pipeline details
+- **[01_PREREQUISITES.md](01_PREREQUISITES.md)** - Prerequisites setup guide
+- **[05_STATELESS_VS_STATEFUL_COMPARISON.md](05_STATELESS_VS_STATEFUL_COMPARISON.md)** - Detailed demo walkthrough and comparison
+- **[10_MEMORY_ARCHITECTURE.md](10_MEMORY_ARCHITECTURE.md)** - Four-layer memory system explained
+- **[06_AGENTIC_RAG.md](06_AGENTIC_RAG.md)** - How agentic tool calling works
+- **[07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md](07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md)** - Apple Health data pipeline details
 
 ---
 
