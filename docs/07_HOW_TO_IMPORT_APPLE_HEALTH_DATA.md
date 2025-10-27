@@ -1,21 +1,21 @@
 # How to Import Apple Health Data
 
-## 1. Overview
+## Overview
 
 This guide walks you through importing Apple Health data from your iPhone's `export.xml` file into Redis. The process involves exporting data from your iPhone, placing it in the correct directory, running the `make import` command, and verifying the data is properly indexed in Redis.
 
-### What You'll Learn
+### Steps
 
-- **[Exporting from iPhone](#2-exporting-from-iphone)** - How to export your Apple Health data as XML
-- **[Preparing the Data](#3-preparing-the-data)** - Where to place export.xml in the project
-- **[Running the Import](#4-running-the-import)** - Using `make import` to load data into Redis
-- **[Verifying the Import](#5-verifying-the-import)** - Confirming data is properly indexed
-- **[What Gets Stored](#6-what-gets-stored-in-redis)** - Understanding Redis data structure
-- **[Related Documentation](#7-related-documentation)** - Links to related docs
+- **Step 1: [Exporting from iPhone](#1-exporting-from-iphone)** - How to export your Apple Health data as XML
+- **Step 2: [Preparing the Data](#2-preparing-the-data)** - Where to place export.xml in the project
+- **Step 3: [Running the Import](#3-running-the-import)** - Using `make import` to load data into Redis
+- **Step 4: [Verifying the Import](#4-verifying-the-import)** - Confirming data is properly indexed
+- **Step 5: [What Gets Stored](#5-what-gets-stored-in-redis)** - Understanding Redis data structure
+- **Step 6: [Related Documentation](#6-related-documentation)** - Links to related docs
 
 ---
 
-## 2. Exporting from iPhone
+## 1. Exporting from iPhone
 
 
 **Step 1: Open Health App**
@@ -45,7 +45,7 @@ Use AirDrop, Files app, or iCloud Drive to transfer the export to your developme
 
 ---
 
-## 3. Preparing the Data
+## 2. Preparing the Data
 
 **Step 1: Unzip the Export**
 
@@ -91,7 +91,7 @@ redis-wellness/
 
 ---
 
-## 4. Running the Import
+## 3. Running the Import
 
 ### Using Make (Recommended)
 
@@ -203,7 +203,7 @@ make import-local  # If you have parsed_health_data.json
 
 ---
 
-## 5. Verifying the Import
+## 4. Verifying the Import
 
 ### Quick Verification
 
@@ -289,7 +289,7 @@ Total keys: 462
 
 ---
 
-## 6. What Gets Stored in Redis
+## 5. What Gets Stored in Redis
 
 
 After import, Redis contains multiple data structures optimized for different query patterns:
@@ -416,7 +416,7 @@ GET user:wellness_user:metric:BodyMass
 
 ---
 
-## 7. Related Documentation
+## 6. Related Documentation
 
 - **[01_QUICKSTART.md](01_QUICKSTART.md)** - Get started with the demo
 - **[03_MEMORY_ARCHITECTURE.md](03_MEMORY_ARCHITECTURE.md)** - Understanding the memory system

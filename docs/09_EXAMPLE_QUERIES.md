@@ -1,383 +1,235 @@
-# Example Queries: Stateless vs Stateful Comparison
+# Example Queries: Stateless vs Stateful
 
-## 1. Overview
+See why memory transforms AI from simple Q&A into intelligent conversation.
 
-This guide demonstrates the difference between stateless and stateful AI agents using **real health queries**. Each example shows what tools are used, which memory systems activate, and how responses differ.
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px', 'edgeLabelBackground':'#f8f9fa'}, 'flowchart': {'nodeSpacing': 30, 'rankSpacing': 40}}}%%
+flowchart LR
+    Query["User Query<br/>'What's my heart rate?'<br/>'Is that good?'"]
 
-**Teaching Goal**: See why memory transforms AI from simple Q&A into intelligent conversation.
+    subgraph Stateless["❌ Stateless Agent"]
+        NoMemory["No Memory<br/>Each query isolated"]
+        ToolsOnly["Tools Only<br/>get_health_metrics<br/>get_sleep_analysis<br/>get_workout_data"]
+        Confused["❌ Breaks on<br/>follow-ups"]
+    end
 
-### What You'll Learn
+    subgraph Stateful["✅ Stateful Agent"]
+        ShortTerm["Short-term<br/>LangGraph checkpoints"]
+        Episodic["Episodic<br/>RedisVL goals"]
+        Procedural["Procedural<br/>RedisVL patterns"]
+        Smart["✅ Context-aware<br/>responses"]
+    end
 
-- **[Basic Health Queries](#2-basic-health-queries)** - Simple metric retrieval and statistics
-- **[Follow-up Questions](#3-follow-up-questions)** - Where stateless fails and stateful shines
-- **[Pronoun Resolution](#4-pronoun-resolution)** - Understanding "it", "that", "those"
-- **[Goal-Based Queries](#5-goal-based-queries-episodic-memory)** - Episodic memory retrieval
-- **[Pattern Learning](#6-pattern-learning-procedural-memory)** - Procedural memory optimization
-- **[Multi-Turn Reasoning](#7-multi-turn-reasoning)** - Complex conversations with context
-- **[Tool Chaining](#8-tool-chaining-examples)** - Multi-step autonomous workflows
+    Query --> Stateless
+    Query --> Stateful
+    NoMemory --> ToolsOnly
+    ToolsOnly --> Confused
+    ShortTerm --> Smart
+    Episodic --> Smart
+    Procedural --> Smart
 
----
+    style Query fill:#fff,stroke:#333,stroke-width:2px
+    style Stateless fill:#fff5f5,stroke:#333,stroke-width:2px
+    style NoMemory fill:#fff,stroke:#6c757d,stroke-width:1px
+    style ToolsOnly fill:#fff,stroke:#6c757d,stroke-width:1px
+    style Confused fill:#ffe0e0,stroke:#333,stroke-width:2px
+    style Stateful fill:#f0fff0,stroke:#333,stroke-width:2px
+    style ShortTerm fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Episodic fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Procedural fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Smart fill:#d4edda,stroke:#333,stroke-width:2px
+```
 
-## 2. Basic Health Queries
+## Quick Index
 
-### Query: "What was my average heart rate last week?"
-
-| Aspect | Details |
-|--------|---------|
-| **Feature** | Health metric retrieval with statistics |
-| **Tool Used** | `get_health_metrics` |
-| **Memory Type** | None (stateless) / Short-term (stateful) |
-| **Stateless Response** | "Your average heart rate last week was 72 bpm." |
-| **Stateful Response** | "Your average heart rate last week was 72 bpm." |
-| **Key Difference** | ✅ Both agents answer correctly on first query |
-
-**Why they're the same**: First queries don't need memory. Both agents call the same tool and return the same data.
-
----
-
-### Query: "How many calories did I burn this month?"
-
-| Aspect | Details |
-|--------|---------|
-| **Feature** | Workout calorie aggregation |
-| **Tool Used** | `get_workout_data` |
-| **Memory Type** | None |
-| **Stateless Response** | "You burned 2,847 calories across 12 workouts this month." |
-| **Stateful Response** | "You burned 2,847 calories across 12 workouts this month." |
-| **Key Difference** | ✅ Both agents provide same factual answer |
-
-**Why they're the same**: Simple factual queries work for both agents.
-
----
-
-## 3. Follow-up Questions
-
-### Initial Query: "How many workouts do I have?"
-
-| Aspect | Details |
-|--------|---------|
-| **Tool Used** | `get_workout_data` |
-| **Stateless Response** | "You have 154 workouts recorded." |
-| **Stateful Response** | "You have 154 workouts recorded." |
-
-### Follow-up: "What's the most common type?"
-
-| Aspect | Details |
-|--------|---------|
-| **Memory Type** | None / Short-term checkpointing |
-| **Stateless Response** | ❌ "What are you referring to? Please provide more context about what you want to know the most common type of." |
-| **Stateful Response** | ✅ "Traditional Strength Training is your most common workout type (40 workouts, 26% of your total)." |
-| **Key Difference** | Stateful remembers "workouts" from previous turn |
-
-**Redis Keys Used (Stateful)**:
-- `langgraph:checkpoint:{session_id}:*` - Conversation history
+1. [Basic Queries](#basic-queries) - Both agents work the same
+2. [Follow-up Questions](#follow-up-questions) - Where stateless breaks
+3. [Goal Memory](#goal-memory) - Remembering user goals
+4. [Pattern Learning](#pattern-learning) - Getting faster over time
+5. [Tool Chaining](#tool-chaining) - Multi-step reasoning
 
 ---
 
-### Initial: "When was my last cycling workout?"
+## Basic Queries
 
-| Aspect | Details |
-|--------|---------|
-| **Tool Used** | `get_workout_data` |
-| **Stateless Response** | "Your last cycling workout was on October 17, 2024 at 4:19 PM." |
-| **Stateful Response** | "Your last cycling workout was on October 17, 2024 at 4:19 PM." |
+**Both agents work the same on first queries** - memory isn't needed yet.
 
-### Follow-up: "How many calories did I burn?"
+```
+"What was my average heart rate last week?"
+→ Both: "Your average heart rate last week was 72 bpm."
 
-| Aspect | Details |
-|--------|---------|
-| **Memory Type** | Short-term checkpointing |
-| **Stateless Response** | ❌ "I need more information. Which workout or time period are you asking about?" |
-| **Stateful Response** | ✅ "You burned 420 calories during that cycling workout on October 17th." |
-| **Key Difference** | Stateful connects "I burn" to "last cycling workout" |
-
-**How It Works**:
-```python
-# Stateful agent has conversation history in context:
-messages = [
-    HumanMessage("When was my last cycling workout?"),
-    AIMessage("Your last cycling workout was on October 17, 2024 at 4:19 PM."),
-    HumanMessage("How many calories did I burn?")  # LLM understands implicit reference
-]
+"How many calories did I burn this month?"
+→ Both: "You burned 2,847 calories across 12 workouts this month."
 ```
 
 ---
 
-## 4. Pronoun Resolution
+## Follow-up Questions
 
-### Initial: "Show me my workouts from last Friday"
+### Example 1: Workout Types
 
-| Aspect | Details |
-|--------|---------|
-| **Tool Used** | `get_workout_data` |
-| **Stateless Response** | "You had 2 workouts last Friday: Cycling (45 min, 420 cal) and Yoga (30 min, 150 cal)." |
-| **Stateful Response** | "You had 2 workouts last Friday: Cycling (45 min, 420 cal) and Yoga (30 min, 150 cal)." |
+```
+You: "How many workouts do I have?"
+Both: "You have 154 workouts recorded."
 
-### Follow-up: "Which one was more intense?"
+You: "What's the most common type?"
+Stateless: ❌ "What are you referring to?"
+Stateful:  ✅ "Traditional Strength Training (40 workouts, 26%)."
+```
 
-| Aspect | Details |
-|--------|---------|
-| **Memory Type** | Short-term checkpointing |
-| **Stateless Response** | ❌ "Which workouts are you comparing? Please specify." |
-| **Stateful Response** | ✅ "The cycling workout was more intense - you averaged 142 bpm vs 98 bpm for yoga, and burned 2.8x more calories per minute." |
-| **Pronoun Resolved** | "one" → "cycling vs yoga from last Friday" |
+**Why**: Stateful remembers "workouts" from previous turn via LangGraph checkpointing.
 
-**Redis Keys Used (Stateful)**:
-- `langgraph:checkpoint:{session_id}:*` - Stores both messages
+### Example 2: Calories Burned
 
----
+```
+You: "When was my last cycling workout?"
+Both: "October 17, 2024 at 4:19 PM."
 
-### Query: "Did I work out yesterday? If so, how long?"
+You: "How many calories did I burn?"
+Stateless: ❌ "Which workout are you asking about?"
+Stateful:  ✅ "420 calories during that cycling workout."
+```
 
-| Aspect | Details |
-|--------|---------|
-| **Feature** | Conditional query with implicit follow-up |
-| **Tool Used** | `get_workout_data` |
-| **Stateless Response** | "Yes, you did a 52-minute strength training workout yesterday." |
-| **Stateful Response** | "Yes, you did a 52-minute strength training workout yesterday." |
-| **Key Difference** | ✅ Both handle compound queries in single turn |
+### Example 3: Pronoun Resolution
 
-**Why they're the same**: Single-turn compound queries work for both.
+```
+You: "Show me my workouts from last Friday"
+Both: "Cycling (45 min, 420 cal) and Yoga (30 min, 150 cal)."
 
----
-
-## 5. Goal-Based Queries (Episodic Memory)
-
-### Query: "Am I on track for my weight goal?"
-
-| Aspect | Details |
-|--------|---------|
-| **Tool Used (Stateless)** | `get_health_metrics` only |
-| **Tool Used (Stateful)** | `get_my_goals` (RedisVL) → `get_health_metrics` |
-| **Memory Type** | None / Episodic (vector search) |
-| **Stateless Response** | ❌ "I don't have information about your goals. What is your target weight?" |
-| **Stateful Response** | ✅ "Your goal is 125 lbs by December. Current weight: 136.8 lbs. You've lost 8.2 lbs since September - you're making excellent progress!" |
-| **Redis Keys** | `episodic:wellness_user:goal:1729962000` |
-| **How Retrieved** | LLM autonomously calls `get_my_goals` tool |
-
-**How It Works**:
-```python
-# Stateful agent workflow:
-# 1. LLM sees query mentions "goal"
-# 2. LLM autonomously calls get_my_goals tool
-# 3. Tool uses RedisVL vector search to find goal
-# 4. LLM calls get_health_metrics with current weight
-# 5. LLM synthesizes comparison
+You: "Which one was more intense?"
+Stateless: ❌ "Which workouts are you comparing?"
+Stateful:  ✅ "Cycling - 142 bpm vs 98 bpm, and 2.8x more calories/min."
 ```
 
 ---
 
-### Query: "How close am I to my step goal?"
+## Goal Memory
 
-| Aspect | Details |
-|--------|---------|
-| **Tool Used (Stateless)** | `get_health_metrics` only |
-| **Tool Used (Stateful)** | `get_my_goals` → `get_health_metrics` |
-| **Memory Type** | Episodic |
-| **Stateless Response** | ❌ "I need to know your step goal first. What's your daily target?" |
-| **Stateful Response** | ✅ "Your goal is 10,000 steps daily. Today you have 8,432 steps - 84% of your goal with a few hours left!" |
-| **Vector Search Query** | "step goal" → finds stored goal embedding |
+**Stateful agents use RedisVL vector search to remember your goals.**
 
-**Redis Vector Search**:
-```python
-# RedisVL searches episodic memory:
-query_embedding = ollama.embeddings.create(
-    model="mxbai-embed-large",
-    prompt="step goal"
-)
+### Weight Goal
 
-results = redisvl_index.search(
-    query_embedding,
-    top_k=3,
-    filter="@user_id:{wellness_user}"
-)
-# Returns: {"metric": "StepCount", "target": 10000, "unit": "steps"}
+```
+You: "Am I on track for my weight goal?"
+
+Stateless: ❌ "I don't have information about your goals."
+Stateful:  ✅ "Your goal is 125 lbs by December. Current: 136.8 lbs.
+               You've lost 8.2 lbs since September - excellent progress!"
+
+Tools: get_my_goals (RedisVL) → get_health_metrics
+Redis: episodic:wellness_user:goal:1729962000
 ```
 
----
+### Step Goal
 
-## 6. Pattern Learning (Procedural Memory)
+```
+You: "How close am I to my step goal?"
 
-### First Time Query: "Compare my activity this month vs last month"
+Stateless: ❌ "What's your daily target?"
+Stateful:  ✅ "Goal: 10,000 steps. Today: 8,432 (84% complete)."
+```
 
-| Aspect | Details |
-|--------|---------|
-| **Tool Used (Both)** | `get_workout_data` + `get_health_metrics` |
-| **Memory Type** | None / Procedural (learning phase) |
-| **Stateless Performance** | 2.8s (figures out tools each time) |
-| **Stateful Performance** | 2.8s (first time, no pattern yet) |
-| **Key Difference** | ✅ Same performance on first query |
+**How it works**: LLM autonomously calls `get_my_goals` tool when queries mention goals.
 
 ---
 
-### Same Query Asked Again: "Compare my activity this month vs last month"
+## Pattern Learning
 
-| Aspect | Details |
-|--------|---------|
-| **Tool Used (Stateless)** | `get_workout_data` + `get_health_metrics` (figures out again) |
-| **Tool Used (Stateful)** | `get_tool_suggestions` → retrieves pattern → uses same tools |
-| **Memory Type** | None / Procedural (retrieval phase) |
-| **Stateless Performance** | 2.8s (same as before) |
-| **Stateful Performance** | 1.9s (pattern known, faster execution) |
-| **Redis Key** | `procedural:pattern:1729962000` |
-| **How Retrieved** | LLM calls `get_tool_suggestions` for similar queries |
+**Stateful agents learn which tools work for which queries.**
 
-**Procedural Memory Storage**:
+```
+Query: "Compare my activity this month vs last month"
+
+First time:
+  Stateless: 2.8s (figures out tools)
+  Stateful:  2.8s (same - no pattern yet)
+
+Second time:
+  Stateless: 2.8s (figures out again)
+  Stateful:  1.9s (32% faster - pattern known)
+```
+
+Stateful stores successful workflows in procedural memory:
+
 ```python
-# After successful workflow, stateful agent stores:
 {
     "query_type": "activity_comparison",
-    "query": "Compare my activity this month vs last month",
     "tools_used": ["get_workout_data", "get_health_metrics"],
     "success_score": 0.95,
-    "execution_time_ms": 2800,
-    "embedding": <1024-dim vector>
+    "execution_time_ms": 2800
 }
 ```
 
 ---
 
-### Query: "How has my workout frequency changed?"
+## Tool Chaining
 
-| Aspect | Details |
-|--------|---------|
-| **Tool Used (Stateful 1st)** | `get_workout_data` (learns pattern) |
-| **Tool Used (Stateful 2nd+)** | `get_tool_suggestions` → knows to use `get_workout_data` |
-| **Memory Type** | Procedural |
-| **Performance Improvement** | 32% faster on subsequent similar queries |
+**Stateful agents chain tools autonomously for complete answers.**
 
-**Key Insight**: Stateful agent learns which tools work for which query types.
+### Workout Progress
 
----
+```
+You: "Show me my workout pattern and tell me if I'm improving"
 
-## 7. Multi-Turn Reasoning
+Stateless:
+  → Calls get_workout_data
+  → Lists workouts
+  → Stops
 
-### Conversation Flow
+Stateful:
+  → Calls get_workout_data (pattern analysis)
+  → Calls get_workout_data (historical comparison)
+  → Calls get_my_goals (check alignment)
+  → "You work out most on Fridays (24) and Mondays (18).
+      Frequency up 50% this month, aligns with 3x/week goal!"
+```
 
-**Turn 1**: "What was my heart rate during workouts last week?"
+### BMI + Goals
 
-| Aspect | Details |
-|--------|---------|
-| **Stateless** | "Your average workout heart rate last week was 142 bpm." |
-| **Stateful** | "Your average workout heart rate last week was 142 bpm." |
+```
+You: "What's my BMI and is it healthy for my goals?"
 
----
+Stateless:
+  → "BMI 22.1 (normal range). Generally 18.5-24.9 is healthy."
 
-**Turn 2**: "How does that compare to this week?"
-
-| Aspect | Details |
-|--------|---------|
-| **Stateless** | ❌ "I need context. What are you comparing?" |
-| **Stateful** | ✅ "This week your average workout heart rate is 156 bpm - 14 bpm higher (10% increase)." |
-
----
-
-**Turn 3**: "Is the trend concerning?"
-
-| Aspect | Details |
-|--------|---------|
-| **Stateless** | ❌ "I need more information. What trend are you referring to?" |
-| **Stateful** | ✅ "This 10% increase isn't concerning if you intensified your workouts. Your data shows you replaced walking with cycling this week, which explains the higher heart rate. If your workout intensity didn't change, consider checking recovery and hydration." |
-
-**Memory Used (Stateful)**:
-- **Short-term**: All 3 conversation turns in context
-- **Episodic**: User's heart rate goals (if set)
-- **Procedural**: Similar comparison query patterns
-
----
-
-## 8. Tool Chaining Examples
-
-### Query: "Show me my workout pattern and tell me if I'm improving"
-
-**Stateless Agent Workflow**:
-1. ❌ Calls `get_workout_data` → retrieves workout list
-2. ❌ Stops (no context to know user wants improvement analysis)
-3. Response: "Here are your workouts over the past month: [lists 12 workouts]. What would you like to know about them?"
-
-**Stateful Agent Workflow**:
-1. ✅ Calls `get_workout_data` with pattern analysis
-2. ✅ Sees pattern result, autonomously calls `get_workout_data` again for historical comparison
-3. ✅ Calls `get_my_goals` to check if improvement aligns with goals
-4. Response: "You work out most consistently on Fridays (24 workouts) and Mondays (18 workouts). Your frequency increased 50% this month (12 workouts vs 8 last month), which aligns with your goal of 3x per week. You're making excellent progress!"
-
-| Aspect | Stateless | Stateful |
-|--------|-----------|----------|
-| **Tool Calls** | 1 (incomplete) | 3 (comprehensive) |
-| **Context Used** | None | Conversation + Goals |
-| **Response Quality** | Lists data | Analyzes + interprets |
-
-**Key Difference**: Stateful agent chains tools autonomously to provide complete answer.
-
----
-
-### Query: "What's my BMI and is it healthy for my goals?"
-
-**Stateless Agent Workflow**:
-1. Calls `get_health_metrics` (BMI)
-2. Response: "Your BMI is 22.1 (normal range). Generally, BMI 18.5-24.9 is considered healthy."
-
-**Stateful Agent Workflow**:
-1. Calls `get_health_metrics` (BMI)
-2. Autonomously calls `get_my_goals` (weight/BMI goals)
-3. Response: "Your BMI is 22.1 (normal range). Based on your goal of reaching 125 lbs, your target BMI would be 20.8 - still in the healthy range. You're currently 11.8 lbs away from your goal."
-
-| Aspect | Stateless | Stateful |
-|--------|-----------|----------|
-| **Goal Awareness** | ❌ None | ✅ Retrieves from episodic memory |
-| **Personalization** | Generic health info | Tailored to user goals |
-
----
-
-## 9. Intent Routing (Fast Path)
-
-### Query: "My goal is to run 3 times per week"
-
-| Aspect | Details |
-|--------|---------|
-| **Intent Router** | Detects goal-setting pattern |
-| **Fast Path** | Bypasses LLM, direct Redis HSET |
-| **Stateless Response** | "Goal noted (not stored - no memory)" |
-| **Stateful Response** | "✅ Goal stored: Run 3x per week" |
-| **Performance** | <100ms (no LLM call) |
-| **Redis Key** | `episodic:wellness_user:goal:{timestamp}` |
-
-**How Fast Path Works**:
-```python
-# Intent router regex match:
-if re.search(r'\bgoal\b.*\bis\b', query, re.IGNORECASE):
-    # Direct Redis operation (no LLM)
-    redis.hset(goal_key, mapping={
-        "user_id": "wellness_user",
-        "goal": "Run 3x per week",
-        "timestamp": time.time()
-    })
-    return "✅ Goal stored"
+Stateful:
+  → Calls get_health_metrics (BMI)
+  → Calls get_my_goals (weight target)
+  → "BMI 22.1 (normal). Your 125 lb goal = 20.8 BMI (still healthy).
+      You're 11.8 lbs away."
 ```
 
 ---
 
-### Query: "What are my goals?"
+## Multi-Turn Conversations
 
-| Aspect | Details |
-|--------|---------|
-| **Intent Router** | Detects goal-retrieval pattern |
-| **Fast Path** | Direct Redis hash lookup |
-| **Stateless Response** | "I don't store goals (no memory)" |
-| **Stateful Response** | "Your goals: Weight 125 lbs by December, Run 3x/week, Sleep 7+ hours" |
-| **Performance** | <100ms (no LLM, no vector search) |
+**Stateful maintains full conversation context.**
+
+```
+Turn 1: "What was my heart rate during workouts last week?"
+Both: "Average workout heart rate: 142 bpm."
+
+Turn 2: "How does that compare to this week?"
+Stateless: ❌ "What are you comparing?"
+Stateful:  ✅ "This week: 156 bpm (14 bpm higher, 10% increase)."
+
+Turn 3: "Is the trend concerning?"
+Stateless: ❌ "What trend?"
+Stateful:  ✅ "Not concerning if you intensified workouts.
+               You replaced walking with cycling this week,
+               which explains the higher heart rate."
+```
+
+**Memory layers used**: Short-term (conversation), Episodic (goals), Procedural (patterns)
 
 ---
 
-## 10. Related Documentation
+## Related Docs
 
-- **[03_STATELESS_AGENT.md](03_STATELESS_AGENT.md)** - How stateless agent works
-- **[04_STATEFUL_AGENT.md](04_STATEFUL_AGENT.md)** - How stateful agent works
-- **[05_TOOLS_AND_CALLING.md](05_TOOLS_AND_CALLING.md)** - Tool catalog and autonomous calling
-- **[06_MEMORY_ARCHITECTURE.md](06_MEMORY_ARCHITECTURE.md)** - Four-layer memory system
-- **[07_REDIS_PATTERNS.md](07_REDIS_PATTERNS.md)** - Redis data structures for AI
-- **[02_THE_DEMO.md](02_THE_DEMO.md)** - Try these queries in the UI
+- [03_STATELESS_AGENT.md](03_STATELESS_AGENT.md) - Stateless implementation
+- [04_STATEFUL_AGENT.md](04_STATEFUL_AGENT.md) - Stateful implementation
+- [05_TOOLS_AND_CALLING.md](05_TOOLS_AND_CALLING.md) - Tool catalog
+- [06_MEMORY_ARCHITECTURE.md](06_MEMORY_ARCHITECTURE.md) - Memory system
+- [02_THE_DEMO.md](02_THE_DEMO.md) - Try these queries
 
----
-
-**Key takeaway:** Memory transforms AI from isolated Q&A into intelligent conversation. Stateful agents remember context (short-term), recall goals (episodic), learn patterns (procedural), and chain tools autonomously to provide comprehensive answers.
+**Key takeaway**: Memory transforms AI from isolated Q&A into intelligent conversation.

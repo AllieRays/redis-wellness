@@ -18,6 +18,46 @@ This document explains the **four-layer memory architecture** that transforms th
 
 ## 2. Four Memory Types
 
+```mermaid
+flowchart TD
+    User[👤 User Query] --> Agent[🤖 Qwen 2.5 7B]
+
+    Agent --> STM["💭 Short-Term Memory<br/>(LangGraph Checkpointing)<br/>Recent conversation"]
+    Agent --> EM["🎯 Episodic Memory<br/>(RedisVL Vector Search)<br/>Goals & facts"]
+    Agent --> PM["🧠 Procedural Memory<br/>(RedisVL Vector Search)<br/>Learned patterns"]
+    Agent --> SM["📚 Semantic Memory<br/>(RedisVL Vector Search)<br/>Domain knowledge"]
+
+    STM --> Redis[(Redis)]
+    EM --> RedisVL[(RedisVL)]
+    PM --> RedisVL
+    SM --> RedisVL
+
+    Redis --> Response[💬 Contextual Response]
+    RedisVL --> Response
+
+    subgraph legend["Memory Characteristics"]
+        L1["💭 Short-Term: 7 months TTL, automatic"]
+        L2["🎯 Episodic: Permanent, cross-session"]
+        L3["🧠 Procedural: Permanent, speeds up queries"]
+        L4["📚 Semantic: Permanent, optional"]
+    end
+
+    style User fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Agent fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style STM fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style EM fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style PM fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style SM fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Redis fill:#DC382C,stroke:#DC382C,stroke-width:3px,color:#fff
+    style RedisVL fill:#DC382C,stroke:#DC382C,stroke-width:3px,color:#fff
+    style Response fill:#f5f5f5,stroke:#DC382C,stroke-width:3px
+    style legend fill:#fff,stroke:#ddd,stroke-width:1px
+    style L1 fill:#fff,stroke:none
+    style L2 fill:#fff,stroke:none
+    style L3 fill:#fff,stroke:none
+    style L4 fill:#fff,stroke:none
+```
+
 ### 1️⃣ Short-Term Memory
 
 **Purpose**: Recent conversation within current session
