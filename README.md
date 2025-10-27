@@ -55,75 +55,42 @@ Built with **FastAPI**, **TypeScript**, **Redis**, **RedisVL**, and **Ollama (Qw
 
 ## 🎯 The Difference
 
-### Stateless Agent (No Memory)
-
 ```mermaid
 flowchart TB
-    UI["User Interface"]
-    Router["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
+    subgraph Stateless["❌ Stateless Agent (No Memory)"]
+        direction LR
+        Q1["👤 Query"] --> A1["🤖 Qwen 2.5 7B"]
+        A1 --> T1["🛠️ 3 Tools"]
+        T1 --> R1["📊 Redis Data"]
+        R1 --> Res1["💬 Response"]
+        Res1 -."forgets".-> F1["❌"]
+    end
 
-    Simple["Redis<br/>(Simple Queries)"]
-    SimpleLoop["Simple Tool Loop<br/>• Qwen 2.5 7B LLM<br/>• Tool calling<br/>• Response synthesis"]
+    subgraph Stateful["✅ Stateful Agent (With Memory)"]
+        direction LR
+        Q2["👤 Query"] --> A2["🤖 Qwen 2.5 7B"]
+        A2 --> M2["🧠 Memory<br/>RedisVL"]
+        A2 --> T2["🛠️ 5 Tools"]
+        T2 --> R2["📊 Redis Data"]
+        M2 --> Res2["💬 Response"]
+        R2 --> Res2
+        Res2 --> S2["✅ Store"]
+    end
 
-    Tools["Health Tools<br/>(3 tools)"]
-    RedisData["Redis Health Data Store"]
-    Response["Response to User"]
-    Forget["❌ FORGET EVERYTHING"]
+    style Q1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style A1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style T1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style R1 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Res1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style F1 fill:#fff,stroke:#dc3545,stroke-width:3px,color:#dc3545
 
-    UI --> Router
-    Router -->|"Simple"| Simple
-    Router -->|"Complex"| SimpleLoop
-    Simple --> RedisData
-    SimpleLoop --> Tools
-    Tools --> RedisData
-    RedisData --> Response
-    Response --> UI
-    Response --> Forget
-
-    style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
-    style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
-    style Simple fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style SimpleLoop fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
-    style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
-    style RedisData fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style Response fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
-    style Forget fill:#fff,stroke:#dc3545,stroke-width:2px,color:#dc3545,stroke-dasharray: 5 5
-```
-
-### Stateful Agent (With Memory)
-
-```mermaid
-flowchart TB
-    UI["User Interface"]
-    Router["Intent Router<br/>(Pre-LLM)<br/>Pattern matching"]
-    Simple["Redis<br/>(Simple Queries)"]
-    Complex["LangGraph StateGraph<br/>• Qwen 2.5 7B LLM<br/>• Tool calling loop<br/>• Response synthesis"]
-    RedisShort["Redis Short-term<br/>Checkpointing"]
-    RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
-    Tools["LLM Tools<br/>(5 total: 3 health + 2 memory)"]
-    Response["Response to User"]
-    Store["✅ STORE MEMORY"]
-
-    UI --> Router
-    Router -->|"Fast path"| Simple
-    Router -->|"Complex path"| Complex
-    Simple --> Response
-    Complex --> RedisShort
-    Complex --> RedisVL
-    Complex --> Tools
-    Tools --> Response
-    Response --> UI
-    Response --> Store
-
-    style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
-    style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
-    style Simple fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style Complex fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
-    style RedisShort fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style RedisVL fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
-    style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
-    style Response fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
-    style Store fill:#fff,stroke:#28a745,stroke-width:2px,color:#28a745,stroke-dasharray: 5 5
+    style Q2 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style A2 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style M2 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style T2 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style R2 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Res2 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style S2 fill:#fff,stroke:#28a745,stroke-width:3px,color:#28a745
 ```
 
 **Key difference:** Redis memory enables follow-up questions, goal recall, and pattern learning.
