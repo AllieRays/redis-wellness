@@ -16,6 +16,30 @@ See how Redis + RedisVL transforms stateless Q&A into intelligent conversation w
 
 ---
 
+## 🛠️ Tech Stack
+
+- **Backend:** FastAPI + Python 3.11
+- **Frontend:** TypeScript + Vite  
+- **AI:** Ollama (Qwen 2.5 7B) + LangChain
+- **Memory:** Redis + RedisVL (HNSW vector search)
+- **Privacy:** 100% local processing
+
+---
+
+## 📊 Core Architecture
+
+| Component | Stateless Agent | Stateful Agent | Technology |
+|-----------|-----------------|----------------|------------|
+| **LLM** | Qwen 2.5 7B | Qwen 2.5 7B | Ollama (local inference) |
+| **Orchestration** | Simple tool loop | LangGraph StateGraph | LangGraph checkpointing |
+| **Short-term Memory** | None | Conversation history | LangGraph checkpointing |
+| **Episodic Memory** | None | User goals & facts | RedisVL vector search |
+| **Procedural Memory** | None | Workflow patterns | RedisVL vector search |
+| **Health Data** | Redis read-only | Redis read-only | Redis Hashes + JSON |
+| **Tool Calling** | 3 health tools | 5 tools (3 health + 2 memory) | LangChain integration |
+
+---
+
 ## 🎯 The Difference
 
 ### Stateless Agent (No Memory)
@@ -30,6 +54,7 @@ flowchart TB
 
     Tools["Health Tools<br/>(3 tools)"]
     RedisData["Redis Health Data Store"]
+    Response["Response to User"]
     Forget["❌ FORGET EVERYTHING"]
 
     UI --> Router
@@ -38,7 +63,9 @@ flowchart TB
     Simple --> RedisData
     SimpleLoop --> Tools
     Tools --> RedisData
-    RedisData --> Forget
+    RedisData --> Response
+    Response --> UI
+    Response --> Forget
 
     style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
     style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
@@ -46,6 +73,7 @@ flowchart TB
     style SimpleLoop fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
     style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
     style RedisData fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+    style Response fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
     style Forget fill:#fff,stroke:#dc3545,stroke-width:2px,color:#dc3545,stroke-dasharray: 5 5
 ```
 
@@ -60,15 +88,19 @@ flowchart TB
     RedisShort["Redis Short-term<br/>Checkpointing"]
     RedisVL["RedisVL<br/>Episodic + Procedural<br/>Vector Search"]
     Tools["LLM Tools<br/>(5 total: 3 health + 2 memory)"]
+    Response["Response to User"]
     Store["✅ STORE MEMORY"]
 
     UI --> Router
     Router -->|"Fast path"| Simple
     Router -->|"Complex path"| Complex
+    Simple --> Response
     Complex --> RedisShort
     Complex --> RedisVL
     Complex --> Tools
-    Tools --> Store
+    Tools --> Response
+    Response --> UI
+    Response --> Store
 
     style UI fill:#fff,stroke:#6c757d,stroke-width:2px,color:#000
     style Router fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
@@ -77,6 +109,7 @@ flowchart TB
     style RedisShort fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style RedisVL fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style Tools fill:#fff,stroke:#333,stroke-width:2px,color:#000
+    style Response fill:#f8f9fa,stroke:#333,stroke-width:2px,color:#000
     style Store fill:#fff,stroke:#28a745,stroke-width:2px,color:#28a745,stroke-dasharray: 5 5
 ```
 
@@ -87,6 +120,13 @@ flowchart TB
 ---
 
 ## 🚀 Quick Start
+
+**Prerequisites:**
+- Docker & Docker Compose
+- Ollama with models: `ollama pull qwen2.5:7b` and `ollama pull mxbai-embed-large`
+- Apple Health export in `apple_health_export/export.xml`
+
+**[📖 Detailed prerequisites →](docs/01_PREREQUISITES.md)**
 
 ```bash
 # 1. Start services
@@ -110,28 +150,28 @@ make import
 
 ## 📚 Documentation
 
-**Quick Start:**
-- [Prerequisites](docs/01_PREREQUISITES.md) - Docker, Ollama, Apple Health export
-- [Quickstart](docs/02_QUICKSTART.md) - Running in 5 minutes
-- [Example Queries](docs/09_EXAMPLE_QUERIES.md) - Try these to see memory in action
+**Getting Started:**
+1. [Prerequisites](docs/01_PREREQUISITES.md) - Docker, Ollama, Apple Health export
+2. [Quickstart](docs/02_QUICKSTART.md) - Running in 5 minutes
 
-**Architecture Deep Dives:**
-- [Stateless vs Stateful Comparison](docs/05_STATELESS_VS_STATEFUL_COMPARISON.md) - Side-by-side breakdown
-- [Memory Architecture](docs/10_MEMORY_ARCHITECTURE.md) - Four-layer memory system
-- [Agentic RAG](docs/06_AGENTIC_RAG.md) - How tool calling works
-- [LangGraph Checkpointing](docs/12_LANGGRAPH_CHECKPOINTING.md) - Conversation state
+**Agent Architecture:**
+3. [Stateless Agent](docs/03_STATELESS_AGENT.md) - Simple tool loop without memory
+4. [Stateful Agent](docs/04_STATEFUL_AGENT.md) - LangGraph with four-layer memory
+5. [Stateless vs Stateful Comparison](docs/05_STATELESS_VS_STATEFUL_COMPARISON.md) - Side-by-side breakdown
 
-**[📖 All 13 docs →](docs/)**
+**Core Concepts:**
+6. [Agentic RAG](docs/06_AGENTIC_RAG.md) - Autonomous tool calling
+7. [Apple Health Data Import](docs/07_HOW_TO_IMPORT_APPLE_HEALTH_DATA.md) - Data pipeline
+8. [Qwen Best Practices](docs/08_QWEN_BEST_PRACTICES.md) - Tool calling optimization
+9. [Example Queries](docs/09_EXAMPLE_QUERIES.md) - Try these to see memory in action
 
----
+**Memory Systems:**
+10. [Memory Architecture](docs/10_MEMORY_ARCHITECTURE.md) - Four-layer memory system
+11. [Redis Patterns](docs/11_REDIS_PATTERNS.md) - Data structures for AI agents
+12. [LangGraph Checkpointing](docs/12_LANGGRAPH_CHECKPOINTING.md) - Conversation state
 
-## 🛠️ Tech Stack
-
-- **Backend:** FastAPI + Python 3.11
-- **Frontend:** TypeScript + Vite
-- **AI:** Ollama (Qwen 2.5 7B) + LangChain
-- **Memory:** Redis + RedisVL (HNSW vector search)
-- **Privacy:** 100% local processing
+**Reference:**
+13. [Tools, Services & Utils](docs/13_TOOLS_SERVICES_UTILS_REFERENCE.md) - Complete code reference
 
 ---
 

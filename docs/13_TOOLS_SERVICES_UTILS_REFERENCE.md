@@ -177,9 +177,26 @@ flowchart TD
     R --> S[Service adds<br/>memory stats]
     S --> T[API returns to user]
 
-    style E fill:#f9f,stroke:#333,stroke-width:2px
-    style J fill:#f9f,stroke:#333,stroke-width:2px
-    style P fill:#c84,stroke:#333,stroke-width:2px
+    style A fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style B fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style C fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style D fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style E fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style F fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style G fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style H fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style I fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style J fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style K fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style L fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style M fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style N fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style O fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style P fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style Q fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style R fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style S fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style T fill:#f5f5f5,stroke:#DC382C,stroke-width:3px
 ```
 
 ---
@@ -207,9 +224,21 @@ flowchart TD
 
     H1 & H2 & H3 & H4 --> I[Return response +<br/>memory_stats to user]
 
-    style C fill:#c84,stroke:#333,stroke-width:2px
-    style G fill:#c84,stroke:#333,stroke-width:2px
-    style E fill:#f9f,stroke:#333,stroke-width:2px
+    style A fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style B fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style C fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style D1 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style D2 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style D3 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style D4 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style E fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style F fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style G fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style H1 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style H2 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style H3 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style H4 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style I fill:#f5f5f5,stroke:#DC382C,stroke-width:3px
 ```
 
 ---
@@ -239,10 +268,20 @@ flowchart TD
 
     H --> I[Response sent to user]
 
-    style C fill:#f9f,stroke:#333,stroke-width:2px
-    style D fill:#9cf,stroke:#333,stroke-width:2px
-    style E3 fill:#c84,stroke:#333,stroke-width:2px
-    style F fill:#9f9,stroke:#333,stroke-width:2px
+    style A fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style B fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style C fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style D fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style E1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style E2 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style E3 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style E4 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style E5 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style E6 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style F fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style G fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style H fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style I fill:#f5f5f5,stroke:#DC382C,stroke-width:3px
 ```
 
 ---

@@ -124,45 +124,24 @@ class StatefulRAGAgent:
 ## 4. How It Works
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'13px'}, 'flowchart': {'nodeSpacing': 40, 'rankSpacing': 50}}}%%
-flowchart TD
-    Start["🧑 User Query"] --> Load["📥 Load Checkpoint<br/>from Redis"]
-    Load --> Check{"Checkpoint<br/>exists?"}
-
-    Check -->|"Yes"| Restore["🔄 Restore State<br/>(messages, context)"]
-    Check -->|"No"| Init["🆕 Initialize<br/>Empty State"]
-
-    Restore --> Execute["⚙️ Execute LangGraph<br/>Workflow"]
-    Init --> Execute
-
-    Execute --> Node1["Node: LLM<br/>(process query)"]
-    Node1 --> Save1["💾 Save Checkpoint 1"]
-
-    Save1 --> Node2["Node: Tools<br/>(fetch data)"]
-    Node2 --> Save2["💾 Save Checkpoint 2"]
-
-    Save2 --> Node3["Node: LLM<br/>(generate response)"]
-    Node3 --> Save3["💾 Save Checkpoint 3"]
-
-    Save3 --> Store["Node: Store Memory<br/>(goals & patterns)"]
-    Store --> Final["💾 Final Checkpoint"]
-
-    Final --> Response["✅ Return Response<br/>to User"]
-
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}, 'flowchart': {'nodeSpacing': 60, 'rankSpacing': 80}}}%%
+flowchart LR
+    Start["🧑 User Query"]
+    Load["📥 Load from Redis<br/>(if exists)"]
+    Execute["⚙️ LangGraph Workflow<br/>(LLM + Tools)"]
+    Save["💾 Save to Redis<br/>(after each step)"]
+    Response["✅ Return Response"]
+    
+    Start --> Load
+    Load --> Execute
+    Execute --> Save
+    Save -."Next turn".-> Load
+    Execute --> Response
+    
     style Start fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style Load fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style Check fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style Restore fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style Init fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Load fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
     style Execute fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style Node1 fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style Node2 fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style Node3 fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style Store fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style Save1 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
-    style Save2 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
-    style Save3 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
-    style Final fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style Save fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
     style Response fill:#f5f5f5,stroke:#DC382C,stroke-width:3px
 ```
 
