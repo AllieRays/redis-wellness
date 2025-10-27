@@ -84,7 +84,7 @@ flowchart TB
     UI --> Router
     Router -->|"Simple"| Simple
     Router -->|"Complex"| SimpleLoop
-
+    Simple --> RedisData
     SimpleLoop --> Tools
     Tools --> RedisData
 
@@ -127,7 +127,7 @@ flowchart TB
     Response["&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Response&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"]
 
     Query --> Router
-    Router -->|"Simple Query"
+    Router -->|"Simple Query"| GoalOp
     Router -->|"Complex"| LLM
     GoalOp --> Response
     LLM --> Decision
