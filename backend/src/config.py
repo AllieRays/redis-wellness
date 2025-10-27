@@ -1,6 +1,6 @@
 """Application configuration."""
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field
 from pydantic_settings import BaseSettings
 
 
@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     # User health context (personal medical history, injuries, goals)
     # Set in .env file - keeps personal health data private and out of git
     user_health_context: str = ""
+
+    # User timezone for display - reads from USER_TIMEZONE in .env
+    # All internal storage remains UTC, but display times convert to this timezone
+    # Format: IANA timezone database name (e.g., America/Los_Angeles, America/New_York, Europe/London)
+    user_timezone: str = Field(default="UTC")
 
     # Token limits for context management
     # Qwen 2.5 7B has ~32k effective context window

@@ -33,7 +33,8 @@ from ..utils.validation_retry import (
     build_validation_result,
     validate_and_retry_response,
 )
-from ..utils.verbosity_detector import VerbosityLevel, detect_verbosity
+
+# from ..utils.verbosity_detector import VerbosityLevel, detect_verbosity
 from .constants import (
     LOG_SYSTEM_PROMPT_PREVIEW_LENGTH,
     MAX_TOOL_ITERATIONS,
@@ -68,42 +69,42 @@ class StatelessHealthAgent:
         self.llm = create_health_llm()
         logger.info("StatelessHealthAgent initialized (no memory, simple tool calling)")
 
-    def _build_system_prompt_with_verbosity(self, verbosity: VerbosityLevel) -> str:
-        """Build system prompt with verbosity instructions."""
-        prompt_parts = [build_base_system_prompt(), ""]
+    # def _build_system_prompt_with_verbosity(self, verbosity: VerbosityLevel) -> str:
+    #     """Build system prompt with verbosity instructions."""
+    #     prompt_parts = [build_base_system_prompt(), ""]
 
-        # Add verbosity instructions (same as stateful agent)
-        if verbosity == VerbosityLevel.DETAILED:
-            prompt_parts.extend(
-                [
-                    "📊 VERBOSITY MODE: DETAILED",
-                    "User requested more information. Provide:",
-                    "- Comprehensive explanations of the data",
-                    "- Analytical insights and trends",
-                    "- Contextual interpretations (what the numbers mean)",
-                    "- Relevant comparisons to typical ranges or previous data",
-                    "- Actionable takeaways when appropriate",
-                    "",
-                ]
-            )
-        elif verbosity == VerbosityLevel.COMPREHENSIVE:
-            prompt_parts.extend(
-                [
-                    "📊 VERBOSITY MODE: COMPREHENSIVE",
-                    "User requested in-depth analysis. Provide:",
-                    "- Full breakdown of all data points",
-                    "- Statistical analysis with context",
-                    "- Health implications and interpretations",
-                    "- Comparisons across time periods",
-                    "- Detailed patterns and trends",
-                    "- Recommendations based on the data",
-                    "",
-                ]
-            )
+    #     # Add verbosity instructions (same as stateful agent)
+    #     if verbosity == VerbosityLevel.DETAILED:
+    #         prompt_parts.extend(
+    #             [
+    #                 "📊 VERBOSITY MODE: DETAILED",
+    #                 "User requested more information. Provide:",
+    #                 "- Comprehensive explanations of the data",
+    #                 "- Analytical insights and trends",
+    #                 "- Contextual interpretations (what the numbers mean)",
+    #                 "- Relevant comparisons to typical ranges or previous data",
+    #                 "- Actionable takeaways when appropriate",
+    #                 "",
+    #             ]
+    #         )
+    #     elif verbosity == VerbosityLevel.COMPREHENSIVE:
+    #         prompt_parts.extend(
+    #             [
+    #                 "📊 VERBOSITY MODE: COMPREHENSIVE",
+    #                 "User requested in-depth analysis. Provide:",
+    #                 "- Full breakdown of all data points",
+    #                 "- Statistical analysis with context",
+    #                 "- Health implications and interpretations",
+    #                 "- Comparisons across time periods",
+    #                 "- Detailed patterns and trends",
+    #                 "- Recommendations based on the data",
+    #                 "",
+    #             ]
+    #         )
 
-        # Note: TOOL-FIRST POLICY now in build_base_system_prompt() for consistency across agents
+    #     # Note: TOOL-FIRST POLICY now in build_base_system_prompt() for consistency across agents
 
-        return "\n".join(prompt_parts)
+    #     return "\n".join(prompt_parts)
 
     async def chat(
         self,
@@ -166,8 +167,8 @@ class StatelessHealthAgent:
                 return
 
             # Detect verbosity level from query (for response style only)
-            verbosity = detect_verbosity(message)
-            logger.info(f"Stateless query verbosity: {verbosity}")
+            # verbosity = detect_verbosity(message)
+            # logger.info(f"Stateless query verbosity: {verbosity}")
 
             # Create tools (health only - NO memory tools for stateless baseline)
             messages = [HumanMessage(content=message)]
@@ -178,7 +179,9 @@ class StatelessHealthAgent:
             )
 
             # Simple tool calling loop
-            system_content = self._build_system_prompt_with_verbosity(verbosity)
+            system_content = (
+                build_base_system_prompt()
+            )  # Use base prompt without verbosity
             logger.debug(
                 f"📝 Stateless system prompt preview:\n{system_content[:LOG_SYSTEM_PROMPT_PREVIEW_LENGTH]}..."
             )

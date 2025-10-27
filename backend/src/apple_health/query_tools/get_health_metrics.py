@@ -389,6 +389,10 @@ def _calculate_statistics(
         # Compute requested statistics using helper
         stats = {}
         sample_size = len(aggregated_values)
+        logger.info(
+            f"📊 Stats calculation for {metric_type}: sample_size={sample_size}, "
+            f"aggregated_values={aggregated_values[:5] if len(aggregated_values) <= 5 else aggregated_values[:3]} (showing first few)"
+        )
 
         if "average" in aggregations or "avg" in aggregations:
             avg_value = mean(values_for_stats)

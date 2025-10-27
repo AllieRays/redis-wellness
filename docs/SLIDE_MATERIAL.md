@@ -83,7 +83,7 @@ flowchart LR
     style Store fill:#fff,stroke:#333,stroke-width:2px
 ```
 
-## Short-Term Memory: Redis Checkpointing
+## Short-Term Memory: Redis Checkpointing (Horizontal)
 
 ```mermaid
 %%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}, 'flowchart': {'rankSpacing': 50, 'nodeSpacing': 30}}}%%
@@ -102,6 +102,35 @@ flowchart LR
     style CP1 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style CP2 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
     style Load1 fill:#dc382d,stroke:#dc382d,stroke-width:2px,color:#fff
+```
+
+## Short-Term Memory: Redis Checkpointing (Vertical)
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'15px'}, 'flowchart': {'rankSpacing': 60, 'nodeSpacing': 40}}}%%
+flowchart TD
+    User1["👤 Turn 1: How many steps<br/>did I take this month?"]
+    Agent1["🤖 45,230 steps in October"]
+    CP1["💾 Save to Redis<br/>Checkpoint:1"]
+    User2["👤 Turn 2: Compare that<br/>to April"]
+    Load["📥 Load from Redis<br/>(sees 'October' + '45,230')"]
+    Agent2["🤖 April: 38,150 steps<br/>18.5% increase from April"]
+    CP2["💾 Save to Redis<br/>Checkpoint:2"]
+    
+    User1 --> Agent1
+    Agent1 --> CP1
+    CP1 --> User2
+    User2 --> Load
+    Load --> Agent2
+    Agent2 --> CP2
+    
+    style User1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style User2 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Agent1 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Agent2 fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style CP1 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style Load fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
+    style CP2 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
 ```
 
 ### How It Works
