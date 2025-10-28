@@ -8,7 +8,7 @@ See why memory transforms AI from simple Q&A into intelligent conversation.
 %%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 60}}}%%
 flowchart LR
     S1["👤 Turn 1:<br/>'What was my heart rate?'"]
-    S2["📊 Redis Health Data"]
+    S2["📊 Redis Health Data Store"]
     S3["💬 '72 bpm'"]
     S4["👤 Turn 2:<br/>'Is that good?'"]
     S5["❌ No context!<br/>What are you<br/>referring to?"]
@@ -31,7 +31,7 @@ flowchart LR
 %%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 60}}}%%
 flowchart LR
     T1["👤 Turn 1:<br/>'What was my heart rate?'"]
-    T2["📊 Redis Health Data"]
+    T2["📊 Redis Health Data Store"]
     T3["💬 '72 bpm'"]
     T4["💾 Save to Redis<br/>Checkpoint"]
     T5["👤 Turn 2:<br/>'Is that good?'"]
