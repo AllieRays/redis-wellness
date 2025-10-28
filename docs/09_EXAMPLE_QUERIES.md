@@ -2,48 +2,48 @@
 
 See why memory transforms AI from simple Q&A into intelligent conversation.
 
+### ❌ Stateless Agent (No Memory)
+
 ```mermaid
 %%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 60}}}%%
 flowchart LR
-    subgraph Stateless["❌ Stateless Agent (No Memory)"]
-        direction LR
-        S1["👤 Turn 1:<br/>'What was my heart rate?'"]
-        S2["📊 Redis Health Data"]
-        S3["💬 '72 bpm'"]
-        S4["👤 Turn 2:<br/>'Is that good?'"]
-        S5["❌ No context!<br/>What are you<br/>referring to?"]
+    S1["👤 Turn 1:<br/>'What was my heart rate?'"]
+    S2["📊 Redis Health Data"]
+    S3["💬 '72 bpm'"]
+    S4["👤 Turn 2:<br/>'Is that good?'"]
+    S5["❌ No context!<br/>What are you<br/>referring to?"]
 
-        S1 --> S2
-        S2 --> S3
-        S3 -."forgets everything".-> S4
-        S4 --> S5
-    end
-
-    subgraph Stateful["✅ Stateful Agent (With Memory)"]
-        direction LR
-        T1["👤 Turn 1:<br/>'What was my heart rate?'"]
-        T2["📊 Redis Health Data"]
-        T3["💬 '72 bpm'"]
-        T4["💾 Save to Redis<br/>Checkpoint"]
-        T5["👤 Turn 2:<br/>'Is that good?'"]
-        T6["💾 Load from Redis<br/>(sees '72 bpm')"]
-        T7["✅ '72 bpm is within<br/>normal range...'"]
-
-        T1 --> T2
-        T2 --> T3
-        T3 --> T4
-        T4 --> T5
-        T5 --> T6
-        T6 --> T7
-    end
-
-    Stateless -.-> Stateful
+    S1 --> S2
+    S2 --> S3
+    S3 -."forgets everything".-> S4
+    S4 --> S5
 
     style S1 fill:#f5f5f5,stroke:#333,stroke-width:2px
     style S2 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff
     style S3 fill:#f5f5f5,stroke:#333,stroke-width:2px
     style S4 fill:#f5f5f5,stroke:#333,stroke-width:2px
     style S5 fill:#f5f5f5,stroke:#333,stroke-width:2px
+```
+
+### ✅ Stateful Agent (With Memory)
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 60}}}%%
+flowchart LR
+    T1["👤 Turn 1:<br/>'What was my heart rate?'"]
+    T2["📊 Redis Health Data"]
+    T3["💬 '72 bpm'"]
+    T4["💾 Save to Redis<br/>Checkpoint"]
+    T5["👤 Turn 2:<br/>'Is that good?'"]
+    T6["💾 Load from Redis<br/>(sees '72 bpm')"]
+    T7["✅ '72 bpm is within<br/>normal range...'"]
+
+    T1 --> T2
+    T2 --> T3
+    T3 --> T4
+    T4 --> T5
+    T5 --> T6
+    T6 --> T7
 
     style T1 fill:#f5f5f5,stroke:#333,stroke-width:2px
     style T2 fill:#DC382C,stroke:#DC382C,stroke-width:2px,color:#fff

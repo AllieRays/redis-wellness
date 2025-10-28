@@ -87,7 +87,7 @@ REDIS_NO_EXPIRY = -1  # TTL value indicating key has no expiration
 # ========== Agent & LLM Constants ==========
 
 # Tool calling limits
-MAX_TOOL_ITERATIONS = 8  # Maximum agent iterations before stopping
+# NOTE: MAX_TOOL_ITERATIONS moved to agents/constants.py (agent-specific)
 MAX_TOOLS_PER_CALL = 5  # Maximum tools agent can call at once
 
 # Response generation
@@ -196,8 +196,6 @@ __all__ = [
     # Workouts
     "DEFAULT_WORKOUT_SEARCH_DAYS",
     "EXTENDED_WORKOUT_SEARCH_DAYS",
-    # Agent
-    "MAX_TOOL_ITERATIONS",
     # Validation
     "NUMERIC_TOLERANCE_PERCENT",
     # Memory
